@@ -83,6 +83,8 @@ def main():
     a=p.parse_args()
     root,bundle,exe=a.output.resolve(),a.bundle.resolve(),a.emulator.resolve()
     items=json.loads(a.manifest.read_text('utf8'))
+    # Sessions change cwd to isolate Bfile storage; pin caller-relative inputs now.
+    for item in items:item['source']=str(Path(item['source']).resolve())
     root.mkdir(parents=True,exist_ok=True)
     results=[]
 
