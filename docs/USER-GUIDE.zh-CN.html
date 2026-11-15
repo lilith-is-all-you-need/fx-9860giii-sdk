@@ -1,0 +1,30 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>Fx Studio 使用说明</title><link rel="stylesheet" href="style.css">
+<header><small>Fx Studio 0.2.0 · 简体中文 / <a href="USER-GUIDE.en.html">English</a></small><h1>从 C/C++ 到计算器插件</h1><p>编辑工程、构建 G1A、调试实际 SuperH 程序，在同一窗口操作计算器屏幕和按键。</p></header>
+<h2>0.2.0 新增操作</h2><p>暂停原因和当前栈帧显示在检查器上方；刷新不会抢走已选面板。反汇编页可执行指令单步，快捷键为 Ctrl+Alt+F10/F11；断点页可启用/禁用并保存。右侧可放大实际计算器画面或保存原分辨率PNG。工程树双击源图片可只读预览尺寸、透明区域及整数倍放大；这不是转换后fxconv资源预览。</p><p>LLM和脚本使用 <code>FxStudio.Agent.exe --stdio</code>；无需在IDE里操作鼠标。接口提供能力发现、版本化命令、后台操作、重试去重、取消、事件和实际调试快照。参阅<a href="AUTOMATION.md">调用约定及接入配置</a>、<a href="SDK-CAPABILITIES.zh-CN.html">SDK与资源支持范围</a>。自动化当前使用独立会话，不能接管GUI已经打开的会话。</p>
+<h2>安装与打开</h2><p>将完整发行包解压到可写目录，运行 <code>FxStudio.exe</code>。自包含 GUI 不要求另外安装 .NET。原生 SDK、GDB 和模拟器随完整发行包运行，不访问在线服务；是否包含完整编译工具链，以发行包的验证报告为准。</p>
+<p>建议目录为 <code>C:\FxStudio</code>。工程目录可以有中文、空格和单引号；原生 GNU 工具在单独的缓存目录内编译。SDK 所在目录包含中文或单引号且无短文件名时，首次构建会自动将工具链缓存到英文路径，额外占用约 400 MB；后续校验后复用，更新 SDK 后自动创建对应快照。无需搬动离线包。若自定义构建缓存本身也没有可用的英文路径，请在“工具 → 设置”选择英文缓存路径。默认缓存位于当前用户临时目录，最终 ELF/G1A 则保存在工程中。</p>
+<p>界面语言在“工具 → Language”切换。已实测主机为 Windows 10 x64 build 19045；其他版本的支持边界见发行说明。</p>
+<h2>新建和构建</h2><ol><li>选择“文件 → 新建 C/C++ 工程”，填写名称、语言并选父目录；或者使用“打开示例”。</li><li>编辑 <code>src/main.c</code> 或 <code>src/main.cpp</code>。增加源文件后，把文件加入 <code>CMakeLists.txt</code> 的目标源列表。</li><li>选择 Debug，按 <kbd>Ctrl+Shift+B</kbd>。构建日志位于下方“构建输出”。失败会显示实际错误，不保留此前的成功产物状态。</li><li>最终产物位于 <code>.fxstudio/build/Debug/artifacts</code> 或 Release 对应目录。ELF 用于调试，G1A 用于计算器。</li></ol>
+<p>普通工程打开其 <code>CMakeLists.txt</code> 即可。工程设置保存在 <code>project.fxide.json</code>，源目录和构建目录以相对路径保存，方便整体搬移。需要多个目标时，用工程根目录 <code>fxide.json</code> 指定：</p>
+<pre>{"target":"counter","cmake":{"MY_OPTION":"ON"}}</pre>
+<p>默认自动选择随包原生 SDK；<code>project.fxide.json</code> 中 <code>backend</code> 可为 <code>auto</code>、<code>native</code> 或 <code>wsl</code>。WSL 模式需要先安装独立工具链发行版，并在设置中填写名称。原生模式不需要 WSL。</p>
+<h2>断点与实时屏幕</h2><ol><li>在源码左侧空白栏点击，或把光标放在某行按 <kbd>F9</kbd> 设置断点。</li><li><kbd>F5</kbd> 构建 Debug 并启动；首先停在 main。再按 F5 继续。</li><li>程序运行后点击右侧计算器按键。屏幕由同一个 SuperH 程序执行生成；暂停时画面与模拟时间都停止。</li><li>用 F10 单步越过、F11 进入函数、Shift+F11 返回调用者。Ctrl+F10 运行到光标。</li><li>结束时按 Shift+F5。停止会释放本次启动的调试器和模拟器，并保留最后屏幕供查看。</li></ol>
+<table><tr><th>面板</th><th>用法</th></tr><tr><td>局部变量</td><td>显示当前栈帧变量。双击展开结构体/数组/指针；“设置值”写入真实目标。空的聚合值可双击查看成员。</td></tr><tr><td>观察</td><td>添加 C/C++ 表达式，例如 <code>counter.value</code>。表达式由 GDB 执行，赋值或函数调用可能改变目标状态。</td></tr><tr><td>调用栈</td><td>双击栈帧切换对应源码与变量作用域。</td></tr><tr><td>断点</td><td>可添加条件、删除断点，或建立 write / read / access 数据监视点。</td></tr><tr><td>寄存器</td><td>读取真实 CPU 状态，暂停时可修改。未实现的寄存器显示不可用。</td></tr><tr><td>内存</td><td>用地址或表达式读取，例如 <code>$sp</code>；支持写入十六进制字节。MMIO 调试读取会明确拒绝。</td></tr><tr><td>反汇编</td><td>显示当前 PC 附近真实 SuperH 指令和机器码。</td></tr></table>
+<p>“Restart”重新构建并启动普通工程；载入已有产物时则重新启动同一对经过校验的文件。编辑器在构建和调试期间只读。停止后编辑会撤销旧产物状态；保存时若外部程序修改了同一个文件，会提供覆盖、重新载入或取消选项。</p>
+<h2>调试已有 ELF / G1A</h2><p>选择“调试 → 加载已有编译产物”，打开一个 <code>.fxdebug.json</code> 描述文件。文件路径相对于描述文件解析；sourceMappings 的 from 是 DWARF 中原始编译目录，to 是本机对应源码快照。</p>
+<pre>{
+  "schemaVersion": 1,
+  "name": "My add-in",
+  "elf": "artifacts/addin.elf",
+  "g1a": "artifacts/addin.g1a",
+  "sourceDirectory": "source",
+  "sourceMappings": [
+    {"from":"/old/build/source","to":"source"}
+  ]
+}</pre>
+<p>这一路径只需要原生 GDB 和模拟器，不需要编译器或 WSL。源码只读，F5 直接执行所载入产物。ELF 与 G1A 的所有加载字节必须一致；否则拒绝启动。可增加 <code>elfSha256</code> / <code>g1aSha256</code> 固定文件。源码本身应使用该版本的快照，二进制配对校验不验证源码文本。</p>
+<h2>Debug、Release 与 C++ 范围</h2><p>Debug 强制用户源码使用 <code>-Og -g3 -fno-lto</code>；最终链接允许处理 SDK 的预编译 LTO 库。SDK 库的优化不会被这一配置撤销，某些库变量可能显示 <code>&lt;optimized out&gt;</code>。Release 保留工程自己的优化选项。稳定 C++ 运行库不支持异常和线程，<code>throw</code>/<code>catch</code> 会报编译错误。</p>
+<p>C++ 模板显式链接 stdc++。现有工程使用 vector、string、new 等功能时，应写 <code>target_link_libraries(你的目标 stdc++ Gint::Gint)</code>。已验证 vector/string 堆操作和 RAII 析构；未声称覆盖所有标准库功能。</p><h2>导出与真机检查</h2><p>选择 Release 构建后，用“文件 → 导出 G1A”。把 G1A 复制到 fx-9860GIII 存储、退出传输模式并在计算器端确认图标、启动、显示与按键。没有接入真机时，IDE 不能确认这些步骤已经通过。SDK 不安装到计算器，计算器接收编译出的插件。</p>
+<p>模拟器覆盖 GIII 类 CPU、屏幕、键盘和部分系统调用，并非完整 Casio OS。USB、内置应用、部分外设与 DSP 功能存在限制；不把仿真通过当作所有硬件/OS 版本都兼容。当前 2,000,000 字节 G1A 限制是保守工程门禁。</p>
+<h2>离线排查</h2><ul><li><strong>工具缺失：</strong>检查完整发行包是否解压，以及设置中的 SDK/GDB/模拟器路径。无需在线恢复 NuGet 或下载 .NET。</li><li><strong>WSL 无响应：</strong>取消构建；路径转换在 15 秒内超时并报告。原生后端可独立工作。IDE 不会自动重启或终止其他 WSL 发行版。</li><li><strong>无法打开源码：</strong>检查 sourceMappings 与本机快照。仍可使用寄存器、内存及反汇编调试。</li><li><strong>目标错误：</strong>查看构建输出中的模拟器和 GDB 消息；不支持的指令或系统调用不会显示为正常成功。</li></ul>
+<p><a href="RESEARCH.zh-CN.html">开发工具研究</a> · <a href="VALIDATION.html">交付验证与限制</a></p><p>示例调用gint_setrestart(1)，以支持设备上EXIT后直接重新进入。模拟器没有真实OS菜单，因此EXIT后会立即重新开始；结束电脑调试请使用IDE“停止”。</p></html>

@@ -1,0 +1,33 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>fx-9860GIII 开发工具研究</title><link rel="stylesheet" href="style.css">
+<header><small>Fx Studio · 开发工具调查 · 2026-11-14</small><h1>现有工程、离线部署与调试预览</h1><p>目标是开发最终能交给 fx-9860GIII 的 C/C++ 插件。计算器接收的是 <code>.g1a</code> 文件；SDK 与 IDE 运行在电脑上。</p></header>
+<h2>1. khicas-addin 包含什么</h2>
+<p>它是一套使用 fxSDK / gint 的 KhiCAS 应用工程，并不是完整 SDK。正式 CMake 入口有 COMPACT 与 NUMERIC 两种后端；较新的 Giac、异常运行库与大型链接实验还分散在 tools / audit 中。普通 C/C++ 开发不应默认采用这些实验配置。</p>
+<table><tr><th>内容</th><th>作用</th><th>对新 IDE 的意义</th></tr>
+<tr><td>src、assets、CMakeLists.txt</td><td>计算器入口、界面、Compact CAS、Giac 适配、图标</td><td>可作为真实应用与回归样本</td></tr>
+<tr><td>tests</td><td>主机算法测试、按键和像素回归、SuperH 探针</td><td>可保留，但主机预览和 QEMU Linux 探针不能代替最终 G1A 仿真</td></tr>
+<tr><td>tools、audit</td><td>构建恢复、链接、体积、运行库、符号与发布检查</td><td>包含机器固定路径和实验状态，不能直接包装成通用 SDK</td></tr>
+<tr><td>dependencies</td><td>Giac 等源包和基本 Ubuntu 镜像</td><td>缺编译器及宿主完整依赖闭包</td></tr>
+<tr><td>releases</td><td>CAS01/CAS02 等候选、源码快照与历史验证</td><td>可以验证历史程序，但不能冒充新 IDE 已重新构建</td></tr></table>
+<p>本机可确认的稳定工具版本为 fxSDK 2.11.0、GCC 14.1.0、binutils 2.42、gint 2.11.0，配合 fxlibc、OpenLibm、libstdc++。原恢复 WSL 环境缺少 CMake、Pillow、部分模块和宿主库；只复制 <code>bin</code> 或项目目录无法离线开发。</p>
+<h2>2. 能否完全离线部署</h2>
+<p><strong>技术上可以。</strong>编译、链接、生成 G1A、模拟器和 GDB 都不需要在线服务。必须把版本固定的编译器、目标头文件/库、CMake、资源转换器、Python/Pillow及许可证、源码一并准备好，并在新目录中验证。外部下载依赖的 CMake 项目需先把依赖纳入工程。</p>
+<p>最初选用独立 WSL1 发行版保存完整 Linux 工具链。本机 WSL 全局服务随后挂起，且当前进程无服务重启权限；用户要求暂不重启。因此没有把未导出的 rootfs 标为已交付离线镜像。现已完成原生 Windows 后端，使用同版本 SuperH 编译器与目标库，绕过 WSL 服务；新 C/C++ 四种配置及整包搬移验证均通过，详见交付验证记录。</p>
+<p>对外发行只包含可再分发组件。官方 Casio SDK、官方模拟器、Casio ROM、个人 Linux 目录和历史 KhiCAS 测试件不混入公开运行包。GNU 组件保留对应源码、构建脚本和许可证；GUI 的自包含 .NET 运行时保留微软原始通知。</p>
+<h2>3. 能否像 C:\9860 一样“所见即所得”</h2>
+<p><strong>可以实现运行时屏幕与按键，并与源码调试同步。</strong>这里按用户定义采用运行预览，不是拖放式界面设计器。源码在同一模拟会话中断住时，右侧画面来自已经执行的 SuperH 程序，而不是 Windows 上重新编译的界面替身。</p>
+<p>官方 SDK 的本地帮助确认了工程编辑器、计算器屏幕、源码/地址断点、条件与读写访问断点、单步进入/越过/返回、变量、栈、寄存器、内存及反汇编。其默认编译参数为 SH3，不能据此推断能完整模拟 GIII。官方 GUI 截图在本机捕获超时，功能依据其本地帮助与官方指南核对，未反编译或分发专有程序。参见 <a href="https://edu.casio.ru/download/fx9860g_sdk_starters_guide.pdf">Casio 官方 SDK 入门指南</a>。</p>
+<h2>4. 实际实现的设计</h2>
+<table><tr><th>层</th><th>实现</th><th>选择原因</th></tr>
+<tr><td>桌面 IDE</td><td>WPF + AvalonEdit，中文/英文，原生 Windows 控件，轻量 Fluent 风格</td><td>编辑体验完整，不带浏览器内核；自包含包无需先安装 .NET SDK</td></tr>
+<tr><td>构建</td><td>原生 Windows 或独立 WSL；CMake、GCC14.1、fxSDK/gint</td><td>复用标准 C/C++ 工程，Debug/Release 分离，原源码不被构建适配器修改</td></tr>
+<tr><td>调试器</td><td>独立 GDB 16.3，MI2 连接 IDE，远程协议连接模拟器</td><td>变量/栈/DWARF/单步由真实调试器处理</td></tr>
+<tr><td>执行和预览</td><td>MIT 许可 emuCasioCalc 的 GIII 类 SH7305 配置，加 Windows 调试桥</td><td>直接执行最终 G1A；不依赖 Casio ROM</td></tr>
+<tr><td>一致性</td><td>逐段对比 ELF 物理加载地址与 G1A payload，复核 SHA-256</td><td>拒绝旧 ELF 搭配新 G1A，避免错误行号和变量伪装成正确调试</td></tr></table>
+<p>Debug 的用户源码用 <code>-Og -g3 -fno-lto</code> 编译；预编译 SDK 库中存在精简 LTO 对象，最终链接仍需启用 GCC14.1 的 LTO 插件。库本身的优化限制会明确显示为 <code>&lt;optimized out&gt;</code>。C++ 基线支持模板、RAII 和容器，默认不支持异常和线程，不混入 Giac 的自定义 SJLJ 运行库。</p>
+<h2>已取得的真实证据</h2>
+<p>CAS02 的实际 G1A 在原生模拟器中接收 <code>2 + 2 EXE</code> 并显示 <code>=4</code>。CAS01 找到完全匹配的历史 ELF，三个非空加载段、105,288 个 payload 字节逐一对应，完成 main 断点、局部变量、ui_draw → main 调用栈、next/step/finish 与停点画面变化。相同 ELF 搭配 CAS02 被校验器拒绝，首个差异位于 <code>0x0030022A</code>。</p>
+<p>WPF 界面实际接入该会话，在 main:78 停住并显示 Starting CAS；执行行高亮、局部变量和右侧画面来自同一会话。协议、坏输入、取消、并发释放与源文件暂存也有独立检查。随后新工具链的 C/C++ 四种配置也分别完成构建、按键、屏幕与调试验证；历史包与新编译产物的证据分开保存，详见交付验证记录。</p>
+<h2>明确边界</h2>
+<ul><li>模拟器不等于完整 Casio OS：内置菜单应用、USB、部分外设和 DSP 算术指令尚不完整。未知指令/调用应报错。调试查看 MMIO 会拒绝，避免读寄存器改变设备行为。</li><li>运行速度并非周期精确；暂停会冻结模拟 CPU 和时间，按键只能在运行时输入。</li><li>当前没有连接真机。设备识别、安装、OS 差异和实际硬件行为需要人工检查。电脑端远程调试不能代替这一步。</li><li>依据新增设备反馈采用完整文件 2,000,000 字节的保守 G1A 门禁，这是工程经验限制，不声称是已经证明的所有 Casio OS 精确上限。大型 Giac 容量问题不会被 IDE 自动解决。</li></ul>
+<p>上游依据：<a href="https://github.com/joserodpt/emuCasioCalc">emuCasioCalc 源码</a>、<a href="https://silent-tower.net/projects/gint">gint</a>、<a href="https://github.com/icsharpcode/AvalonEdit">AvalonEdit</a>、<a href="https://learn.microsoft.com/en-us/windows/wsl/install">微软 WSL 安装说明</a>、<a href="https://learn.microsoft.com/en-us/dotnet/core/install/windows">.NET Windows 安装与支持范围</a>。本机已实测 Windows 10 企业版 x64，build 19045；未声称测试了所有 Windows 10 历史版本。</p>
+<p>新增：<a href="KHICAS-REUSE.zh-CN.html">KhiCAS可复用组件、开发经验与验证边界</a>。</p></html>

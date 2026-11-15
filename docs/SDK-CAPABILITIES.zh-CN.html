@@ -1,0 +1,29 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FxStudio 0.2.0：支持范围与设计</title>
+<style>body{max-width:1040px;margin:40px auto;padding:0 24px;font:16px/1.8 system-ui;color:#20333d;background:#f7f9fa}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #ccd7dc;padding:12px;text-align:left;vertical-align:top}code{background:#e5edf0;padding:2px 4px}a{color:#13645c}.note{border-left:4px solid #74968c;padding:8px 16px;background:white}</style>
+<h1>FxStudio 0.2.0：SDK、资源与调试支持范围</h1>
+<p>2026-11-15。基于本地发行组件与源代码核验，并运行实际 SuperH 二进制探针。0.2.0 保留 0.1.1 的编译器、gint 和模拟器，增加自动化服务、调试界面改进和源图片预览。本页区分真实计算器能运行的代码、模拟器支持的行为，以及 IDE 已提供的操作。</p>
+<h2>1. Casio 系统调用</h2>
+<p><strong>实现了可用子集，没有完整模拟 Casio OS。</strong>当前单色机型分发表有 121 个注册入口，其中 11 个显式空操作；注册数不等于完整实现数，也不是覆盖率。常用绘图、文字、GetKey、RTC、部分 OS 定时器、BFile/MCS 和内存分配有实现。未知调用报告 CPU 错误与调用信息；已注册的空操作可能返回成功但不产生实际效果。</p>
+<p>光标/重复键控制、关机和部分退出处理属于简化或空操作；系统菜单、USB/真实串口没有完整实现。BFile 映射为宿主文件，模拟容量 16 MiB，部分非 ASCII 设备文件名被替换。OS 模型报告 03.60.0200、堆预算 192 KiB，不能替代用户 03.70 固件的实机内存测试。不要用模拟器分配成功证明真机预算。</p>
+<p>模型实际使用上游 <code>MODEL_FX9750G3</code> 的 SH7305 单色平台配置。历史报告引用的 <code>DisplayMainMenu 0x1E6A</code> 属于 CG 表，不能当作 GIII 调用号；GIII 系统菜单不完整的结论来自 FX GetKey 的 MENU 处理与真实重入测试。</p>
+<h2>2. gint 内部复杂绘图</h2>
+<p>这些绘图函数作为 SuperH 代码在模拟器中执行，最终由模拟 LCD 显示。新探针使用发行包编译了 35,340 字节 G1A，完成 ELF/G1A 全部载入字节配对；裁剪、多边形、圆、椭圆、越界线、透明图片与局部图片、自定义位图字体七项检查全部通过，并确认四档灰度显示和退出灰度恢复。</p>
+<p>灰度预览现在有实际验证证据；它仍不等于真实 LCD 的闪烁、响应时间或速度测量。<code>gint/image.h</code> 的通用旋转、缩放和 RGB565/P8/P4 操作目前主要面向 fx-CG，不能直接当作 fx-9860GIII 能力。未宣称验证了所有参数组合、3D 引擎或所有字体编码。</p>
+<h2>3. fxSDK 与旧项目</h2>
+<p><strong>离线 G1A 核心构建链路完整可用，fxSDK 命令套件并不完整。</strong>包含 GCC/binutils、gint/fxlibc/OpenLibm/libstdc++、CMake/Ninja、fxgxa、fxconv、Python/Pillow 和 fxSDK CMake 模块。<code>fxsdk.exe</code> 是提供路径/版本查询的原生适配器，没有完整上游 new/build/send/install 命令，也没有 fxlink、完整 GiteaPC 或 USB 传输工具。</p>
+<p>CMake+gint 工程最容易迁移；依赖 POSIX 脚本、硬编码 Linux 路径、额外 Python 包或第三方库的项目需要调整。官方 Casio SHC/fxlib 工程需要迁移工程配置和 API；不能把旧二进制库任意混链。俄罗斯方块的迁移使用了项目专用兼容层，不能视为已经提供完整 fxlib。</p>
+<h2>4. 资源导入、转换与压缩</h2>
+<p>fxconv 的图片、位图字体、二进制和项目自定义转换器可用，且透明 PNG/字体已经完成转换→链接→实际绘制验证。当前仍需维护文件、<code>fxconv-metadata.txt</code>、CMake 清单与 C/C++ 外部声明。</p>
+<p><strong>尚无完整资源导入向导、自动压缩或资源预算管理。</strong>自动选择较小颜色/位平面格式不等于通用 RLE/LZ 压缩，PNG 文件小也不意味着编入程序后的资源同样小。通用压缩还需设备端解压、峰值内存和速度策略。TTF/OTF 导入、动画编辑、地图/音频专用管线均未作为完整功能交付。</p>
+<h2>5. 资源预览</h2>
+<p>0.2.0 增加 PNG/BMP/JPEG/GIF/TIFF/ICO 的只读源图片预览，支持尺寸、字节数、透明棋盘和整数倍放大；多帧文件明确只显示首帧。未知二进制仅显示文件信息，不能误当源码保存。</p>
+<p>这仍是<strong>源文件预览</strong>：未提供转换后 bopti、字形表、动画、压缩前后对比或资源 RAM/ROM 用量面板。程序运行画面可以验证最终绘制效果，但需要构建和运行。</p>
+<h2>6. 人类使用的调试界面</h2>
+<p>0.2.0 补充双语暂停原因与当前栈帧、运行时旧变量提示、操作状态禁用、指令单步、断点启用/禁用及持久保存；刷新保留检查器页。屏幕可单独整数倍放大并保存原分辨率 PNG。源码缺失或一个读取项失败时，其余检查项仍能继续显示。</p>
+<p>现有断点、监视点、源码/指令单步、调用栈、变量、寄存器、内存和反汇编可用。体验仍不是成熟 Visual Studio 的全部能力：没有反向调试、完整执行历史、性能分析和完整容器可视化；预优化 SDK 库内部源码/变量也可能不完整。</p>
+<h2>稳定的 LLM 调用设计</h2>
+<p>新增自包含 <code>FxStudio.Agent.exe --stdio</code>，使用标准 MCP。固定四个外层工具分别负责发现、提交、操作查询/取消、事件读取；具体功能放在有独立版本与参数 schema 的命令目录中。构建/调试业务位于独立 Automation 层，底层继续使用 Core，协议不侵入 GDB 实现。</p>
+<p>包含会话、幂等请求键、异步操作、稳定错误码、事件游标/丢失提示、暂停状态快照及实际 PNG 画面。运行态不伪造同步变量；任意表达式求值显式标记为可能修改目标。新增兼容功能扩展目录与可选字段，破坏性变化必须升版本。完整约定及调用示例见 <a href="AUTOMATION.md">AUTOMATION.md</a>。</p>
+<p class="note">当前自动化拥有独立会话，还不能接管桌面 IDE 已经打开的调试会话；没有伪称人类与模型已经共享同一会话。此版本也未补齐完整 syscall、fxSDK 全命令和自动资源压缩。相关能力应作为独立后端/领域服务扩展，再通过命令目录公布。</p>
+<p>验证记录：<a href="../validation/automation.json">MCP 实际构建与调试</a>、<a href="../validation/ui-0.2.0.json">界面交互与渲染</a>、<a href="../validation/graphics-audit.json">gint 图形探针</a>。源码包包含探针与测试脚本。外部协议依据见 <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/transports">MCP 官方规范</a>；这些证据没有被扩大为真机全功能认证。</p>
+</html>

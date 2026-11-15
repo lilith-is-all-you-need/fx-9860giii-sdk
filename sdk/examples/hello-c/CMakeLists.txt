@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.15)
+project(FxHelloC C)
+include(GenerateG1A)
+find_package(Gint 2.9 REQUIRED)
+add_executable(hello_c main.c)
+target_compile_options(hello_c PRIVATE -Os -flto=auto -Wall -Wextra)
+target_link_options(hello_c PRIVATE -flto=auto)
+target_link_libraries(hello_c Gint::Gint)
+generate_g1a(TARGET hello_c OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hello_c.g1a"
+  NAME "FxHelloC" INTERNAL "@FXIDEC" VERSION "01.00.0001")

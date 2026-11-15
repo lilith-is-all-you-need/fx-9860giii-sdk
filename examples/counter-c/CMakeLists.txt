@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.15)
+project(FxStudioCounterC C)
+include(GenerateG1A)
+find_package(Gint 2.9 REQUIRED)
+add_executable(counter_c src/main.c)
+target_compile_options(counter_c PRIVATE -Wall -Wextra)
+target_link_libraries(counter_c Gint::Gint)
+generate_g1a(TARGET counter_c OUTPUT "CounterC.g1a" NAME "Counter C" INTERNAL "@FXCNTC" ICON "assets/icon.png")

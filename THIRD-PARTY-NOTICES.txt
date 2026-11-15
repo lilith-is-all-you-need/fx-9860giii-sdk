@@ -1,0 +1,39 @@
+Fx Studio third-party components
+================================
+
+Fx Studio App/Core and the original integration code: MIT (LICENSE).
+
+AvalonEdit 6.3.1.120
+  Copyright AvalonEdit Contributors; MIT.
+  https://github.com/icsharpcode/AvalonEdit
+  The original license is preserved in licenses/AvalonEdit-LICENSE.txt.
+
+.NET Runtime and Windows Desktop Runtime 10.0.15
+  Copyright .NET Foundation and contributors; MIT and embedded third-party notices.
+  https://github.com/dotnet/runtime/tree/v10.0.15
+  https://github.com/dotnet/wpf/tree/v10.0.15
+  License and third-party notices are preserved in licenses/dotnet/.
+  The application is self-contained; no machine-wide .NET installation is required.
+
+emuCasioCalc (commit 63e325708e9eea53eb4769b9c057082614ebd919)
+  Copyright josé / josé rodrigues; MIT. See the authoritative bundled license.
+  https://github.com/joserodpt/emuCasioCalc
+  Fx Studio's bridge is a separate executable. The source package preserves
+  upstream files plus prepare_sources.py and debugger-hooks.patch.
+
+GNU GDB 16.3 and its static dependencies
+  GDB: GPL version 3 or later; bundled licenses/source archives are mandatory.
+  The native-gdb package records dependency versions, build options and hashes.
+  GDB runs as a separate process using the documented GDB/MI protocol.
+  https://www.gnu.org/software/gdb/
+
+The SDK toolchain has its own license/source inventory. GCC, binutils, runtime
+libraries, fxSDK, gint, fxlibc, OpenLibm and Linux host packages are not covered
+by the Fx Studio MIT license. Do not publish an incomplete toolchain directory
+as a finished offline distribution.
+
+The CAS01/CAS02 historical KhiCAS fixtures and official Casio SDK files were
+used only for local research/testing. They are not part of the public runtime
+package. Casio software, operating-system ROMs, and the user's WSL distributions
+are not included. fx-9860GIII is a Casio product name; Fx Studio is independent
+software and is not an official Casio product.

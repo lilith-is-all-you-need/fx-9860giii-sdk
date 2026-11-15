@@ -1,0 +1,12 @@
+sprite.png:
+  type: bopti-image
+  name: audit_sprite
+  profile: mono_alpha
+
+digits.png:
+  type: font
+  name: audit_digits
+  charset: numeric
+  grid.size: 3x5
+  proportional: false
+  char-spacing: 1

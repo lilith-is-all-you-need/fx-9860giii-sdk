@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.15)
+project(FxHelloCpp C CXX)
+include(GenerateG1A)
+find_package(Gint 2.9 REQUIRED)
+add_executable(hello_cpp main.cpp)
+target_compile_features(hello_cpp PRIVATE cxx_std_17)
+target_compile_options(hello_cpp PRIVATE -Os -flto=auto -Wall -Wextra)
+target_link_options(hello_cpp PRIVATE -flto=auto)
+target_link_libraries(hello_cpp Gint::Gint)
+generate_g1a(TARGET hello_cpp OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/hello_cpp.g1a"
+  NAME "FXCpp" INTERNAL "@FXIDEPP" VERSION "01.00.0001")

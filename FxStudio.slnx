@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FxStudio.App/FxStudio.App.csproj" />
+    <Project Path="src/FxStudio.Core/FxStudio.Core.csproj" />
+    <Project Path="src/FxStudio.Automation/FxStudio.Automation.csproj" />
+    <Project Path="src/FxStudio.Agent/FxStudio.Agent.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FxStudio.Core.Tests/FxStudio.Core.Tests.csproj" />
+    <Project Path="tests/FxStudio.Automation.Tests/FxStudio.Automation.Tests.csproj" />
+  </Folder>
+</Solution>

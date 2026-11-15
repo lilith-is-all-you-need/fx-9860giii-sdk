@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>KhiCAS 可复用组件与开发经验</title><link rel="stylesheet" href="style.css">
+<header><small>Fx Studio 0.1.1 · 2026-11-14</small><h1>KhiCAS 目录里值得复用的东西</h1><p>本轮重新读取 khicas-addin 的当前源码、测试、构建文件和审计记录。下面的文件路径均相对于该目录；行号对应本次读取版本。原目录未修改。</p></header>
+<div class="note"><strong>结论：</strong>它已经包含不少计算器应用开发基础设施，尤其是输入界面、按键回放、绘图视口和老 fxlib 接口适配。应优先抽取这些有明确边界的组件。完整 Giac、异常运行库和动态模块加载还不能直接当成通用 SDK 模板。</div>
+<h2>优先考虑的八项</h2>
+<table><tr><th>组件与位置</th><th>能省下什么工作</th><th>迁移判断与证据边界</th></tr>
+<tr><td><strong>生命周期与取消</strong><br><code>src/main.c:23,86,91,128</code></td><td>启动、计算中取消、按键队列、返回菜单与退出清理。<code>gint_setrestart(1)</code> 解决退出后不能直接再进入同一个插件的问题。</td><td>低成本，优先采用。LIB34 的设备记录确认有限诊断程序退出/重入有效。Fx Studio 的两个示例已调用此标准 gint API；没有移植整个 CAS 主循环。</td></tr>
+<tr><td><strong>固定容量 UI</strong><br><code>src/ui.h:30,88</code><br><code>src/ui.c:274,319,384,541,844</code></td><td>输入与光标滚动、8条历史和草稿、SHIFT/ALPHA、六软键目录、结果和错误滚动。状态机向 main 返回动作，绘制和求值分离。</td><td>中等成本，很适合制作“计算器端 UI 模板”。当前输入缓冲96字节，结果默认1024字节；目录内容与数学键语义需参数化，输出文字由调用方持有。CAS02有主机与处理器回放记录，不等于全部硬件行为已验收。</td></tr>
+<tr><td><strong>事件回放和画面测试</strong><br><code>tests/run_ui_host.sh</code><br><code>tests/ui_host.c</code><br><code>tests/ui_host_display.c</code></td><td>复用实际 main/UI、gint keydev/getkey 和字体；回放按下、释放、连发和修饰键，检查屏幕边界及动作。ASan/UBSan能发现越界和未定义行为。</td><td>中等成本。runner依赖bash、Linux工具和主机编译器，需要改Windows入口。适合快速回归；Fx Studio现有真实G1A模拟应继续保留，两者覆盖的错误不同。</td></tr>
+<tr><td><strong>独立绘图视口</strong><br><code>src/plot_view.h:26</code><br><code>src/plot_view.c:69,101,179,194</code></td><td>点、线段、直线、射线、范围适配、坐标轴、平移、缩放和复位。通过数据源回调绘制，可用于采样函数或曲线。</td><td>低至中成本。只抽取视口通常无需整个Giac，需独立少量状态码；借用数据不拥有数学对象。三维只有固定投影。已有四图处理器回放使用OS替身。</td></tr>
+<tr><td><strong>fxlib → gint 适配</strong><br><code>src/giac_legacy_platform.cc:138–220</code><br><code>tests/LEGACY_PLATFORM.md</code></td><td><code>Bdisp_*</code>、<code>PrintMini</code>、<code>PrintXY</code>、<code>GetKey</code>、<code>IsKeyDown</code>、RTC和Sleep。对迁移官方SDK的旧小程序特别有帮助。</td><td>中等成本，建议作为单独的“旧程序迁移”组件。需抽出Giac取消检查并核对旧声明来源；仅覆盖部分API，不能承诺任意官方SDK工程直接兼容。</td></tr>
+<tr><td><strong>SH7305代码缓存同步</strong><br><code>src/giac_code_cache.c:12,22,27</code><br><code>tests/giac_code_cache_test.c</code></td><td>写入新机器码后按硬件顺序写回数据缓存、同步、失效指令缓存，避免仍执行旧指令；检查设备、长度和地址溢出。</td><td>专用但重要。限定SH7305/FUGUE、有界可执行窗口，单元需<code>-m4a-nofpu</code>。有352组范围测试、反汇编和LIB33/34的有限实机证据。当前模拟器不模拟物理缓存，仿真通过不能证明同步正确。</td></tr>
+<tr><td><strong>BFile与模块所有权状态机</strong><br><code>src/giac_module_file.c:48–107</code><br><code>src/giac_module_loader.h:18,23,62</code></td><td>在OS world中访问文件；长度/身份/校验/重定位通过后才公布入口；关闭或异常帧注销失败时保留资源并重试。</td><td>高成本，保留进阶实验。依赖自定义ABI2、8KiB窗口、宿主异常帧注册和会话规则。有53场景/1205项主机检查及SDK对象编译；完整CAS设备集成未完成。它不是现成通用动态链接器。</td></tr>
+<tr><td><strong>发布门禁和ROM检查</strong><br><code>tools/verify_compact_release.py:24,87,98,106</code><br><code>tools/check_giac_rom_mapping.py:106</code></td><td>独立发布目录、源码哈希、符号和栈报告、坏产物拒绝；依据所有有文件内容的LOAD段和真实LMA检查ROM映射，包含初始化RAM镜像，排除纯BSS。</td><td>中等成本，优先迁移验证流程。旧v16映射少1020字节的负例已被抓出。现有编排含Linux/QEMU路径；“无Python”门禁属于该产品，不能无条件强加给通用SDK。</td></tr></table>
+<h2>应保留的踩坑记录</h2>
+<ul>
+<li><strong>识别容量：</strong><code>audit/hardware-20261114/installation-recognition.json</code>记录用户在OS 03.70.0200上反馈25,724和2,000,000字节的诊断插件可识别运行，2,859,592字节未识别。它没有测定精确边界。Fx Studio的保守门禁已改为完整文件2,000,000字节；总存储剩余量不能作为单插件限制。</li>
+<li><strong>内存不是把各区域数字相加：</strong><code>memory-check-v2.json</code>记录当时32KiB及32+8KiB分配成功，48/64KiB单块及32+16KiB组合失败。32/24KiB的CAS预算中，差额8KiB仍在同一个池内，不是额外RAM。不能据此声称所有应用、所有OS都有固定可用堆。</li>
+<li><strong>按键有三种编号：</strong>Windows模拟器宿主键码、Casio OS逻辑键码、gint物理键码不能混用。手动管理SHIFT/ALPHA时还要避免gint自动MENU/OFF处理先吞掉组合键；取消按键也要清理，防止回编辑器后误退出。</li>
+<li><strong>ABI和运行库不能直接混搭：</strong>历史<code>src0/Makefile</code>使用<code>-mhitachi</code>、旧启动代码、USTL及自定义分配。现Giac另有全局new/delete、异常和bootstrap依赖，不能把它们直接装入当前禁异常的普通C++模板。</li>
+<li><strong>测试通过要限定范围：</strong>有限用例不能证明任意长会话稳定；当前README仍记录新名字缓存累积和完整Giac体积超标。动态模块的机器码大小也不等于最终主程序节省的大小。</li>
+<li><strong>Debug模板不能照抄产品发布参数：</strong>当前KhiCAS的CMake对所有配置固定<code>-Os/-flto</code>。IDE应继续区分Debug和Release，避免源码断点与变量被优化掉。</li>
+</ul>
+<h2>本次已落地，以及后续顺序</h2>
+<p>本次修复中文安装目录的SDK自动缓存，同时在自有C/C++示例中启用gint标准重入设置，并纠正产物体积门禁。推荐后续先做“UI + 绘图 + 回放测试”示例，再做“旧fxlib程序迁移”适配包，然后补独立ROM/栈/资源报告。动态模块与异常运行库应保留在实验区，待完整宿主和设备验收后再提升为稳定功能。</p>
+<p><strong>模拟器区别：</strong>它没有完整OS菜单，DisplayMainMenu为空操作；启用restart的示例在EXIT后会立即重新开始。要结束电脑调试，使用IDE的停止按钮。计算器上的真实菜单、关机与重入仍需要设备检查。</p>
+<p><strong>直接复制的前置条件：</strong>本次未在这些本地src/tests/tools中发现清楚的独立LICENSE/SPDX声明。不能默认它们都是MIT；Giac的GPL、gint/fxlibc以及旧官方头文件也需要分别处理。此报告记录复用候选和设计经验，未把原目录代码复制进公开离线包。</p>
+<p>证据入口：<code>ui_porting_notes.md</code>、<code>SOURCE_RECOVERY.md</code>、<code>releases/CAS02/VALIDATION.md</code>、<code>tests/LEGACY_PLATFORM.md</code>、<code>audit/device-module-loader-20261114/README.md</code>、<code>audit/hardware-20261114/</code>。主机测试、处理器仿真和用户反馈的设备测试已分别说明，本轮没有进行新的实机测试。</p>
+<p><a href="USER-GUIDE.zh-CN.html">使用说明</a> · <a href="VALIDATION.html">验证范围</a> · <a href="RESEARCH.zh-CN.html">开发工具研究</a></p></html>

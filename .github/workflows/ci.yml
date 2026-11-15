@@ -1,0 +1,28 @@
+name: Windows build and contract tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build desktop, automation and tests
+        run: dotnet build FxStudio.slnx --configuration Release
+      - name: Core contract tests
+        run: dotnet run --project tests/FxStudio.Core.Tests --configuration Release --no-build
+      - name: Automation contract tests
+        run: dotnet run --project tests/FxStudio.Automation.Tests --configuration Release --no-build
