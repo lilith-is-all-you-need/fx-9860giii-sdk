@@ -153,12 +153,18 @@ GDB 普通内存读取跟随有效 UTLB，并支持 P2 别名，不产生缺页�
 控制请求 `menu-resume` 恢复当前应用，`menu-replace` 调用退出回调并结束应用。
 菜单等待中 EXE/EXIT 对应恢复，F1 对应替换。这不是完整 Casio 菜单或内置应用；
 回调发生在“替换”时是目前的 HLE 策略，v1 记录不能确定实机的精确时刻。
+随后 Probe 2.1 的菜单操作实机回传确认：GetKey 未返回时进入退出回调，目标
+映射仍有效，回调内执行目标退出、恢复原映射、保存结果，之后重新启动。
+其事件顺序与独立的 `menu-replace + reentry` 回归一致。该文件没有
+`GETKEY_RESUMED`，因此不能把 `menu-resume` 分支或精确菜单触发时刻标为实机已验证。
 OS 定时器在屏蔽中断时不运行，等待循环不会因到期但无法交付的定时器而死循环；
 没有模拟每个硬件中断源的优先级和完整中断入口。
 
 [Loader Probe 2](../hardware-loader/README.md) 使用独立 RAM 常驻代码、配套 BIN
 与配置文件，测多页映射、资源/静态数据、OS 调用、定时器、退出/菜单恢复及持久日志。
-它的模拟通过属于回归证据；URB 保护能否跨实际 OS 调用与切换保持，需其真机回传。
+它的模拟通过属于回归证据；两份 2.1 回传已确认所测 OS 调用、定时器、
+直接退出与活动映射退出回调路径，范围及原始文件摘要见
+[实机验证记录](../hardware-loader/VALIDATION.md)。不推广为任意 OS 调用或所有菜单行为的保证。
 操作数 copy-back 缓存、DMA、总线写回时序、完整 OS 菜单/缺页仍未模拟。
 尤其 `CCR=0x105` 的 CB 位为 1，不能把一次读到新数据解释为 write-through。
 参考：[Renesas SH4AL-DSP 软件手册](https://www.renesas.com/en/document/mas/sh4al-dsp-software-manual)。

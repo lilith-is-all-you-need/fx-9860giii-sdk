@@ -52,7 +52,7 @@ def start(folder,label,options=()):
     s.remote.request('c',wait=False)
     return s
 
-for mode in ('exit','menu','long'):
+for mode in ('exit','menu','menu-replace','long'):
     folder,storage=prepare(mode)
     expected=16 if mode=='long' else 8
     if mode=='long':
@@ -65,10 +65,12 @@ for mode in ('exit','menu','long'):
         assert f'AUTO_DONE={expected:08X},00000000' in data,data
         assert (storage/'P2Alloc.txt').read_text().startswith('FXP2ALLOC\nBuild=2.1\n')
         assert 'RESULT=READY' in (storage/'P2Alloc.txt').read_text()
-        if mode=='menu':
-            press(s,'MENU');wait(s,lambda:s.command('status')['osMenu'])
-            assert s.command('menu-resume')['ok']
-            press(s,'EXE');wait(s,lambda:'GETKEY_RESUMED=' in log(storage))
+        if mode in ('menu','menu-replace'):
+            if mode=='menu':
+                # HLE resume branch remains distinct from hardware evidence.
+                press(s,'MENU');wait(s,lambda:s.command('status')['osMenu'])
+                assert s.command('menu-resume')['ok']
+                press(s,'EXE');wait(s,lambda:'GETKEY_RESUMED=' in log(storage))
             press(s,'MENU');wait(s,lambda:s.command('status')['osMenu'])
             assert s.command('menu-replace')['ok']
         else:press(s,'EXIT')
@@ -77,8 +79,15 @@ for mode in ('exit','menu','long'):
         assert 'CALLBACK_CLEANED=00000000,00000001' in data,data
         assert data.count('PASS_TARGET_QUIT=')==expected+1,data
         assert 'FAIL_' not in data,data
-        if mode=='menu':assert 'CALLBACK_MAP_GUARD=00000000' in data,data
+        if mode in ('menu','menu-replace'):
+            assert 'OS_CALLBACK=00000001,' in data,data
+            assert 'CALLBACK_MAP_GUARD=00000000' in data,data
         else:assert 'EXIT_MAIN_RETURN' in data,data
+        if mode=='menu-replace':
+            # Returned hardware log exits via the callback without GetKey
+            # returning to guest code or main returning first.
+            assert 'GETKEY_RESUMED=' not in data,data
+            assert 'EXIT_MAIN_RETURN' not in data,data
     before=log(storage)
     with start(folder,'reentry') as s:
         wait(s,lambda:'REENTERED_NEW_STARTUP=' in log(storage))

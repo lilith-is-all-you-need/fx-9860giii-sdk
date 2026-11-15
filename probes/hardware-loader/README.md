@@ -25,7 +25,7 @@
 第一轮测试菜单切换：
 
 1. 启动 Probe2，等到 `Auto tests passed / MENU: switch app`。默认自动执行 8 轮。
-2. 按实体 **MENU**，选回 **Probe2**，再按一次 **EXE**。这检查原程序恢复。
+2. 按实体 **MENU**，选回 **Probe2**，再按一次 **EXE**。这尝试原程序恢复；是否真的返回原 GetKey 调用，以日志为准。
 3. 再按 **MENU**，进入 **RUN-MAT** 等另一个应用，然后从菜单重新打开 Probe2。
 4. 看到 `Saved: results ready` 或 `Saved: NEED REVIEW` 后按 **EXIT**。
 5. 把生成的 `Probe2.txt` 复制到电脑，命名为 `Probe2-menu.txt`。
@@ -60,7 +60,10 @@
 `hold_ms` 四项。默认循环 8 次；合法范围分别为 1–16 次与 160–2000 ms。
 首次请保持默认。镜像长度和校验必须与配套 BIN 一致，不能换成 KhiCAS。
 
-收到实机文件后才能判定上述路径是否成立。即使全部通过，也只证明这个
+2026-11-15 两份 2.1 实机回传已验证直接 EXIT、活动映射下 OS 退出回调、恢复与
+重新启动，详见 [验证记录](VALIDATION.md)。菜单操作那份没有 GetKey 返回记录，
+同一次运行的菜单恢复与回调精确触发时刻仍未确认。首版可采用退出回菜单、
+重新打开 Loader 再加载的行为约定。这些结果只证明本探针的
 16 KiB 目标镜像、8 KiB 静态 RAM 和所测系统调用的 Loader 基础路径；
 不证明 KhiCAS 的内存容量、无源码地址分析、全部 syscall、所有中断/外设和长期稳定性。
 完整 OS 缺页处理、DMA、任意崩溃恢复、构造/析构兼容不在本探针中。
@@ -94,7 +97,8 @@ python probes/hardware-loader/tools/inspect_result.py C:/returned/Probe2-menu.tx
 若定时器注销失败则记录失败并保留回调所需分配，避免释放仍可能执行的代码；
 这种结果需分析后再重启清理，不作为成功。
 
-模拟器验证使用 HLE；其中菜单恢复/替换时机与 OS 缺页重填仍是待实机核对的模型。
+模拟器验证使用 HLE；活动映射退出回调的已记录顺序与实机相符，菜单恢复、
+替换精确时机与 OS 缺页重填仍是待实机核对的模型。
 操作数缓存采用一致内存近似，不模拟 copy-back 脏行或总线写回时序。
 `CCR=0x105` 不能解释成 write-through；一次没有看到延迟不等于不存在写回要求。
 参考：[Renesas SH4AL-DSP 软件手册，第 7–8 章](https://www.renesas.com/en/document/mas/sh4al-dsp-software-manual)。
