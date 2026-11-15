@@ -49,3 +49,5 @@ Read [source-notices/README.md](../source-notices/README.md), [native compiler](
 - Put the full offline runtime and its matching dependency source companion together in a versioned GitHub Release. Keep license notices and checksums with them.
 - A GitHub CI pass covers the Windows .NET build and contract tests. It does not certify hardware compatibility, clean toolchain rebuilding or every emulator syscall.
 - Before publishing a new version, repeat the native C/C++ build/debug and screen/input integration checks described in [VALIDATION.html](VALIDATION.html).
+
+For slow upstream connections, `tooling/release_transfer.py` can prepare transfer parts for existing validated ZIPs. It replaces stored, hash-pinned public dependency archives with download references and references the source companion once inside the runtime ZIP. The manual `release-transfer.yml` workflow restores the exact original ZIP bytes, verifies full SHA-256 and ZIP CRCs, and uploads them to an existing draft. It does not build new application binaries or publish the draft. Remove temporary `transfer-` assets after verifying the final release attachments.
