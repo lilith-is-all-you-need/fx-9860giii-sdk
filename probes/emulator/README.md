@@ -126,7 +126,7 @@ python probes/emulator/runtime_probe.py C:/samples/khicas.bin --output probes/em
 
 探针会输出 `report.json`、`syscalls.jsonl`、屏幕 BMP、每次按键前的 BMP 和 stderr；输入 `.bin` 只改扩展名即可。`--timeout` 是等待停止包的墙钟超时，之后发送 Ctrl-C；指令预算无法终止在宿主端等待按键的 HLE，因此应同时使用墙钟超时。按键自动化采用固定间隔，报告“sent”仅表示送出，需结合画面确认目标程序消费。
 
-`test_runtime.py` 自行生成小型 SH/G1A，不依赖 KhiCAS 或官方 SDK。`test-runtime.ps1` 构建解释器并运行上游 CPU 测试、本地 13 组运行时测试和 12 组 `test_hardware.py` 硬件模型测试。GitHub 的 `Native emulator regression` 工作流执行同样检查。原有 `test_bridge.py` 55 项还依赖本机历史 CAS02 夹具，不放进公开 CI。
+`test_runtime.py` 自行生成小型 SH/G1A，不依赖 KhiCAS 或官方 SDK。`test-runtime.ps1` 构建解释器并运行上游 CPU 测试、本地 13 组运行时测试和 15 组 `test_hardware.py` 硬件模型测试。GitHub 的 `Native emulator regression` 工作流执行同样检查，并运行原生 Loader 的 profile 测试。原有 `test_bridge.py` 55 项还依赖本机历史 CAS02 夹具，不放进公开 CI。
 
 2026-11-15 本机验证：SHA-256 为 `4a9d1c18009d987dc7c8745b7fc099b3c6e8006ebbb2ee5e4b483934be757473` 的外部 KhiCAS 样本在两种布局均进入界面并显示 `2+2` 的结果 `4`；隔离布局下另走过除零、缺操作数、删除修改、EXIT/MENU 按键路径，无 CPU 错误或未知调用。MENU 按键测试不等于返回真实 OS 菜单。短路径通过不代表 KhiCAS 全功能或长期稳定；样本文件未纳入仓库。
 
@@ -170,6 +170,18 @@ OS 定时器在屏蔽中断时不运行，等待循环不会因到期但无法�
 参考：[Renesas SH4AL-DSP 软件手册](https://www.renesas.com/en/document/mas/sh4al-dsp-software-manual)。
 
 ## 仍未覆盖的硬件行为
+
+原生 Loader 集成测试补齐了 `GetKeyWait(menu=0)` 的矩阵 MENU 分支，以及
+`Keyboard_ClrBuffer` 清除缓存但保留实体按住状态的行为。gint 使用定时器调用
+`PutKeyCode(4,9,0)` 再等待这一接口；此前模拟器直接返回按键，使 Minesweeper
+立即重启。现在进入已有 HLE 菜单，可选择恢复或替换。`PutKey(30003)` 注入返回码
+仍原样返回，保留 Probe v1 的实测语义。这次矩阵路径的依据是 gint 的
+`src/kernel/osmenu.c` 和 [Keyboard 接口文档](https://media.taricorp.net/prizm/simon_chm/fx_legacy_Keyboard.htm)，
+尚不是新的实机测量结果。
+
+[Native Loader](../native-loader/README.md) 已测试真实文件读取后的三个游戏启动。
+Wolf 的 Quit 路径直接跳 `A0000000`，Fruit 的退出回调调用未知 `0x01E7`；
+原程序直接启动也遇到相同阻断。两者未被填上假返回值，退出仍不算通过。
 
 这是 GIII 类 SH7305/128×64 显示与部分系统调用的模拟器，并不是完整 Casio OS。采用上游 `MODEL_FX9750G3`（上游代码注明同属 fx-9860GIII / Graph 35+E II）。菜单内置应用、USB、DSP 算术指令等上游未模拟部分仍不可用；未知系统调用会报错。OS 文本替代字体可能与实机不同，gint 自带字体则由目标代码绘制。
 

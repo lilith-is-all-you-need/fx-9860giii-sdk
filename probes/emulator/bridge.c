@@ -349,6 +349,10 @@ int probe_os_menu(Cpu *cpu)
     }
     return 0;
 }
+void probe_clear_key_buffer(void)
+{
+    queued_key=-1;
+}
 void probe_debug_before(Cpu *cpu,uint32_t address)
 {
     if(!machine)return;

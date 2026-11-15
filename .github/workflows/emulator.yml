@@ -3,9 +3,9 @@ name: Native emulator regression
 on:
   push:
     branches: [main]
-    paths: ['probes/emulator/**', 'probes/hardware-loader/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
+    paths: ['probes/emulator/**', 'probes/hardware-loader/**', 'probes/native-loader/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
   pull_request:
-    paths: ['probes/emulator/**', 'probes/hardware-loader/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
+    paths: ['probes/emulator/**', 'probes/hardware-loader/**', 'probes/native-loader/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
   workflow_dispatch:
 
 permissions:
@@ -29,3 +29,5 @@ jobs:
         env:
           MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
         run: ./probes/emulator/test-runtime.ps1 -Compiler "$env:MSYS2_LOCATION/ucrt64/bin/gcc.exe"
+      - name: Verify native Loader profiles against authored fixtures
+        run: python probes/native-loader/tools/test_prepare.py

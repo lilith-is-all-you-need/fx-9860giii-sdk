@@ -185,6 +185,15 @@
      {0x0139, "Cursor_SetFlashStyle", sc_nothing}, /* we don't draw the text cursor */
      {0x013A, "Cursor_SetFlashMode", sc_nothing},
      {0x013B, "Cursor_GetSettings", sc_fx_cursor_settings},
+@@ -786,7 +698,7 @@
+     {0x015D, "PrintCR", sc_fx_print_cr},
+     {0x0236, "Reset", sc_restart},
+     {0x023E, "RTC_SetDateTime", sc_rtc_set_date_time},
+-    {0x0241, "Keyboard_ClrBuffer", sc_nothing},
++    {0x0241, "Keyboard_ClrBuffer", sc_clear_key_buffer},
+     {0x0242, "Bkey_Set_RepeatTime", sc_nothing},  /* no key repeat here */
+     {0x0244, "Bkey_Set_RepeatTime_Default", sc_nothing},
+     {0x0245, "Keyboard_EnableAutoRepeat", sc_nothing},
 @@ -831,7 +743,8 @@
      {0x0456, "Bfile_NameToStr_ncpy", sc_bfile_name_to_str},
      {0x0462, "GetAppName", sc_get_app_name},
@@ -261,6 +270,38 @@
          return code;
      }
  }
+@@ -200,6 +203,7 @@
+ {
+     Memory *mem = &emu->mem;
+     uint32_t type = a[2];
++wait_again: ;
+     int key;
+     int ignored = 0;
+     key = -1;
+@@ -226,6 +230,10 @@
+         }
+     }
+     int col, row;
++    if (KEYS[key].getkey == KEY_CTRL_MENU && !a[4]) {
++        if(probe_os_menu(&emu->cpu)) return 0;
++        goto wait_again;
++    }
+     os_matrix(key, &col, &row);
+     mem_write32(mem, a[0], (uint32_t)col);
+     mem_write32(mem, a[1], (uint32_t)row);
+@@ -421,3 +429,12 @@
+ SC(sc_get_menu_return) { (void)a; return !emu->menu_return_off; }
+ SC(sc_enable_menu_return) { (void)a; emu->menu_return_off = false; return 0; }
+ SC(sc_disable_menu_return) { (void)a; emu->menu_return_off = true; return 0; }
++
++/* Empty buffered events without releasing keys that are physically held. */
++SC(sc_clear_key_buffer)
++{
++    (void)a;
++    emu->inject_count = 0;
++    probe_clear_key_buffer();
++    return 0;
++}
 --- upstream/os/syscalls_time.c
 +++ patched/os/syscalls_time.c
 @@ -33,6 +33,7 @@

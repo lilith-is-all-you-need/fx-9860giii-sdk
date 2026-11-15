@@ -141,6 +141,29 @@ keys = original_keys = (up / 'os/syscalls_keys.c').read_text()
 keys = '#include "debug_bridge.h"\n' + keys
 keys = replace_once(keys, '        if (menu_dropped(emu, code))\n            continue;',
     '        if (menu_dropped(emu, code)) {\n            if(probe_os_menu(&emu->cpu)) return -1;\n            continue;\n        }')
+# gint uses a timer-injected matrix MENU followed by GetKeyWait(menu=0).
+# Unlike PutKey(GetKey-code), this path must enter the menu lifecycle too.
+keys = replace_once(keys, '    uint32_t type = a[2];', '    uint32_t type = a[2];\nwait_again: ;')
+keys = replace_once(keys, '    os_matrix(key, &col, &row);\n    mem_write32(mem, a[0], (uint32_t)col);', '''    if (KEYS[key].getkey == KEY_CTRL_MENU && !a[4]) {
+        if(probe_os_menu(&emu->cpu)) return 0;
+        goto wait_again;
+    }
+    os_matrix(key, &col, &row);
+    mem_write32(mem, a[0], (uint32_t)col);''')
+keys += '''
+/* Empty buffered events without releasing keys that are physically held. */
+SC(sc_clear_key_buffer)
+{
+    (void)a;
+    emu->inject_count = 0;
+    probe_clear_key_buffer();
+    return 0;
+}
+'''
+(os_out / 'syscalls_impl.h').write_text((os_out / 'syscalls_impl.h').read_text()+'\nSC(sc_clear_key_buffer);\n')
+syscalls = replace_once(syscalls, '{0x0241, "Keyboard_ClrBuffer", sc_nothing}',
+    '{0x0241, "Keyboard_ClrBuffer", sc_clear_key_buffer}')
+(os_out / 'syscalls.c').write_text(syscalls)
 (os_out / 'syscalls_keys.c').write_text(keys)
 fx = original_fx = (up / 'os/syscalls_fx.c').read_text()
 # Probe v1 returns minor=0x70 for OS 03.70, not decimal 70 (0x46).

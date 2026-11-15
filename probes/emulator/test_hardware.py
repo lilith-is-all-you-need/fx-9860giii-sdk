@@ -116,6 +116,40 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.read_memory(0x08102000,6),bytes.fromhex('037002000000'))
         self.assertEqual(self.r.read_memory(0x80010020,10),b'03.70.0200')
 
+    def key_wait(self, menu, wait=True):
+        # SH syscall arguments 5 and 6 are stack arguments.
+        self.r.set(15,0x8807fff0)
+        self.r.write(self.r.get(15), menu.to_bytes(4,'big')+bytes.fromhex('08102008'))
+        return self.s.syscall(0x247,0x08102000,0x08102004,0,1,wait=wait)
+
+    def test_matrix_menu_getkeywait_resumes_and_replaces(self):
+        self.assertEqual(self.s.syscall(0x248,4,9,0),0)
+        self.key_wait(0,wait=False)
+        self.wait_menu()
+        self.assertTrue(self.s.command('menu-resume')['ok'])
+        self.press('EXE'); self.r.receive()
+        self.assertEqual(self.r.read_memory(0x08102000,8),bytes.fromhex('0000000300000002'))
+        self.s.syscall(0x248,4,9,0)
+        self.key_wait(0,wait=False); self.wait_menu()
+        self.assertTrue(self.s.command('menu-replace')['ok'])
+        self.r.receive()
+        self.assertEqual(self.s.command('status')['state'],'exited')
+
+    def test_matrix_menu_disabled_returns_coordinates(self):
+        self.s.syscall(0x248,4,9,0)
+        self.assertEqual(self.key_wait(1),1)
+        self.assertFalse(self.s.command('status')['osMenu'])
+        self.assertEqual(self.r.read_memory(0x08102000,8),bytes.fromhex('0000000400000009'))
+
+    def test_clear_buffer_discards_injected_events(self):
+        self.s.syscall(0x910,30003)
+        self.s.syscall(0x248,4,9,0)
+        self.s.syscall(0x241)
+        self.s.syscall(0x910,30004)
+        self.s.syscall(0x90f,0x08102000)
+        self.assertEqual(self.r.read_memory(0x08102000,4),(30004).to_bytes(4,'big'))
+        self.assertFalse(self.s.command('status')['osMenu'])
+
     def test_quit_callback_once(self):
         # callback: increment *r1, with literal pointer stored after instructions.
         self.r.write(0x88040000, bytes.fromhex('d103601270012102000b00090009000988041000'))
