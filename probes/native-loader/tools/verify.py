@@ -187,7 +187,7 @@ def main():
                 recovery=s.command('recovery')
                 report=json.loads(Path(recovery['report']).read_text('utf8'))
                 assert report['kind']==('reset-vector' if name=='wolf' else 'unexpected-fault'),report
-                if name=='fruit':assert '0x01E7' in report['error'],report
+                if name=='fruit':assert '0x0218' in report['error'],report
                 screen(s,folder,'quit');record(s,folder,mode+'-quit-'+name,storage,
                     rebootCause=report['kind'],faultError=report['error'],assertionsPassed=True)
 

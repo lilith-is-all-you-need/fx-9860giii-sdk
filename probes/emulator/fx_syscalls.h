@@ -4,8 +4,9 @@ static bool fx_ok(Emu *e) { return e->cpu.state == CPU_RUNNING && !e->mem.fault;
 static bool fx_partial_syscall(uint32_t n)
 {
     /* Cursor storage works; glyph/blink/keyboard-driven updates are incomplete. */
-    return (n>=0x139 && n<=0x13b) || n==0x80e || n==0x80f || n==0x811 || n==0x812;
+    return n==0x1e7 || (n>=0x139 && n<=0x13b) || n==0x80e || n==0x80f || n==0x811 || n==0x812;
 }
+static SC(sc_fx_close_container_slot) { return probe_hw_close_slot(&emu->cpu,a[0]); }
 static uint8_t fx_lower(uint8_t c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
 static uint8_t fx_upper(uint8_t c) { return c >= 'a' && c <= 'z' ? c - 32 : c; }
 static SC(sc_fx_reset) { probe_request_reset(&emu->cpu, "syscall-0236"); return 0; }

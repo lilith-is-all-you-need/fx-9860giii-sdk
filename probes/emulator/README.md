@@ -7,6 +7,10 @@
 KhiCAS 的加载瓶颈见 [具体卡点与映射路线](../native-loader/KHICAS-BLOCKERS.md)。
 这仍不是完整的 Casio OS 模拟。
 
+2026-11-16 更新：加入可选的固件辅助 RAM 页表补页、碎片文件压力模式，以及
+0x01E7 空闲/干净容器清理。Probe3 已在三个固件版本下完成整文件映射与交接测试；
+实机结果待回传。参数、证据和未实现行为见 [OS 映射说明](OS-MAPPING.md)。
+
 ## 来源与结构
 
 - 基础解释器：`third_party/emuCasioCalc`，上游 `https://github.com/joserodpt/emuCasioCalc`。

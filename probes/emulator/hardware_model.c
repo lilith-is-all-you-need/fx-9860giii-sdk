@@ -2,6 +2,10 @@
 #include "emu.h"
 #include <stdlib.h>
 #include <string.h>
+#include "../os-map-profile.h"
+#include "syscall_trace.h"
+#include "os/syscalls_impl.h"
+SC(probe_bfile_offset_address);
 
 typedef struct { uint32_t a, d, x; } Tlb;
 typedef struct { uint32_t tag; uint64_t age; bool valid; uint8_t bytes[32]; } ILine;
@@ -12,6 +16,11 @@ typedef struct ProbeHardware {
     bool exiting;
     uint64_t age;
     ILine cache[128][4]; /* 16 KiB, 32-byte lines; replacement is functional LRU. */
+    bool firmware, file_stress;
+    FxOsMapProfile os;
+    uint32_t original_pages[512];
+    uint64_t file_rebuilds, table_refills;
+    char version[11];
 } Hardware;
 
 void probe_hw_snapshot(const Memory *m,FILE *f)
@@ -28,7 +37,7 @@ void probe_hw_snapshot(const Memory *m,FILE *f)
         for(int i=0;i<32;i++)fprintf(f,"%02x",line->bytes[i]);
         fputs("\"}",f);
     }
-    fputs("]}",f);
+    fprintf(f,"],\"firmwareAssistedHle\":%s,\"fileMapStress\":%s,\"filePageTable\":%u,\"fileMapRebuilds\":%llu,\"tableRefills\":%llu}",h->firmware?"true":"false",h->file_stress?"true":"false",h->os.pages,(unsigned long long)h->file_rebuilds,(unsigned long long)h->table_refills);
 }
 
 static uint32_t raw_read(Memory *m, uint32_t a, int size)
@@ -84,6 +93,22 @@ static unsigned advance_urc(Hardware *h)
 static int os_refill(Hardware *h, uint32_t a)
 {
     Emu *e=h->emu; Memory *m=&e->mem;
+    if(h->firmware) {
+        /* Proven OS path: 512 RAM entries, explicit software cursor 0..54.
+         * The real internal handler lacks an upper bound. Diagnose that bad
+         * access here instead of reproducing its out-of-table RAM read. */
+        if(a<ADDIN_BASE || a>=ADDIN_BASE+0x200000u)return -1;
+        uint32_t index=(a-ADDIN_BASE)>>12;
+        uint32_t phys=raw_read(m,h->os.pages+index*4,4)&0x1fffffffu;
+        if(!phys)return -1;
+        unsigned slot=raw_read(m,h->os.cursor,4);
+        if(slot>54){error(h,a,false,"invalid OS refill cursor");return -1;}
+        h->pteh=a&~4095u;h->ptel=phys|0x17cu;
+        h->mmucr=(h->mmucr&~0xfc00u)|(slot<<10);
+        h->u[slot]=(Tlb){(a&~4095u)|0x300u,phys|0x17cu,0};
+        raw_write(m,h->os.cursor,slot<54?slot+1:0,4);h->table_refills++;
+        return (int)slot;
+    }
     uint8_t *p=m->rd[a>>PAGE_SHIFT];
     if(!p) return -1;
     uintptr_t host=(uintptr_t)p, rom=(uintptr_t)e->rom, ram=(uintptr_t)e->ram;
@@ -292,6 +317,87 @@ bool probe_hw_init(void *ptr,bool enable)
     for(unsigned k=0;k<2;k++)os_refill(h,ADDIN_BASE+k*4096);
     for(unsigned k=0;k<e->layout->uram_size/4096 && k<32;k++)os_refill(h,URAM_BASE+k*4096);
     return true;
+}
+static uint8_t firmware_read(void *ctx,uint32_t a)
+{Emu *e=ctx;return e->rom[a&0x1fffffffu];}
+static void firmware_restore(Hardware *h)
+{
+    Memory *m=&h->emu->mem;
+    for(unsigned i=0;i<512;i++)raw_write(m,h->os.pages+4*i,h->original_pages[i],4);
+    raw_write(m,h->os.cursor,0,4);raw_write(m,h->os.enabled,1,1);
+    memset(h->u,0,sizeof h->u);memset(h->i,0,sizeof h->i);
+    for(unsigned i=0;i<8;i++) {
+        uint32_t va=URAM_BASE+i*4096;uint8_t *p=m->rd[va>>PAGE_SHIFT];
+        if(p && p>=h->emu->ram && p<h->emu->ram+h->emu->layout->ram_size) {
+            uint32_t phys=h->emu->layout->ram_phys+(uint32_t)(p-h->emu->ram);
+            h->u[55+i]=(Tlb){va|0x300,phys|0x17c,0};
+        }
+    }
+    h->u[63]=(Tlb){0x300,0x17c,0};h->mmucr=0x00fcfd01;
+}
+bool probe_hw_load_firmware(void *ptr,const char *path,bool stress)
+{
+    Emu *e=ptr;Hardware *h=e->mem.probe_hw;if(!h)return false;
+    FILE *f=fopen(path,"rb");if(!f)return false;
+    bool ok=fseek(f,0,SEEK_END)==0&&ftell(f)==0x3b0000&&fseek(f,0,SEEK_SET)==0;
+    if(ok)ok=fread(e->rom,1,0x3b0000,f)==0x3b0000;
+    fclose(f);if(!ok||memcmp(e->rom+0x10000,"CASIOWIN",8))return false;
+    int result=fx_os_profile(firmware_read,e,&h->os);
+    if(result){fprintf(stderr,"unsupported OS mapping fingerprint: %d\n",result);return false;}
+    for(unsigned i=0;i<512;i++) {
+        uint8_t *p=e->mem.rd[(ADDIN_BASE+i*4096)>>PAGE_SHIFT];
+        uintptr_t v=(uintptr_t)p,base=(uintptr_t)e->rom;
+        h->original_pages[i]=p&&v>=base&&v-base<ROM_SIZE?(uint32_t)(v-base):0;
+    }
+    h->firmware=true;h->file_stress=stress;
+    memcpy(h->version,e->rom+0x10020,10);h->version[10]=0;
+    /* Supplied 837A firmware branches derive 0200 from boot/features. Other
+     * branches use their known model suffix; this is an explicit HLE model. */
+    const char *suffix=(e->rom[0x302]=='5')?"2200":(e->rom[0x302]=='8')?"3200":"0200";
+    memcpy(h->version+6,suffix,4);
+    for(unsigned i=0;i<4;i++) {
+        raw_write(&e->mem,h->os.slots+i*8,0xffffffffu,4);
+        raw_write(&e->mem,h->os.slots+i*8+4,0xff,1);
+        for(unsigned n=0;n<40;n+=4)raw_write(&e->mem,h->os.descriptors+i*40+n,0,4);
+    }
+    firmware_restore(h);return true;
+}
+const char *probe_hw_os_version(const Memory *m)
+{Hardware *h=m->probe_hw;return h&&h->firmware?h->version:NULL;}
+bool probe_hw_file_stress(const Memory *m)
+{Hardware *h=m->probe_hw;return h&&h->firmware&&h->file_stress;}
+void probe_hw_file_changed(void *ptr)
+{
+    Emu *e=ptr;Hardware *h=e->mem.probe_hw;
+    /* Deliberate stress trigger, not a claim every real OS write compacts.
+     * The restore operation itself follows the observed OS map ownership. */
+    if(h&&h->firmware&&h->file_stress&&raw_read(&e->mem,h->os.enabled,1)) {
+        firmware_restore(h);h->file_rebuilds++;
+    }
+}
+bool probe_hw_private_call(Cpu *cpu)
+{
+    Hardware *h=cpu->mem->probe_hw;if(!h||!h->firmware||cpu->pc!=h->os.query)return false;
+    uint32_t args[12]={cpu->r[4],cpu->r[5],cpu->r[6],0};
+    uint64_t id=probe_trace_enter(h->emu,0xffff0001u,args,"OS_FileOffsetToAddress_internal","firmware-derived-hle");
+    cpu->r[0]=probe_bfile_offset_address(h->emu,args);
+    if(cpu->state!=CPU_ERROR)cpu->pc=cpu->pr;
+    probe_trace_leave(h->emu,id,cpu->r[0],cpu->state!=CPU_ERROR);cpu->attention=true;return true;
+}
+uint32_t probe_hw_close_slot(Cpu *cpu,uint32_t n)
+{
+    Hardware *h=cpu->mem->probe_hw;
+    if(!h||n>=4){cpu_report(cpu,"01E7 index outside supported allocated slots");cpu->state=CPU_ERROR;return 0;}
+    /* No internal-container open API exists in the baseline HLE, hence all
+     * its slots are idle. Ordinary Bfile descriptors are a different pool. */
+    if(!h->firmware)return UINT32_MAX;
+    Memory *m=cpu->mem;uint32_t descriptor=h->os.descriptors+n*40;
+    uint32_t flags=raw_read(m,descriptor+4,4);
+    if((flags&0x80000000u)&&(flags&0x0fff0000u)==0x01200000u) {
+        cpu_report(cpu,"01E7 dirty container commit remains unsupported");cpu->state=CPU_ERROR;return 0;
+    }
+    if(raw_read(m,h->os.slots+n*8+4,1)==0xff||raw_read(m,descriptor,2)>0xffe)return UINT32_MAX;
+    raw_write(m,h->os.slots+n*8,UINT32_MAX,4);raw_write(m,h->os.slots+n*8+4,0xff,1);return 0;
 }
 void probe_hw_destroy(Memory *m){free(m->probe_hw);m->probe_hw=NULL;}
 void probe_hw_register_quit(Cpu *cpu,uint32_t fn)

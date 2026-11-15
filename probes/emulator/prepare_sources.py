@@ -23,7 +23,8 @@ cpu = replace_once(cpu, '    uint16_t op = mem_read16(mem, pc);', '''    probe_d
 cpu = replace_once(cpu, 'static inline void step_one(Cpu *cpu)\n{', '''static inline void step_one(Cpu *cpu)
 {
     probe_debug_before(cpu, cpu->pc);
-    if (cpu->state != CPU_RUNNING) return;''')
+    if (cpu->state != CPU_RUNNING) return;
+    if (probe_hw_private_call(cpu)) return;''')
 cpu = replace_once(cpu, '        cpu->attention = false;', '''        probe_debug_poll(cpu);
         cpu->attention = false;''')
 cpu = replace_once(cpu, 'case 0x0038: return;', 'case 0x0038: probe_hw_ldtlb(cpu); return;')
@@ -55,6 +56,8 @@ for p in up.glob('*'):
 emu_h = (out / 'emu.h').read_text()
 emu_h = replace_once(emu_h, '    int cursor_x, cursor_y;',
     '    int fx_cursor_style, fx_cursor_mode, fx_cursor_flash_style;\n    int cursor_x, cursor_y;')
+emu_h = replace_once(emu_h, '        uint32_t offset, size;',
+    '        uint32_t offset, size, page_count, pages[512];\n        bool fragmented;')
 (out / 'emu.h').write_text(emu_h)
 mem_c = original_mem_c = (up / 'mem.c').read_text()
 mem_c = '#include "hardware_model.h"\n' + mem_c
@@ -187,6 +190,7 @@ for name, fn in [('Cursor_SetFlashStyle','sc_fx_cursor_style'), ('Cursor_SetFlas
                  ('Cursor_SetFlashOn','sc_fx_cursor_on'), ('Cursor_SetFlashOff','sc_fx_cursor_off')]:
     table = replace_once(table, f'"{name}", sc_nothing', f'"{name}", {fn}')
 entries = [
+    (0x1E7,'InternalContainer_CloseSlot','sc_fx_close_container_slot'),
     (0x15F,'atoi','sc_fx_atoi'), (0x161,'LongToAscHex','sc_fx_hex'),
     (0x162,'pc_toupper','sc_fx_upper'), (0x163,'pc_tolower','sc_fx_lower'),
     (0x172,'strcasecmp','sc_fx_casecmp'), (0x173,'strcasecmp','sc_fx_casecmp'),
@@ -233,8 +237,17 @@ timers = replace_once(timers, 'if (emu->in_timer || emu->cpu.state != CPU_RUNNIN
 timers = replace_once(timers, 'while (emu->cpu.state == CPU_RUNNING && !emu->in_timer)',
     'while (emu->cpu.state == CPU_RUNNING && !emu->in_timer && !(emu->cpu.sr & (SR_IMASK|SR_BL)))')
 (os_out / 'syscalls_time.c').write_text(timers)
+bfile = original_bfile = (up / 'os/syscalls_bfile.c').read_text()
+bfile = '#include "hardware_model.h"\n' + bfile
+start = bfile.index('static int copy_to_flash(')
+end = bfile.index('/* Marks the flash copy', start)
+bfile = bfile[:start] + '#include "file_map_compat.h"\n\n' + bfile[end:]
+bfile = replace_once(bfile, '    return n;\n}\n\n/* Bfile_CreateEntry',
+    '    if(n)probe_hw_file_changed(emu);\n    return n;\n}\n\n/* Bfile_CreateEntry')
+bfile += '\n#include "file_address_compat.h"\n'
+(os_out / 'syscalls_bfile.c').write_text(bfile)
 compat_diff = ''.join(difflib.unified_diff(original_syscalls.splitlines(True), syscalls.splitlines(True),
     fromfile='upstream/os/syscalls.c', tofile='patched/os/syscalls.c'))
-for name, old, new in [('syscalls_keys.c',original_keys,keys),('syscalls_time.c',original_timers,timers),('syscalls_fx.c',original_fx,fx)]:
+for name, old, new in [('syscalls_keys.c',original_keys,keys),('syscalls_time.c',original_timers,timers),('syscalls_fx.c',original_fx,fx),('syscalls_bfile.c',original_bfile,bfile)]:
     compat_diff += ''.join(difflib.unified_diff(old.splitlines(True),new.splitlines(True),fromfile='upstream/os/'+name,tofile='patched/os/'+name))
 (root / 'probes/emulator/runtime-compat.patch').write_text(compat_diff)

@@ -34,10 +34,10 @@ class Recovery(unittest.TestCase):
 
     def test_unknown_call_reboots_archives_and_waits(self):
         s=self.session();s.remote.write(0x88060000,b'FAULTMARK')
-        s.syscall(0x1e7,11,22,33,44)
+        s.syscall(0xffff,11,22,33,44)
         self.assertEqual(s.command('status')['state'],'rebooted')
         path,r=self.report(s,'unexpected-fault')
-        self.assertIn('0x01E7',r['error'])
+        self.assertIn('0xFFFF',r['error'])
         self.assertEqual(r['registers']['pc'],0x80010070)
         self.assertEqual(r['syscalls']['recent'][-1]['args'],[11,22,33,44])
         self.assertEqual(path.with_suffix('.ram.bin').read_bytes()[0x60000:0x60009],b'FAULTMARK')

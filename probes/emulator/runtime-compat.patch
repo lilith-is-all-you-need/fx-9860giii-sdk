@@ -205,10 +205,11 @@
  
  /* The serial port (3-pin link cable): nothing is plugged in, so nothing
   * ever arrives. What is sent goes out of the emulated TX pin (sh7305.c),
-@@ -749,6 +663,39 @@
+@@ -749,6 +663,40 @@
   * Simon Lothar's list (see syscalls_fx.c). The shared functions take the
   * same arguments as their fx-CG counterparts above. */
  static const Syscall SYSCALLS_FX[] = {
++    {0x01E7, "InternalContainer_CloseSlot", sc_fx_close_container_slot},
 +    {0x015F, "atoi", sc_fx_atoi},
 +    {0x0161, "LongToAscHex", sc_fx_hex},
 +    {0x0162, "pc_toupper", sc_fx_upper},
@@ -245,7 +246,7 @@
      {0x0013, "GlibAddinAplExecutionCheck", sc_fx_glib_execution_check},
      {0x0014, "GlibGetAddinLibInf", sc_fx_glib_lib_info},
      {0x0015, "GlibGetOSVersionInfo", sc_fx_os_version},
-@@ -766,9 +713,10 @@
+@@ -766,9 +714,10 @@
      {0x011A, "Timer_Start", sc_timer_start},
      {0x011B, "Timer_Stop", sc_timer_stop},
      {0x0135, "GetVRAMAddress", sc_get_vram_address}, /* the OS's 1 kB monochrome VRAM */
@@ -259,7 +260,7 @@
      {0x0142, "Bdisp_AllClr_DD", sc_fx_allclr_dd},
      {0x0143, "Bdisp_AllClr_VRAM", sc_fx_allclr_vram},
      {0x0144, "Bdisp_AllClr_DDVRAM", sc_fx_allclr_ddvram},
-@@ -784,9 +732,9 @@
+@@ -784,9 +733,9 @@
      {0x0150, "PrintXY", sc_fx_print_xy},
      {0x0156, "PopUpWin", sc_fx_popup_at},
      {0x015D, "PrintCR", sc_fx_print_cr},
@@ -271,7 +272,7 @@
      {0x0242, "Bkey_Set_RepeatTime", sc_nothing},  /* no key repeat here */
      {0x0244, "Bkey_Set_RepeatTime_Default", sc_nothing},
      {0x0245, "Keyboard_EnableAutoRepeat", sc_nothing},
-@@ -827,11 +775,12 @@
+@@ -827,11 +776,12 @@
      {0x043B, "Bfile_FindFirst", sc_bfile_find_first},
      {0x043C, "Bfile_FindNext", sc_bfile_find_next},
      {0x043D, "Bfile_FindClose", sc_bfile_find_close},
@@ -287,7 +288,7 @@
      {0x06C4, "Keyboard_PRGM_GetKey", sc_prgm_get_key_os}, /* same codes as on the fx-CG */
      {0x0807, "locate", sc_locate},
      {0x0808, "Print", sc_fx_print},
-@@ -840,7 +789,8 @@
+@@ -840,7 +790,8 @@
      {0x080B, "PrintRevC", sc_fx_print_rev_c},
      {0x080C, "PrintLine", sc_fx_print_line},
      {0x080D, "PrintRLine", sc_fx_print_rline},
@@ -297,7 +298,7 @@
      {0x0813, "SaveDisp", sc_fx_save_disp},
      {0x0814, "RestoreDisp", sc_fx_restore_disp},
      {0x0829, "MCS_CreateDirectory", sc_mcs_create_dir},
-@@ -868,6 +818,8 @@
+@@ -868,6 +819,8 @@
      {0x0AD9, "strncpy", sc_strncpy},
      {0x0ADA, "strrchr", sc_strrchr},
      {0x0C4F, "PrintMini", sc_fx_print_mini},
@@ -306,7 +307,7 @@
      {0x0E6D, "realloc", sc_realloc},
      {0x1032, "Keyboard_KeycodeTable", sc_fx_keycode_table},
  };
-@@ -905,19 +857,30 @@
+@@ -905,19 +858,30 @@
              printf("%9.3f ms  syscall %04X %-24s (%08X, %08X, %08X, %08X)\n",
                     (double)cpu->instructions * 1000 / sh7305_iphi_hz(&emu->hw), number, table[i].name,
                     args[0], args[1], args[2], args[3]);
@@ -443,3 +444,72 @@
      unsigned local = (unsigned)((v[6] - '0') << 12 | (v[7] - '0') << 8 | (v[8] - '0') << 4 | (v[9] - '0'));
      if (a[0])
          mem_write8(&emu->mem, a[0], (uint8_t)major);
+--- upstream/os/syscalls_bfile.c
++++ patched/os/syscalls_bfile.c
+@@ -1,3 +1,4 @@
++#include "hardware_model.h"
+ /*
+  * HLE syscalls: the storage memory file system (Bfile_*), where add-ins keep
+  * save files. Paths like \\fls0\GAME.sav (16-bit characters) become host
+@@ -76,46 +77,7 @@
+ /* Copies an opened file into the flash (ROM), 4 kB-aligned like the file
+  * system's clusters, unless the same version is already there. Add-ins like
+  * CGDoom find a file's data by searching flash for its pages. */
+-static int copy_to_flash(Emu *emu, const char *path, FILE *f)
+-{
+-    struct stat st;
+-    if (fstat(fileno(f), &st) != 0)
+-        return -1;
+-    int i;
+-    for (i = 0; i < emu->flash_file_count; i++)
+-        if (!strcmp(emu->flash_files[i].path, path))
+-            break;
+-    if (i < emu->flash_file_count && emu->flash_files[i].size == (uint32_t)st.st_size &&
+-        emu->flash_files[i].mtime == (int64_t)st.st_mtime)
+-        return i; /* unchanged */
+-    uint32_t off = (emu->flash_next + 0xFFF) & ~0xFFFu;
+-    bool reuse = i < emu->flash_file_count &&
+-                 (uint64_t)st.st_size <= ((emu->flash_files[i].size + 0xFFFu) & ~0xFFFu);
+-    if (reuse) /* changed but still fits: same place */
+-        off = emu->flash_files[i].offset;
+-    else if (off + (uint64_t)st.st_size + 0x1000 > ADDIN_PHYS) /* no room before the add-in */
+-        return -1;
+-    if (i == emu->flash_file_count) {
+-        if (i == (int)(sizeof emu->flash_files / sizeof emu->flash_files[0]))
+-            return -1;
+-        emu->flash_file_count++;
+-    }
+-    long pos = ftell(f);
+-    fseek(f, 0, SEEK_SET);
+-    size_t n = fread(emu->rom + off, 1, (size_t)st.st_size, f);
+-    fseek(f, pos, SEEK_SET);
+-    /* The rest of the last cluster reads as zeros, like Bfile_ReadFile_OS
+-     * past the end of the file. */
+-    uint32_t end = (off + (uint32_t)n + 0xFFF) & ~0xFFFu;
+-    memset(emu->rom + off + n, 0, end - off - n);
+-    snprintf(emu->flash_files[i].path, sizeof emu->flash_files[i].path, "%s", path);
+-    emu->flash_files[i].offset = off;
+-    emu->flash_files[i].size = (uint32_t)n;
+-    emu->flash_files[i].mtime = (int64_t)st.st_mtime;
+-    if (!reuse)
+-        emu->flash_next = end;
+-    return i;
+-}
++#include "file_map_compat.h"
+ 
+ /* Marks the flash copy of a file out of date, so the next open copies it
+  * again (size and mtime alone miss changes within the same second). */
+@@ -216,6 +178,7 @@
+     fflush(f);
+     if (emu->file_flash[a[0]] >= 0)
+         emu->flash_files[emu->file_flash[a[0]]].mtime = INT64_MIN;
++    if(n)probe_hw_file_changed(emu);
+     return n;
+ }
+ 
+@@ -565,3 +528,5 @@
+     find_free(emu, (int)a[0]);
+     return 0;
+ }
++
++#include "file_address_compat.h"

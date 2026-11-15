@@ -2,14 +2,14 @@
   "scope": "Historical FX 1.x/2.00 index; not verified exhaustive for GIII 03.70",
   "slotsAudited": 4147,
   "documentedEntries": 404,
-  "dispatchEntries": 158,
+  "dispatchEntries": 159,
   "counts": {
     "data-entry-unimplemented": 2,
     "documented-unimplemented": 247,
     "hle-handler": 145,
-    "partial": 7,
+    "partial": 8,
     "stub": 6,
-    "undocumented": 3740
+    "undocumented": 3739
   },
   "meaning": "hle-handler means executable code, NOT full OS equivalence or device validation",
   "entries": [
@@ -2192,7 +2192,9 @@
     },
     {
       "number": "0x01E7",
-      "status": "undocumented"
+      "status": "partial",
+      "name": "InternalContainer_CloseSlot",
+      "handler": "sc_fx_close_container_slot"
     },
     {
       "number": "0x01E8",

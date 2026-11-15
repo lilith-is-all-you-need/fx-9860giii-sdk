@@ -22,6 +22,9 @@
 #define MAX_BREAKS 128
 typedef struct { int type; uint32_t address, size; } Breakpoint;
 static Emu *machine;
+static const char *os_firmware_path;
+static bool file_map_stress;
+static char loaded_os_version[11];
 static SOCKET gdb_listener = INVALID_SOCKET, control_listener = INVALID_SOCKET;
 static SOCKET gdb_client = INVALID_SOCKET, control_client = INVALID_SOCKET;
 static bool paused = true, quitting, no_ack;
@@ -286,9 +289,10 @@ static void control_line(const char *json)
     }else if(!strcmp(command,"syscalls")){
         probe_trace_json(reply, sizeof reply);
     }else if(!strcmp(command,"diagnostics")){
-        snprintf(reply,sizeof reply,"{\"ok\":true,\"memoryProfile\":\"%s\",\"heapBase\":\"%08X\",\"heapBytes\":%u,\"stackTop\":\"%08X\",\"stackFloor\":\"%08X\",\"executedSteps\":%" PRIu64 ",\"stepLimit\":%" PRIu64 ",\"realMmu\":false,\"realOsExit\":false,\"functionalTlb\":%s,\"instructionCache\":%s,\"quitCallback\":%s,\"copyBackDataCache\":false,\"writableAddin\":%s,\"osRefill\":\"HLE-owned-pages-only\",\"osModel\":\"HLE\"}\n",
+        snprintf(reply,sizeof reply,"{\"ok\":true,\"memoryProfile\":\"%s\",\"heapBase\":\"%08X\",\"heapBytes\":%u,\"stackTop\":\"%08X\",\"stackFloor\":\"%08X\",\"executedSteps\":%" PRIu64 ",\"stepLimit\":%" PRIu64 ",\"realMmu\":false,\"realOsExit\":false,\"functionalTlb\":%s,\"instructionCache\":%s,\"quitCallback\":%s,\"copyBackDataCache\":false,\"writableAddin\":%s,\"osRefill\":\"%s\",\"osModel\":\"HLE\",\"firmwareAssisted\":%s,\"fileMapStress\":%s}\n",
             memory_profile,active_layout.heap_base,active_layout.heap_size,active_layout.stack_top,stack_floor,executed_steps,step_limit,
-            hardware_model?"true":"false",hardware_model?"true":"false",hardware_model?"true":"false",hardware_model?"false":"true");
+            hardware_model?"true":"false",hardware_model?"true":"false",hardware_model?"true":"false",hardware_model?"false":"true",
+            os_firmware_path?"firmware-derived-RAM-page-table":"HLE-owned-pages-only",os_firmware_path?"true":"false",file_map_stress?"true":"false");
     }else if(!strcmp(command,"menu-resume")||!strcmp(command,"menu-replace")){
         if(!menu_waiting)strcpy(reply,"{\"ok\":false,\"error\":\"not in HLE menu\"}\n");
         else{menu_action=!strcmp(command,"menu-resume")?1:2;strcpy(reply,"{\"ok\":true}\n");}
@@ -458,6 +462,8 @@ int bridge_main(int argc,char **argv)
         else if(!strcmp(argv[i],"--trace-syscalls")&&i+1<argc)trace_path=argv[++i];
         else if(!strcmp(argv[i],"--strict-stubs"))strict_stubs=true;
         else if(!strcmp(argv[i],"--legacy-memory"))hardware_model=false;
+        else if(!strcmp(argv[i],"--os-firmware")&&i+1<argc)os_firmware_path=argv[++i];
+        else if(!strcmp(argv[i],"--file-map-stress"))file_map_stress=true;
         else if(!strcmp(argv[i],"--fault-policy")&&i+1<argc){const char *v=argv[++i];if(strcmp(v,"pause")&&strcmp(v,"reboot"))return 2;fault_pause=!strcmp(v,"pause");}
         else if(!strcmp(argv[i],"--step-limit")&&i+1<argc){if(!parse_number(argv[++i],UINT64_MAX,&step_limit))return 2;}
         else if(!strcmp(argv[i],"--heap-bytes")&&i+1<argc){if(!parse_number(argv[++i],UINT32_MAX,&heap_bytes)||heap_bytes<16||(heap_bytes&7))return 2;}
@@ -466,6 +472,8 @@ int bridge_main(int argc,char **argv)
     }
     if(!path||!frame||gp>65535||cp>65535){fprintf(stderr,"usage: FxEmulator --gdb-port N --control-port M --framebuffer FILE.bmp ADDIN.g1a\n");return 2;}
     addin_path=path;
+    if((file_map_stress&&!os_firmware_path)||(os_firmware_path&&!hardware_model)){fprintf(stderr,"firmware mode requires hardware model; file-map stress requires firmware\n");return 2;}
+    if(os_firmware_path&&(same_path(os_firmware_path,frame)||same_path(os_firmware_path,trace_path)||same_path(os_firmware_path,path))){fprintf(stderr,"firmware input and output paths must differ\n");return 2;}
     if(same_path(path,frame)||same_path(path,trace_path)||same_path(frame,trace_path)){fprintf(stderr,"input, framebuffer and trace paths must differ\n");return 2;}
     wchar_t *wf=wide(frame);if(!wf||wcslen(wf)>32740)return 2;wcscpy(frame_path,wf);swprintf(frame_temp,32768,L"%ls.tmp-%lu",wf,GetCurrentProcessId());free(wf);
     FILE *frame_test=_wfopen(frame_temp,L"wb");
@@ -491,6 +499,10 @@ int bridge_main(int argc,char **argv)
     probe_trace_configure(syscall_log,strict_stubs);
     emu_start(machine);
     if(!probe_hw_init(machine,hardware_model)){fprintf(stderr,"hardware model allocation failed\n");return 4;}
+    if(os_firmware_path){
+        if(!probe_hw_load_firmware(machine,os_firmware_path,file_map_stress)){fprintf(stderr,"cannot load supported OS analysis image\n");return 4;}
+        memcpy(loaded_os_version,probe_hw_os_version(&machine->mem),11);active_layout.os_version=loaded_os_version;
+    }
     WSADATA ws;if(WSAStartup(MAKEWORD(2,2),&ws))return 5;
     gdb_listener=listener(&gp);control_listener=listener(&cp);if(gdb_listener==INVALID_SOCKET||control_listener==INVALID_SOCKET){fprintf(stderr,"could not bind loopback listener\n");return 5;}
     setvbuf(stdout,NULL,_IONBF,0);

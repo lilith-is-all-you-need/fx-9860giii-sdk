@@ -45,16 +45,17 @@
      if (mem->fault)
          return;
      unsigned n = op >> 8 & 0xF, m = op >> 4 & 0xF;
-@@ -656,6 +663,8 @@
+@@ -656,6 +663,9 @@
  /* Executes the instruction at PC (or the syscall/exit it stands for). */
  static inline void step_one(Cpu *cpu)
  {
 +    probe_debug_before(cpu, cpu->pc);
 +    if (cpu->state != CPU_RUNNING) return;
++    if (probe_hw_private_call(cpu)) return;
      if ((cpu->pc & ~(SYSCALL_ENTRY ^ SYSCALL_ENTRY_FX)) == (SYSCALL_ENTRY & SYSCALL_ENTRY_FX)) { /* either OS's */
          if (cpu->syscall) {
              cpu->syscall(cpu, cpu->syscall_user);
-@@ -667,6 +676,7 @@
+@@ -667,6 +677,7 @@
          return;
      }
      if (cpu->pc == EXIT_ADDR) {
@@ -62,7 +63,7 @@
          cpu->state = CPU_EXITED;
          cpu->attention = true;
          return;
-@@ -705,6 +715,7 @@
+@@ -705,6 +716,7 @@
  static void run_until(Cpu *cpu, uint64_t end)
  {
      while (cpu->state == CPU_RUNNING && cpu->instructions < end) {

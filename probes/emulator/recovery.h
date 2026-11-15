@@ -71,6 +71,7 @@ static bool recover_machine(void)
     bool ok=fresh && g3a_read(addin_path,&addin) && addin.info.g1a && emu_init(fresh,MODEL_FX9750G3) && g3a_map(fresh,&addin);
     g3a_close(&addin);
     if(ok){fresh->headless=false;fresh->layout=&active_layout;memcpy(fresh->rom+0x10020,active_layout.os_version,10);emu_start(fresh);ok=probe_hw_init(fresh,hardware_model);}
+    if(ok&&os_firmware_path)ok=probe_hw_load_firmware(fresh,os_firmware_path,file_map_stress);
     if(!ok){if(fresh){emu_free(fresh);free(fresh);}manual_reboot=false;stopped(11,"reload-failed");return false;}
     /* Close file handles, release old RAM/MMU/cache/timers; persistent host files
        remain intact. Do not call a guest quit handler on a damaged machine. */
