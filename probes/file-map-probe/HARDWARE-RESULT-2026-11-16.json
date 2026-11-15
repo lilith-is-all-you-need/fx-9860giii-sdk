@@ -1,0 +1,79 @@
+{
+  "evidenceOrigin": "user-returned hardware log",
+  "analysisDate": "2026-11-16",
+  "logSha256": "2c6b9090e204e5e5f4b7d77ba6afef96da15323b68e7ba4b3f56bfcbdad8dc4d",
+  "logBytes": 65536,
+  "osVersion": "03.70.0200",
+  "probeVersion": "3.0",
+  "userReportedElapsedMinutesApprox": 3,
+  "elapsedMeasuredByProgram": false,
+  "allChecksPassed": true,
+  "expectedBinSha256": "8064b9eaa6ab619e2d363de9dbfcc3159d23f28ababe951a0b45105cfdd3c047",
+  "pageHashesIndependentlyMatched": 512,
+  "mappingExecutionPasses": 3,
+  "initialPhysicalDiscontinuities": 49,
+  "laterScanPhysicalDiscontinuities": 51,
+  "initialScanDistinctPhysicalAddresses": 512,
+  "addressRefreshChangedPageCounts": [
+    6,
+    0,
+    0,
+    3,
+    0,
+    0,
+    11,
+    0
+  ],
+  "observedFileOperationChangedPageTable": false,
+  "timerCalls": 3,
+  "timerSkippedDuringFileOperation": 3,
+  "timerBadResults": 0,
+  "menuQuitTargetFunctionPassed": true,
+  "callbackRestoreReports": [
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ]
+  ],
+  "reentryConfirmed": true,
+  "runtimeAddresses": {
+    "pageTable": "8800C81C",
+    "fileQuery": "8008EF68",
+    "refillCursor": "8800D01C"
+  },
+  "probeRegions": [
+    {
+      "name": "context",
+      "start": "880502A0",
+      "endExclusive": "88053400",
+      "bytes": 12640,
+      "overlapWithCurrentKhicasReservedBytes": 9216
+    },
+    {
+      "name": "resident",
+      "start": "880535C0",
+      "endExclusive": "88055BF4",
+      "bytes": 9780,
+      "overlapWithCurrentKhicasReservedBytes": 9780
+    },
+    {
+      "name": "shadow",
+      "start": "88056000",
+      "endExclusive": "88057000",
+      "bytes": 4096,
+      "overlapWithCurrentKhicasReservedBytes": 4096
+    }
+  ],
+  "limitations": [
+    "One real run with one storage layout; not a durability guarantee",
+    "No complete KhiCAS execution; Probe RAM regions overlap its reserved range",
+    "Initial per-page address log is collected over time, not an atomic storage snapshot",
+    "Address movement observed between queries; exact trigger and physical relocation mechanism not identified",
+    "File-operation timer callbacks deliberately skip target code; arbitrary OS reentrant callbacks not tested",
+    "Full OS and data-cache behavior remain unproven"
+  ]
+}
