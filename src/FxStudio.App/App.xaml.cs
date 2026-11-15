@@ -32,7 +32,7 @@ public partial class App : Application
         var window = new MainWindow(project, Option("--debug-build") != null, Option("--build-and-debug") != null);
         MainWindow = window;
         if (Option("--render-to") is { } renderPath) {
-            window.ContentRendered += async (_, _) => { try { await window.RenderForVerificationAsync(renderPath, Option("--render-break"), e.Args.Contains("--verify-interactions")); } catch (Exception ex) { File.WriteAllText(renderPath + ".error.txt", ex.ToString()); await window.CloseForVerificationAsync(); Shutdown(1); } };
+            window.ContentRendered += async (_, _) => { try { await window.RenderForVerificationAsync(renderPath, Option("--render-break"), e.Args.Contains("--verify-interactions"), e.Args.Contains("--verify-loader-ui")); } catch (Exception ex) { File.WriteAllText(renderPath + ".error.txt", ex.ToString()); await window.CloseForVerificationAsync(); Shutdown(1); } };
         }
         window.Show();
     }

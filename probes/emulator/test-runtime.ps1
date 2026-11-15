@@ -13,6 +13,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Runtime regression failed' }
     & $Python -X utf8 probes/emulator/test_hardware.py
     if ($LASTEXITCODE -ne 0) { throw 'Hardware model regression failed' }
+    & $Python -X utf8 probes/emulator/test_guest_refill.py
+    if ($LASTEXITCODE -ne 0) { throw 'Guest refill regression failed' }
     & $Python -X utf8 probes/emulator/test_fx_syscalls.py -v
     if ($LASTEXITCODE -ne 0) { throw 'FX syscall regression failed' }
     & $Python -X utf8 probes/emulator/test_recovery.py -v

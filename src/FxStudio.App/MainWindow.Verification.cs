@@ -13,7 +13,7 @@ public partial class MainWindow
 {
     // Renders the actual WPF visual tree for repeatable layout review on hosts
     // where desktop capture is unavailable. It never supplies synthetic state.
-    public async Task RenderForVerificationAsync(string path, string? stopLocation = null, bool verifyInteractions = false)
+    public async Task RenderForVerificationAsync(string path, string? stopLocation = null, bool verifyInteractions = false, bool verifyLoaderUi = false)
     {
         async Task WaitFor(Func<bool> ready) {
             for (var attempt = 0; !ready() && attempt < 600; attempt++) await Task.Delay(50);
@@ -39,6 +39,23 @@ public partial class MainWindow
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
         var fullPath = Path.GetFullPath(path); Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
         using (var stream = File.Create(fullPath)) encoder.Save(stream);
+        if (verifyLoaderUi) {
+            var knowledge = CreateKnowledgeWindow(); knowledge.Show();
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+            knowledge.UpdateLayout();
+            var panel=(DockPanel)knowledge.Content;
+            var search=panel.Children.OfType<TextBox>().First();
+            var list=panel.Children.OfType<ListBox>().Single();
+            if(list.Items.Count<4000)throw new InvalidOperationException("Embedded syscall coverage was not loaded");
+            RenderWindow(knowledge,fullPath+".knowledge.png");
+            search.Text="0x042C";
+            var syscall=list.Items.OfType<KnowledgeItem>().FirstOrDefault(x=>x.Title.StartsWith("0x042C",StringComparison.OrdinalIgnoreCase));
+            if(syscall==null)throw new InvalidOperationException("Knowledge search failed");
+            list.SelectedItem=syscall;
+            knowledge.UpdateLayout();RenderWindow(knowledge,fullPath+".search.png");
+            knowledge.Close();
+            File.WriteAllText(fullPath+".loader-ui.json",JsonSerializer.Serialize(new {passed=true,embeddedEntries=LoadCalculatorKnowledge().Count,search="0x042C",method="Actual WPF window and filtering"}));
+        }
         await CloseForVerificationAsync();
     }
     private async Task VerifyDebugInteractionsAsync(string renderPath)

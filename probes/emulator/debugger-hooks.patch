@@ -63,7 +63,30 @@
          cpu->state = CPU_EXITED;
          cpu->attention = true;
          return;
-@@ -705,6 +716,7 @@
+@@ -677,6 +688,14 @@
+         return;
+     }
+ 
++    /* Retry a guest-handled fault with the original architectural registers.
++     * This also restores the branch PC when its delay slot faults. Bus/device
++     * side effects of multi-access instructions are not rolled back. */
++    unsigned char architectural[offsetof(Cpu, intmu)];
++    bool precise = cpu->mem->probe_hw &&
++        ((cpu->vbr>=0x88000000u&&cpu->vbr<0x88080000u)||
++         (cpu->vbr>=0xa8000000u&&cpu->vbr<0xa8080000u));
++    if(precise)memcpy(architectural,cpu,sizeof architectural);
+     cpu->exception = false;
+     exec(cpu, cpu->pc);
+     if (cpu->mem->stall_cycles) { /* uncached memory accesses */
+@@ -684,6 +703,7 @@
+         cpu->mem->stall_cycles = 0;
+     }
+     if (cpu->mem->fault) {
++        if(precise)memcpy(cpu,architectural,sizeof architectural);
+         memory_exception(cpu);
+         return;
+     }
+@@ -705,6 +725,7 @@
  static void run_until(Cpu *cpu, uint64_t end)
  {
      while (cpu->state == CPU_RUNNING && cpu->instructions < end) {

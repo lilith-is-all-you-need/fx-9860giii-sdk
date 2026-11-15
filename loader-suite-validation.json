@@ -1,0 +1,59 @@
+{
+  "date": "2026-11-16",
+  "hardwareValidated": false,
+  "emulatorSha256": "692f591c7fc0239a0ecca441b2529dbd0dfcf9eaff7b8f5574833d52dc68699e",
+  "emulatorRegression": {
+    "pythonPassed": 61,
+    "optionalPrivateFirmwareSkipped": 8,
+    "upstreamCpuTestsPassed": true
+  },
+  "offlineProfileTests": 9,
+  "legacyProfileTests": 8,
+  "ramLoaderEdgeCases": 15,
+  "ramLoaderReleaseSha256": "eaeb0b74c58032cc319cbeae8647528acfe3cd822d16708ce3b85222bd41d907",
+  "originalKhiCAS": {
+    "ready": true,
+    "state": "exited",
+    "fileMapStress": true
+  },
+  "extendedSynthetic": {
+    "pages": 698,
+    "verifiedCalls": 2094,
+    "crossPageCalls": 698,
+    "state": "exited",
+    "fileMapStress": true
+  },
+  "integratedGiac": {
+    "imageBytes": 2859236,
+    "pages": 699,
+    "heapBytes": 40960,
+    "observedScreens": [
+      "2+2=4",
+      "simplify(2*x+x)=3*x"
+    ],
+    "returnedToOsMenu": true,
+    "syscalls": 719,
+    "missingSyscalls": 0,
+    "filesDuringPayload": "denied by runtime contract",
+    "reference": "probes/extended-cas/VALIDATION.json"
+  },
+  "negativeExtendedCases": {
+    "count": 5,
+    "screensReviewed": true,
+    "bundleUnchanged": true
+  },
+  "fxStudio": {
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "coreChecks": 65,
+    "automationChecks": 129,
+    "embeddedKnowledgeAndSearchVerified": true
+  },
+  "hostWritesTargetMemory": false,
+  "limits": [
+    "Full OS and copy-back D-cache are not modeled",
+    "Arbitrary G1A adaptation is not guaranteed",
+    "Current physical RAM can reject a small RAM-loaded program",
+    "Physical-device acceptance remains pending"
+  ]
+}

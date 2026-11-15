@@ -1,0 +1,92 @@
+[
+  {
+    "Title": "证据分级与适用范围",
+    "Evidence": "范围说明",
+    "Text": "实机回传、固件反汇编、模拟器回归和待验证推论分别记录。当前资料针对 fx-9860GIII / SH7305；实机为 OS 03.70.0200，固件比较覆盖 3.40、3.60、3.71 的本地三个型号分支。模拟器是 HLE，不是完整 OS。",
+    "Source": "probes/emulator/OS-MAPPING.md"
+  },
+  {
+    "Title": "G1A 布局、入口与常量池",
+    "Evidence": "文件与指令分析",
+    "Text": "保留完整 512 字节头和后续镜像。原映射基址 0x00300000，通常入口 0x00300200。代码、只读资源、PC 相对常量池、数据初值可能交错；平坦 G1A 不保留 ELF 的全部符号和重定位。ELF 转 G1A 不能无损逆向恢复。数值看似地址不代表可统一加差值，栈也不是所有常量的存放地点。",
+    "Source": "probes/native-loader/tools/prepare.py"
+  },
+  {
+    "Title": "RAM 小文件加载",
+    "Evidence": "模拟器已验证，实机候选",
+    "Text": "Loader.g1a 读取 BIN 和 384 字节 LPF，验证 SHA-256，将镜像映射到原虚拟地址。理论镜像上限 160 KiB；还需要 context、常驻代码、对齐和目标堆。默认模拟器 192 KiB OS 堆不代表实机。48 KiB 预算会拒绝 Fruit 等程序；文件小于 2 MiB 不等于适合 RAM Loader。",
+    "Source": "probes/native-loader/VALIDATION.md"
+  },
+  {
+    "Title": "OS 原生 512 页映射",
+    "Evidence": "固件分析 + Probe3 实机",
+    "Text": "OS 使用 512 个 4 KiB 页，对应 0x00300000..0x00500000。3.71/3071 页表 0x8800C81C，游标 0x8800D01C，补页函数 0x800113CE；这些地址必须由固件指纹识别，不可跨版本硬编码。页表后紧邻 OS 状态，直接扩写 698 项会破坏系统。",
+    "Source": "probes/os-map-profile.h"
+  },
+  {
+    "Title": "外部文件的物理页与变化",
+    "Evidence": "Probe3 实机",
+    "Text": "通过内部 Bfile 地址查询取得每页真实地址，再与文件读取内容核对。返回跨度是 4096 减页内偏移，末页仍可能返回整页跨度，应限制实际文件字节。Probe3 检测到地址变化，说明启动时的一次扫描不永久有效。文件操作后必须重新查询并核对变化页面；电脑 profile 只能保存偏移和校验，不能保存设备物理地址。",
+    "Source": "probes/file-map-probe"
+  },
+  {
+    "Title": "KhiCAS 精确版本适配",
+    "Evidence": "模拟器完成计算、保存和重入",
+    "Text": "2,094,444 字节原版 KhiCAS 用 KLoad + khicas.bin + khicas.kpf。BIN 不变，在 4 个 RAM 影子页执行 51 个 syscall 网关补丁和 3 个内存池补丁。常驻分配约 39 KiB；目标 arena 从 166 KiB 减至 106 KiB，大计算更容易 OOM。这个完整 Loader 仍待实机验收，Probe3 通过不能替代它。",
+    "Source": "probes/mapped-loader/README.zh-CN.md"
+  },
+  {
+    "Title": "真正超过 2 MiB 的扩展加载",
+    "Evidence": "698 页模拟器探测",
+    "Text": "2,857,444 字节需要 698 页；独立页地址表为 2,792 字节，此外仍有常驻代码、状态和缓冲。程序自行处理 TLB miss，才能超出 OS 512 页窗口。已完成三轮 2,094 次逐页调用、698 次跨页调用；这不是完整 CAS 或实机验证。gint 的 VBR、系统切换、回调和清理都需要接入，不能只修改 profile 中的页数。",
+    "Source": "probes/extended-loader/README.md"
+  },
+  {
+    "Title": "MMU、TLB 与 P1/P2",
+    "Evidence": "芯片模型 + 实机探测",
+    "Text": "P1 是缓存别名，P2 是非缓存别名；两者指向相同物理 RAM。映射替换时常驻代码需脱离将被覆盖的窗口。保存并恢复 TLB、MMU 控制、栈与 OS 状态，清理指令缓存。虚拟地址、物理地址、文件偏移不能混用。模拟器实现功能性 TLB 和指令缓存，尚无完整 copy-back 数据缓存和周期精度。",
+    "Source": "probes/emulator/hardware_model.c"
+  },
+  {
+    "Title": "自定义异常向量与缺页重试",
+    "Evidence": "CPU 回归 + 698 页模拟器探测",
+    "Text": "程序安装 RAM 中的 VBR 后，TLB miss 应转交 VBR+0x400。缺页重试必须恢复指令前的寄存器，否则 MOV.B @Rm+,Rn 可能重复递增。现已验证自增读、自减写和分支延迟槽；多次总线访问及外设副作用的完整回滚仍未实现。",
+    "Source": "probes/emulator/test_guest_refill.py"
+  },
+  {
+    "Title": "退出、MENU 与回调",
+    "Evidence": "Probe2/3 实机 + 模拟器",
+    "Text": "EXIT 是交给程序的按键，不是 OS 强制退出。目标必须处理按键或返回。MENU 切换涉及 OS 和运行库清理，0x0494 注册退出回调，必须保证回调执行时目标映射仍有效；之后恢复 Loader/OS 状态再释放内存。Timer 回调同样可能在文件操作或切换过程中触发，需忙状态保护。退出后重新打开 Loader 再加载是当前简单路径。",
+    "Source": "probes/mapped-loader/src/resident.c"
+  },
+  {
+    "Title": "Bfile 句柄不是裸数组索引",
+    "Evidence": "固件反汇编 + 回归",
+    "Text": "FX 0x042C 返回带设备高字节的句柄：fls0 为 0x01000000 | index，crd0 为 0x02000000 | index。0x0218 使用另一组搜索槽，不能混用。错误的模拟句柄会让 KhiCAS 选错存储分支，造成会话文件大小正常但内容全零。",
+    "Source": "probes/emulator/test_os_mapping.py"
+  },
+  {
+    "Title": "系统调用覆盖与故障留档",
+    "Evidence": "源码自动审计",
+    "Text": "下方可检索系统调用索引和实现状态。hle-handler 表示存在处理代码，不表示完全等价；partial、stub 和未实现需分别看待。未预期故障默认保存现场并重建 HLE OS；--fault-policy pause 可保留调试现场。固件不能自动补齐所有外设、时序和完整 OS 生命周期。",
+    "Source": "probes/emulator/SYSCALL-COVERAGE.md"
+  },
+  {
+    "Title": "超频、时钟与 0x02EE",
+    "Evidence": "固件/寄存器分析与功能模型",
+    "Text": "超频程序可能直接操作 SH7305 时钟寄存器，不一定经由专用 syscall。0x02EE 的补齐不等于完整超频兼容；时钟、定时器、等待循环和显示时序仍需实际验证。模拟器中的时钟参数和时间推进是功能模型，不可用于保证实机频率稳定性。",
+    "Source": "probes/emulator/VALIDATION-02EE.json"
+  },
+  {
+    "Title": "自动化适配的边界",
+    "Evidence": "实现约束",
+    "Text": "离线工具无需 LLM；匹配已审核 SHA-256 的适配器可以无人干预生成 BIN/profile。未知文件输出逐页哈希、syscall 使用证据及阻塞项。Ghidra/ELF 能帮助证明数值用途和内存边界，但无法保证所有剥离 G1A 的间接跳转、回调和动态地址均可静态判定。未审核输入不会被自动标记为可运行。",
+    "Source": "tooling/loader_suite.py"
+  },
+  {
+    "Source": "probes/extended-cas/README.md",
+    "Text": "新的 KHICAS.BIN 为 2,859,236 字节、699 页；KhiMap 启动器为 9,880 字节。启动器分配 6,912 字节，CAS arena 分配 32,768 字节，合计 39,680 字节。计算、绘图、清理已通过模拟器复测，实机尚待验收。通过运行库源码接入常驻 API；不是任意超限 G1A 的通用转换。运行中文件操作和定时/退出回调注册被拒绝，MENU/OFF 先清理。部分初始化失败仍可能需要 RESET。",
+    "Title": "699 页 Giac 完整接入候选",
+    "Evidence": "源码接入 + 完整 CAS 模拟器复测"
+  }
+]

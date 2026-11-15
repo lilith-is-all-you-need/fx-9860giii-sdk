@@ -5,7 +5,7 @@ import struct
 import tempfile
 import unittest
 from prepare import prepare, profile
-from verify import authored_target
+from fixtures import authored_target
 
 class ProfileTests(unittest.TestCase):
     def setUp(self):

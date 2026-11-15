@@ -8,7 +8,7 @@ static int copy_to_flash(Emu *emu,const char *path,FILE *f)
     if(exists&&emu->flash_files[i].size==(uint32_t)st.st_size&&emu->flash_files[i].mtime==(int64_t)st.st_mtime)return i;
     if(!exists&&i==(int)(sizeof emu->flash_files/sizeof emu->flash_files[0]))return -1;
     unsigned count=((uint32_t)st.st_size+4095)/4096;
-    bool fragment=probe_hw_file_stress(&emu->mem)&&count>1&&count<=512;
+    bool fragment=probe_hw_file_stress(&emu->mem)&&count>1&&count<=1024;
     bool reuse=exists&&emu->flash_files[i].page_count==count&&emu->flash_files[i].fragmented==fragment;
     uint32_t step=fragment?8192:4096,off=reuse?emu->flash_files[i].offset:(emu->flash_next+4095)&~4095u;
     uint64_t end=(uint64_t)off+(uint64_t)count*step;
@@ -19,7 +19,7 @@ static int copy_to_flash(Emu *emu,const char *path,FILE *f)
         uint32_t dest=off+page*step;unsigned n=remaining<4096?remaining:4096;
         memset(emu->rom+dest,0,4096);
         if(fread(emu->rom+dest,1,n,f)!=n){fseek(f,pos,SEEK_SET);return -1;}
-        if(page<512)emu->flash_files[i].pages[page]=dest;
+        if(page<1024)emu->flash_files[i].pages[page]=dest;
         remaining-=n;
     }
     if(fseek(f,pos,SEEK_SET))return -1;

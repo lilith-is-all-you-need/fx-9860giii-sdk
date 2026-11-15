@@ -32,6 +32,19 @@ cpu = replace_once(cpu, 'case 0x8: case 0x9: case 0xA: case 0xB: case 0xD: case 
     'case 0x8: case 0x9: case 0xA: case 0xB: case 0xD: case 0xE: probe_hw_cache(cpu, op, RN); return;')
 cpu = replace_once(cpu, '    if (cpu->pc == EXIT_ADDR) {',
     '    if (cpu->pc == EXIT_ADDR) {\n        if (!probe_hw_exit(cpu)) return;')
+cpu = replace_once(cpu, '    cpu->exception = false;\n    exec(cpu, cpu->pc);', '''    /* Retry a guest-handled fault with the original architectural registers.
+     * This also restores the branch PC when its delay slot faults. Bus/device
+     * side effects of multi-access instructions are not rolled back. */
+    unsigned char architectural[offsetof(Cpu, intmu)];
+    bool precise = cpu->mem->probe_hw &&
+        ((cpu->vbr>=0x88000000u&&cpu->vbr<0x88080000u)||
+         (cpu->vbr>=0xa8000000u&&cpu->vbr<0xa8080000u));
+    if(precise)memcpy(architectural,cpu,sizeof architectural);
+    cpu->exception = false;
+    exec(cpu, cpu->pc);''')
+cpu = replace_once(cpu, '    if (cpu->mem->fault) {\n        memory_exception(cpu);', '''    if (cpu->mem->fault) {
+        if(precise)memcpy(cpu,architectural,sizeof architectural);
+        memory_exception(cpu);''')
 (out / 'cpu.c').write_text(cpu)
 
 mem = original_mem = (up / 'mem.h').read_text()
@@ -59,7 +72,7 @@ emu_h = replace_once(emu_h, '    int cursor_x, cursor_y;',
 emu_h = replace_once(emu_h, '    FILE *files[16];',
     '    uint8_t fx_file_device[16];\n    FILE *files[16];')
 emu_h = replace_once(emu_h, '        uint32_t offset, size;',
-    '        uint32_t offset, size, page_count, pages[512];\n        bool fragmented;')
+    '        uint32_t offset, size, page_count, pages[1024];\n        bool fragmented;')
 (out / 'emu.h').write_text(emu_h)
 mem_c = original_mem_c = (up / 'mem.c').read_text()
 mem_c = '#include "hardware_model.h"\n' + mem_c

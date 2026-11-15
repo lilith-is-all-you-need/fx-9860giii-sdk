@@ -11,6 +11,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="CalculatorKnowledge.json" LogicalName="FxStudio.CalculatorKnowledge.json" />
+    <EmbeddedResource Include="../../probes/emulator/syscall-coverage.json" LogicalName="FxStudio.SyscallCoverage.json" />
     <ProjectReference Include="../FxStudio.Core/FxStudio.Core.csproj" />
     <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
   </ItemGroup>

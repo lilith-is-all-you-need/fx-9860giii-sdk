@@ -22,6 +22,8 @@ internal static class Language
             ["EnlargeScreen"]=("Enlarge…", "放大画面…"), ["SaveScreen"]=("Save PNG…", "保存 PNG…"),
             ["InspectHint"]=("Double-click a value to inspect members. Values update when paused.", "双击变量查看成员；暂停后更新数值。"),
             ["ImportBuild"]=("Load compiled program…", "加载已有编译产物…"),
+            ["PrepareAddin"]=("Prepare G1A for Loader…", "为 Loader 准备 G1A…"),
+            ["CalculatorKnowledge"]=("Calculator reference…", "计算器资料…"),
             ["Tools"]=("Tools", "工具"), ["Settings"]=("Settings…", "设置…"), ["Reveal"]=("Show build folder", "打开构建目录"), ["Help"]=("Help", "帮助"), ["Guide"]=("User guide", "使用说明"),
             ["Project"]=("PROJECT", "工程"), ["Calculator"]=("CALCULATOR", "计算器"), ["Target"]=("fx-9860GIII · SuperH", "fx-9860GIII · SuperH"),
             ["PreviewHint"]=("Real target execution · 128 × 64", "目标程序运行画面 · 128 × 64"), ["PreviewEmpty"]=("Build and start to preview", "构建并启动以查看画面"),

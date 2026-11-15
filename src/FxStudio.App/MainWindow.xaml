@@ -24,8 +24,8 @@
             <MenuItem Header="{DynamicResource NextInstruction}" Click="NextInstruction_Click" InputGestureText="Ctrl+Alt+F10" IsEnabled="{Binding IsEnabled, ElementName=NextButton}"/><Separator/>
             <MenuItem x:Name="BreakpointMenu" Header="{DynamicResource Breakpoint}" Click="Breakpoint_Click" InputGestureText="F9"/>
           </MenuItem>
-          <MenuItem Header="{DynamicResource Tools}"><MenuItem Header="{DynamicResource Settings}" Click="Settings_Click"/><MenuItem Header="Language"><MenuItem Header="English" Click="English_Click"/><MenuItem Header="简体中文" Click="Chinese_Click"/></MenuItem></MenuItem>
-          <MenuItem Header="{DynamicResource Help}"><MenuItem Header="{DynamicResource Guide}" Click="Guide_Click"/></MenuItem>
+          <MenuItem Header="{DynamicResource Tools}"><MenuItem Header="{DynamicResource PrepareAddin}" Click="PrepareAddin_Click"/><MenuItem Header="{DynamicResource Settings}" Click="Settings_Click"/><MenuItem Header="Language"><MenuItem Header="English" Click="English_Click"/><MenuItem Header="简体中文" Click="Chinese_Click"/></MenuItem></MenuItem>
+          <MenuItem Header="{DynamicResource Help}"><MenuItem Header="{DynamicResource CalculatorKnowledge}" Click="CalculatorKnowledge_Click"/><MenuItem Header="{DynamicResource Guide}" Click="Guide_Click"/></MenuItem>
         </Menu>
         <DockPanel Margin="12,3,12,10">
           <StackPanel Orientation="Horizontal">

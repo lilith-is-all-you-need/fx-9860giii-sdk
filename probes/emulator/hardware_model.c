@@ -139,6 +139,14 @@ static bool translate(Hardware *h,uint32_t a,bool fetch,bool write,uint32_t *pa,
     if(!t) {
         int u=lookup(h,h->u,64,a);
         if(u==-2) return false;
+        /* A guest-installed RAM vector owns translation misses. Let the CPU
+         * enter VBR+0x400; the HLE OS must not silently refill its 512-page map. */
+        if(u<0 && ((cpu->vbr>=0x88000000u&&cpu->vbr<0x88080000u)||
+                   (cpu->vbr>=0xa8000000u&&cpu->vbr<0xa8080000u))) {
+            Memory *m=&h->emu->mem;
+            m->fault=FAULT_UNMAPPED;m->fault_addr=a;m->fault_write=write;
+            return false;
+        }
         if(u<0) u=os_refill(h,a);
         if(u<0) { error(h,a,write,"TLB miss"); return false; }
         t=&h->u[u];
