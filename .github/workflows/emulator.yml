@@ -1,0 +1,31 @@
+name: Native emulator regression
+
+on:
+  push:
+    branches: [main]
+    paths: ['probes/emulator/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
+  pull_request:
+    paths: ['probes/emulator/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-runtime:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: msys2/setup-msys2@7fc5b595c39a0cc29c5bcd5612330d49ab8f6e1b
+        id: msys2
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc
+      - name: Build and test CPU, syscalls, protocol and diagnostic limits
+        env:
+          MSYS2_LOCATION: ${{ steps.msys2.outputs.msys2-location }}
+        run: ./probes/emulator/test-runtime.ps1 -Compiler "$env:MSYS2_LOCATION/ucrt64/bin/gcc.exe"

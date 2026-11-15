@@ -82,7 +82,52 @@ FxEmulator.exe --gdb-port 0 --control-port 0 --framebuffer "绝对路径.bmp" "�
 
 初始无调试探针 `preview-probe.exe` 还直接执行了 CAS02 的 106,568 字节 G1A：61,931,102 模拟周期、5 次显示更新、全部按键脚本步骤消费，无 CPU 错误。图像为 `build/initial.png` 和 `build/calculated.png`；正式后端截图为 `build/live-initial.png` 和 `build/live-calculated.png`。
 
-## 边界
+## 2026-11 内存兼容与诊断增强
+
+`calloc`（0x0E6B）和 `memmove`（0x0E6C）已补充。堆分配器检查乘法/对齐溢出、块边界、损坏的元数据、非法释放和重复释放；`realloc` 失败保留原块。此 HLE 对零长度分配返回 NULL，对非法释放报错，这些是模拟器的诊断策略，不宣称复现真机在未定义行为下的表现。
+
+批量复制/填充先验证完整地址范围，失败时不部分写入；复制支持重叠、跨页和 P1/P2 别名，并触发观察点。补充 `Cursor_SetPosition`（0x0138）的边界和返回值、`Setup_GetEntry`（0x04DC）中 0x14 键盘状态项。其他设置索引仍明确报错。`Cursor_SetFlashOff`（0x0812）与原有光标闪烁接口一样属于占位实现，尚不画闪烁光标。
+
+额外启动选项：
+
+| 选项 | 用途 |
+| --- | --- |
+| `--trace-syscalls FILE.jsonl` | 每次调用的进入/完成、编号、名称、r4–r7、PR、SP、返回值和失败状态 |
+| `--strict-stubs` | 遇到 `sc_nothing` 占位实现立即报错，包含 SetQuitHandler |
+| `--step-limit N` | 每次继续/单步后最多 N 次 CPU 执行钩子，含延迟槽；0 表示无限制 |
+| `--heap-bytes N` | 缩小所选模拟堆，测试内存不足；至少 16 字节且为 8 的倍数 |
+| `--memory-profile khicas` | 使用下表中的隔离布局，并检查每次指令前 SP 是否越界 |
+
+`default` 仍是默认布局。`khicas` **是诊断配置，不是真机内存布局的测量结果**：
+
+| 区域 | default | khicas |
+| --- | --- | --- |
+| HLE OS 堆 | `[88040000,88070000)`，192 KiB | `[88040000,8804C000)`，48 KiB |
+| 栈顶 | `88080000`，不额外限制 | `88051000` |
+| 检查的 SP 范围 | 无 | `[8804C000,88051000]`，20 KiB |
+
+KhiCAS 样本自身使用 `88051000`、`88052000`、`[88053800,8807D000)` 等区域。默认布局可能重叠；隔离布局适合逐步排查。SP 检查不替代所有内存写入检查，也不会修复 guest 的 MMU/cache 操作。
+
+新增控制请求 `{"command":"syscalls"}` 返回调用计数和最近 16 次调用；`{"command":"diagnostics"}` 返回内存配置、步数和模拟假设。`implemented` 仅表示有 HLE 处理函数，不能理解为完整 OS 实现；`stub` 专指 `sc_nothing`，`missing` 表示无对应处理。进入阻塞 GetKey 时 `completed:false` 是正常的等待。嵌套回调超过环形记录容量时，较早父调用的完成记录可能被省略，完整 JSONL 仍保留其进入记录。
+
+`realMmu:false`、`realOsExit:false`、`writableAddin:true` 明确揭示当前模型：没有真实 TLB/缓存一致性和 OS 退出生命周期；add-in 映射可写。未知系统调用仍停止执行。严格占位检查也不能排除其他 HLE 函数中的简化。
+
+独立复现与回归（普通 Python 3，无额外 Python 包）：
+
+```powershell
+./probes/emulator/test-runtime.ps1 -Python python
+python probes/emulator/runtime_probe.py C:/samples/khicas.bin --output probes/emulator/build/sample --memory-profile khicas --steps 5000000 --timeout 3 --keys F1,2,PLUS,2,EXE
+```
+
+探针会输出 `report.json`、`syscalls.jsonl`、屏幕 BMP、每次按键前的 BMP 和 stderr；输入 `.bin` 只改扩展名即可。`--timeout` 是等待停止包的墙钟超时，之后发送 Ctrl-C；指令预算无法终止在宿主端等待按键的 HLE，因此应同时使用墙钟超时。按键自动化采用固定间隔，报告“sent”仅表示送出，需结合画面确认目标程序消费。
+
+`test_runtime.py` 自行生成小型 SH/G1A，不依赖 KhiCAS 或官方 SDK。`test-runtime.ps1` 构建解释器并运行上游 CPU 测试与本地 13 组运行时测试（多组含参数化、随机分配检查）。GitHub 的 `Native emulator regression` 工作流执行同样检查。原有 `test_bridge.py` 55 项还依赖本机历史 CAS02 夹具，不放进公开 CI。
+
+2026-11-15 本机验证：SHA-256 为 `4a9d1c18009d987dc7c8745b7fc099b3c6e8006ebbb2ee5e4b483934be757473` 的外部 KhiCAS 样本在两种布局均进入界面并显示 `2+2` 的结果 `4`；隔离布局下另走过除零、缺操作数、删除修改、EXIT/MENU 按键路径，无 CPU 错误或未知调用。MENU 按键测试不等于返回真实 OS 菜单。短路径通过不代表 KhiCAS 全功能或长期稳定；样本文件未纳入仓库。
+
+语义核对来源：[fx legacy Setup](https://media.taricorp.net/prizm/simon_chm/fx_legacy_Setup.htm)、[fx legacy Cursor](https://media.taricorp.net/prizm/simon_chm/fx_legacy_Cursor.HTM)，以及本机 KhiCAS 关联源码的 syscall 桩。编号通过运行时实际调用核对，未据关联源码推定二进制完全同源。
+
+## 仍未覆盖的硬件行为
 
 这是 GIII 类 SH7305/128×64 显示与部分系统调用的模拟器，并不是完整 Casio OS。采用上游 `MODEL_FX9750G3`（上游代码注明同属 fx-9860GIII / Graph 35+E II）。菜单内置应用、USB、DSP 算术指令等上游未模拟部分仍不可用；未知系统调用会报错。OS 文本替代字体可能与实机不同，gint 自带字体则由目标代码绘制。
 

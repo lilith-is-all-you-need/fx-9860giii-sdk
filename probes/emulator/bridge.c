@@ -6,10 +6,13 @@
 #include "emu.h"
 #include "g3a.h"
 #include "keys.h"
+#include "syscall_trace.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <errno.h>
+#include <ctype.h>
 
 #define BUFFER 32768
 #define MAX_BREAKS 128
@@ -37,6 +40,11 @@ static int frame_width, frame_height;
 static uint64_t frame_write_tick;
 static bool frame_dirty;
 static uint64_t poll_tick, hook_counter;
+static uint64_t executed_steps, step_limit, stop_at_step;
+static Layout active_layout;
+static const char *memory_profile = "default";
+static uint32_t stack_floor;
+static FILE *syscall_log;
 bool probe_debug_ignore_memory;
 static void flush_frame(bool force);
 
@@ -135,6 +143,7 @@ static void resume(bool single,const char *address)
     if(machine->cpu.state!=CPU_RUNNING){rsp("E31");return;}
     if(address&&*address){uint32_t a;if(!hex_u32(&address,&a)||*address||!set_reg(16,a)){rsp("E22");return;}}
     paused=false;step_budget=single?1:0;watch_pending=false;strcpy(stop_reason,"running");
+    stop_at_step = step_limit > UINT64_MAX - executed_steps ? UINT64_MAX : executed_steps + step_limit;
 }
 static void handle_packet(char *p,size_t length)
 {
@@ -245,12 +254,17 @@ static bool parse_control(const char *p,char command[32],char key[32],bool *down
 }
 static void control_line(const char *json)
 {
-    char command[32]={0},key[32]={0},reply[2048],error[1024];bool down=false;
+    char command[32]={0},key[32]={0},reply[16384],error[1024];bool down=false;
     if(!parse_control(json,command,key,&down)){const char *e="{\"ok\":false,\"error\":\"invalid command object\"}\n";send_all(control_client,e,strlen(e));return;}
     if(!strcmp(command,"status")){
         const char *state=machine->cpu.state==CPU_ERROR?"error":machine->cpu.state==CPU_EXITED?"exited":paused?"paused":"running";
         json_escape(machine->cpu.error,error,sizeof error);
         snprintf(reply,sizeof reply,"{\"ok\":true,\"state\":\"%s\",\"pc\":\"%08X\",\"cycles\":%" PRIu64 ",\"reason\":\"%s\",\"error\":\"%s\"}\n",state,machine->cpu.pc,machine->cpu.instructions,stop_reason,error);
+    }else if(!strcmp(command,"syscalls")){
+        probe_trace_json(reply, sizeof reply);
+    }else if(!strcmp(command,"diagnostics")){
+        snprintf(reply,sizeof reply,"{\"ok\":true,\"memoryProfile\":\"%s\",\"heapBase\":\"%08X\",\"heapBytes\":%u,\"stackTop\":\"%08X\",\"stackFloor\":\"%08X\",\"executedSteps\":%" PRIu64 ",\"stepLimit\":%" PRIu64 ",\"realMmu\":false,\"realOsExit\":false,\"writableAddin\":true,\"osModel\":\"HLE\"}\n",
+            memory_profile,active_layout.heap_base,active_layout.heap_size,active_layout.stack_top,stack_floor,executed_steps,step_limit);
     }else if(!strcmp(command,"key")){
         int k=key_find(key);if(k<0)strcpy(reply,"{\"ok\":false,\"error\":\"unknown key\"}\n");else{host_keys[k]=down;if(down)queued_key=k;else if(queued_key==k)queued_key=-1;strcpy(reply,"{\"ok\":true}\n");}
     }else if(!strcmp(command,"quit")){quitting=true;strcpy(reply,"{\"ok\":true}\n");}
@@ -276,6 +290,7 @@ static void disconnect_gdb(void)
 static void bridge_exit(void)
 {
     flush_frame(true);
+    if(syscall_log){fclose(syscall_log);syscall_log=NULL;}
     /* Let final loopback replies drain before WSACleanup tears down sockets. */
     struct linger finish={1,1};
     if(control_client!=INVALID_SOCKET){setsockopt(control_client,SOL_SOCKET,SO_LINGER,(const char *)&finish,sizeof finish);shutdown(control_client,SD_SEND);closesocket(control_client);}
@@ -315,10 +330,18 @@ void probe_debug_before(Cpu *cpu,uint32_t address)
     if((++hook_counter&2047)==0)pump(0);
     if(!paused){
         if(watch_pending)stopped(5,"watchpoint");
+        else if(step_limit&&executed_steps>=stop_at_step)stopped(2,"step-limit");
         else if(step_budget&&--step_budget==0)stopped(5,"step");
         else for(int i=0;i<break_count;i++)if(breaks[i].type<2&&breaks[i].address==address){stopped(5,"breakpoint");break;}
     }
     while(paused&&!quitting)pump(20);
+    if(stack_floor&&(cpu->r[15]<stack_floor||cpu->r[15]>active_layout.stack_top)){
+        cpu_report(cpu,"configured stack range exceeded: SP=0x%08X",cpu->r[15]);
+        cpu->state=CPU_ERROR;
+        stopped(11,"stack-range");
+        while(paused&&!quitting)pump(20);
+    }
+    ++executed_steps;
     (void)cpu;
 }
 void probe_debug_memory(uint32_t address,int size,bool write)
@@ -342,23 +365,69 @@ static SOCKET listener(unsigned *port)
     if(bind(s,(struct sockaddr*)&address,sizeof address)||listen(s,1)){closesocket(s);return INVALID_SOCKET;}
     int len=sizeof address;getsockname(s,(struct sockaddr*)&address,&len);*port=ntohs(address.sin_port);return s;
 }
+static bool parse_number(const char *s,uint64_t maximum,uint64_t *value)
+{
+    if(!s||!*s||*s=='-'||*s=='+'||isspace((unsigned char)*s))return false;
+    char *end;errno=0;unsigned long long n=strtoull(s,&end,0);
+    if(errno||*end||n>maximum)return false;
+    *value=n;return true;
+}
+static bool same_path(const char *a,const char *b)
+{
+    if(!a||!b)return false;
+    wchar_t *wa=wide(a),*wb=wide(b),pa[32768],pb[32768];
+    DWORD na=wa?GetFullPathNameW(wa,32768,pa,NULL):0,nb=wb?GetFullPathNameW(wb,32768,pb,NULL):0;
+    bool same=na&&na<32768&&nb&&nb<32768&&CompareStringOrdinal(pa,-1,pb,-1,TRUE)==CSTR_EQUAL;
+    /* Existing hard links / junction paths must not let a trace truncate input. */
+    if(!same&&wa&&wb){
+        DWORD share=FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE;
+        HANDLE ha=CreateFileW(wa,FILE_READ_ATTRIBUTES,share,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+        HANDLE hb=CreateFileW(wb,FILE_READ_ATTRIBUTES,share,NULL,OPEN_EXISTING,FILE_FLAG_BACKUP_SEMANTICS,NULL);
+        BY_HANDLE_FILE_INFORMATION ia,ib;
+        if(ha!=INVALID_HANDLE_VALUE&&hb!=INVALID_HANDLE_VALUE&&GetFileInformationByHandle(ha,&ia)&&GetFileInformationByHandle(hb,&ib))
+            same=ia.dwVolumeSerialNumber==ib.dwVolumeSerialNumber&&ia.nFileIndexHigh==ib.nFileIndexHigh&&ia.nFileIndexLow==ib.nFileIndexLow;
+        if(ha!=INVALID_HANDLE_VALUE)CloseHandle(ha);
+        if(hb!=INVALID_HANDLE_VALUE)CloseHandle(hb);
+    }
+    free(wa);free(wb);return same;
+}
 int bridge_main(int argc,char **argv)
 {
     unsigned gp=0,cp=0;const char *path=NULL,*frame=NULL;
+    const char *trace_path=NULL;uint64_t heap_bytes=0,value;bool strict_stubs=false;
     for(int i=1;i<argc;i++){
-        if(!strcmp(argv[i],"--gdb-port")&&i+1<argc)gp=(unsigned)strtoul(argv[++i],NULL,10);
-        else if(!strcmp(argv[i],"--control-port")&&i+1<argc)cp=(unsigned)strtoul(argv[++i],NULL,10);
+        if((!strcmp(argv[i],"--gdb-port")||!strcmp(argv[i],"--control-port"))&&i+1<argc){
+            bool g=!strcmp(argv[i],"--gdb-port");if(!parse_number(argv[++i],65535,&value))return 2;
+            if(g)gp=(unsigned)value;else cp=(unsigned)value;
+        }
         else if(!strcmp(argv[i],"--framebuffer")&&i+1<argc)frame=argv[++i];
+        else if(!strcmp(argv[i],"--trace-syscalls")&&i+1<argc)trace_path=argv[++i];
+        else if(!strcmp(argv[i],"--strict-stubs"))strict_stubs=true;
+        else if(!strcmp(argv[i],"--step-limit")&&i+1<argc){if(!parse_number(argv[++i],UINT64_MAX,&step_limit))return 2;}
+        else if(!strcmp(argv[i],"--heap-bytes")&&i+1<argc){if(!parse_number(argv[++i],UINT32_MAX,&heap_bytes)||heap_bytes<16||(heap_bytes&7))return 2;}
+        else if(!strcmp(argv[i],"--memory-profile")&&i+1<argc){memory_profile=argv[++i];if(strcmp(memory_profile,"default")&&strcmp(memory_profile,"khicas"))return 2;}
         else if(argv[i][0]!='-'&&!path)path=argv[i];else{fprintf(stderr,"invalid argument\n");return 2;}
     }
     if(!path||!frame||gp>65535||cp>65535){fprintf(stderr,"usage: FxEmulator --gdb-port N --control-port M --framebuffer FILE.bmp ADDIN.g1a\n");return 2;}
+    if(same_path(path,frame)||same_path(path,trace_path)||same_path(frame,trace_path)){fprintf(stderr,"input, framebuffer and trace paths must differ\n");return 2;}
     wchar_t *wf=wide(frame);if(!wf||wcslen(wf)>32740)return 2;wcscpy(frame_path,wf);swprintf(frame_temp,32768,L"%ls.tmp-%lu",wf,GetCurrentProcessId());free(wf);
     FILE *frame_test=_wfopen(frame_temp,L"wb");
     if(!frame_test){fprintf(stderr,"framebuffer path is not writable\n");return 6;}
     fclose(frame_test);DeleteFileW(frame_temp);
     G3aFile addin={0};if(!g3a_read(path,&addin)||!addin.info.g1a)return 3;
     machine=calloc(1,sizeof *machine);if(!machine||!emu_init(machine,MODEL_FX9750G3)||!g3a_map(machine,&addin))return 4;
-    g3a_close(&addin);machine->headless=false;emu_start(machine);
+    g3a_close(&addin);machine->headless=false;
+    active_layout=*machine->layout;
+    if(!strcmp(memory_profile,"khicas")){
+        /* Explicit diagnostic layout, NOT an assertion about the real OS. */
+        active_layout.heap_base=0x88040000;active_layout.heap_size=0xC000;
+        active_layout.stack_top=0x88051000;stack_floor=0x8804C000;
+    }
+    if(heap_bytes){if(heap_bytes>active_layout.heap_size){fprintf(stderr,"heap exceeds selected memory profile\n");return 2;}active_layout.heap_size=(uint32_t)heap_bytes;}
+    machine->layout=&active_layout;
+    if(trace_path){syscall_log=probe_utf8_fopen(trace_path,"wb");if(!syscall_log){fprintf(stderr,"cannot create syscall trace\n");return 6;}}
+    probe_trace_configure(syscall_log,strict_stubs);
+    emu_start(machine);
     WSADATA ws;if(WSAStartup(MAKEWORD(2,2),&ws))return 5;
     gdb_listener=listener(&gp);control_listener=listener(&cp);if(gdb_listener==INVALID_SOCKET||control_listener==INVALID_SOCKET){fprintf(stderr,"could not bind loopback listener\n");return 5;}
     setvbuf(stdout,NULL,_IONBF,0);
