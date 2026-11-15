@@ -9,6 +9,18 @@ static bool fx_partial_syscall(uint32_t n)
 static uint8_t fx_lower(uint8_t c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
 static uint8_t fx_upper(uint8_t c) { return c >= 'a' && c <= 'z' ? c - 32 : c; }
 static SC(sc_fx_reset) { probe_request_reset(&emu->cpu, "syscall-0236"); return 0; }
+static SC(sc_fx_system_os_version)
+{
+    /* FX 02EE is void System_GetOSVersion(unsigned char *version).
+     * Ten ASCII characters (MM.mm.ssss) plus the terminating NUL. Use the
+     * same modeled OS version as 0015; this does not identify real firmware.
+     * Reference: Simon Lothar, fx_legacy_System.HTM. */
+    const char *version = emu->layout->os_version ? emu->layout->os_version : "02.05.2201";
+    if(!hle_span(emu,a[0],11,true))return 0;
+    for(uint32_t i=0;i<10;i++)mem_write8(&emu->mem,a[0]+i,(uint8_t)version[i]);
+    mem_write8(&emu->mem,a[0]+10,0);
+    return 0; /* No documented return value. */
+}
 static SC(sc_fx_atoi)
 {
     uint32_t p=a[0], value=0; uint8_t c; bool negative=false;

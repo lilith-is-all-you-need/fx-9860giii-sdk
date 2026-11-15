@@ -205,7 +205,7 @@
  
  /* The serial port (3-pin link cable): nothing is plugged in, so nothing
   * ever arrives. What is sent goes out of the emulated TX pin (sh7305.c),
-@@ -749,6 +663,38 @@
+@@ -749,6 +663,39 @@
   * Simon Lothar's list (see syscalls_fx.c). The shared functions take the
   * same arguments as their fx-CG counterparts above. */
  static const Syscall SYSCALLS_FX[] = {
@@ -223,6 +223,7 @@
 +    {0x02A7, "AscHexToNibble", sc_fx_hex_nibble},
 +    {0x02A8, "NibbleToAscHex", sc_nibble_to_hex},
 +    {0x02A9, "strlen", sc_strlen},
++    {0x02EE, "System_GetOSVersion", sc_fx_system_os_version},
 +    {0x0429, "Bfile_identify_device", sc_fx_device},
 +    {0x0457, "Bfile_StrToName_ncpy", sc_fx_str_to_name},
 +    {0x0467, "LongToAscHex", sc_fx_hex},
@@ -244,7 +245,7 @@
      {0x0013, "GlibAddinAplExecutionCheck", sc_fx_glib_execution_check},
      {0x0014, "GlibGetAddinLibInf", sc_fx_glib_lib_info},
      {0x0015, "GlibGetOSVersionInfo", sc_fx_os_version},
-@@ -766,9 +712,10 @@
+@@ -766,9 +713,10 @@
      {0x011A, "Timer_Start", sc_timer_start},
      {0x011B, "Timer_Stop", sc_timer_stop},
      {0x0135, "GetVRAMAddress", sc_get_vram_address}, /* the OS's 1 kB monochrome VRAM */
@@ -258,7 +259,7 @@
      {0x0142, "Bdisp_AllClr_DD", sc_fx_allclr_dd},
      {0x0143, "Bdisp_AllClr_VRAM", sc_fx_allclr_vram},
      {0x0144, "Bdisp_AllClr_DDVRAM", sc_fx_allclr_ddvram},
-@@ -784,9 +731,9 @@
+@@ -784,9 +732,9 @@
      {0x0150, "PrintXY", sc_fx_print_xy},
      {0x0156, "PopUpWin", sc_fx_popup_at},
      {0x015D, "PrintCR", sc_fx_print_cr},
@@ -270,7 +271,7 @@
      {0x0242, "Bkey_Set_RepeatTime", sc_nothing},  /* no key repeat here */
      {0x0244, "Bkey_Set_RepeatTime_Default", sc_nothing},
      {0x0245, "Keyboard_EnableAutoRepeat", sc_nothing},
-@@ -827,11 +774,12 @@
+@@ -827,11 +775,12 @@
      {0x043B, "Bfile_FindFirst", sc_bfile_find_first},
      {0x043C, "Bfile_FindNext", sc_bfile_find_next},
      {0x043D, "Bfile_FindClose", sc_bfile_find_close},
@@ -286,7 +287,7 @@
      {0x06C4, "Keyboard_PRGM_GetKey", sc_prgm_get_key_os}, /* same codes as on the fx-CG */
      {0x0807, "locate", sc_locate},
      {0x0808, "Print", sc_fx_print},
-@@ -840,7 +788,8 @@
+@@ -840,7 +789,8 @@
      {0x080B, "PrintRevC", sc_fx_print_rev_c},
      {0x080C, "PrintLine", sc_fx_print_line},
      {0x080D, "PrintRLine", sc_fx_print_rline},
@@ -296,7 +297,7 @@
      {0x0813, "SaveDisp", sc_fx_save_disp},
      {0x0814, "RestoreDisp", sc_fx_restore_disp},
      {0x0829, "MCS_CreateDirectory", sc_mcs_create_dir},
-@@ -868,6 +817,8 @@
+@@ -868,6 +818,8 @@
      {0x0AD9, "strncpy", sc_strncpy},
      {0x0ADA, "strrchr", sc_strrchr},
      {0x0C4F, "PrintMini", sc_fx_print_mini},
@@ -305,7 +306,7 @@
      {0x0E6D, "realloc", sc_realloc},
      {0x1032, "Keyboard_KeycodeTable", sc_fx_keycode_table},
  };
-@@ -905,19 +856,30 @@
+@@ -905,19 +857,30 @@
              printf("%9.3f ms  syscall %04X %-24s (%08X, %08X, %08X, %08X)\n",
                     (double)cpu->instructions * 1000 / sh7305_iphi_hz(&emu->hw), number, table[i].name,
                     args[0], args[1], args[2], args[3]);

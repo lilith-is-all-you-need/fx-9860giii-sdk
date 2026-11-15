@@ -2,11 +2,11 @@
   "scope": "Historical FX 1.x/2.00 index; not verified exhaustive for GIII 03.70",
   "slotsAudited": 4147,
   "documentedEntries": 404,
-  "dispatchEntries": 157,
+  "dispatchEntries": 158,
   "counts": {
     "data-entry-unimplemented": 2,
-    "documented-unimplemented": 248,
-    "hle-handler": 144,
+    "documented-unimplemented": 247,
+    "hle-handler": 145,
     "partial": 7,
     "stub": 6,
     "undocumented": 3740
@@ -3379,9 +3379,10 @@
     },
     {
       "number": "0x02EE",
-      "status": "documented-unimplemented",
+      "status": "hle-handler",
       "name": "System_GetOSVersion",
-      "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_System.HTM"
+      "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_System.HTM",
+      "handler": "sc_fx_system_os_version"
     },
     {
       "number": "0x02EF",

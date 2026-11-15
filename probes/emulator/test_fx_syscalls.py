@@ -18,6 +18,38 @@ class FxSyscalls(unittest.TestCase):
         self.r = self.s.remote
         self.p, self.q = 0xa8020000, 0x88021000
 
+    def test_os_version_string_aliases_boundaries_and_numeric_agreement(self):
+        for destination in [self.p, self.q, 0x08100ffa, 0x8807fff5]:
+            with self.subTest(destination=hex(destination)):
+                self.r.write(destination-1, b'X'*12)
+                if destination != 0x8807fff5:
+                    self.r.write(destination+11, b'Y')
+                self.s.syscall(0x2ee, destination)
+                self.assertEqual(self.s.command('status')['state'], 'paused')
+                self.assertEqual(self.r.read_memory(destination-1,12), b'X03.70.0200\0')
+                if destination != 0x8807fff5:
+                    self.assertEqual(self.r.read_memory(destination+11,1), b'Y')
+        self.assertEqual(self.r.read_memory(self.p,11), self.r.read_memory(0x88020000,11))
+        self.s.syscall(0x15, self.q+32, self.q+33, self.q+34, self.q+36)
+        self.assertEqual(self.r.read_memory(self.q+32,6), bytes.fromhex('037002000000'))
+        version_calls = [c for c in self.s.command('syscalls')['recent'] if c['number']==0x2ee]
+        self.assertTrue(version_calls)
+        self.assertTrue(all(c['kind']=='implemented' and c['returned'] for c in version_calls))
+
+    def test_os_version_invalid_span_does_not_partially_write(self):
+        # The last ten bytes fit, but the mandatory NUL would be outside RAM.
+        self.r.write(0x8807fff6, b'X'*10)
+        self.s.syscall(0x2ee, 0x8807fff6)
+        self.assertEqual(self.s.command('status')['state'], 'error')
+        self.assertEqual(self.r.read_memory(0x8807fff6,10), b'X'*10)
+
+    def test_os_version_bad_destination_faults(self):
+        for address in [0, 0xfffffff8, 0xa4150000, 0x00300200]:
+            with self.subTest(address=hex(address)), Session(
+                    self.root/'test.g1a', self.root/f'bad-destination-{address:x}') as s:
+                s.syscall(0x2ee, address)
+                self.assertEqual(s.command('status')['state'], 'error')
+
     def test_filename_padding_terminators_and_low_bytes(self):
         for suffix, padding in [(b'\0', b'\0\0'), (b'\xff', b'\xff\xff')]:
             self.r.write(self.p, b'Ab'+suffix+b'garbage')
