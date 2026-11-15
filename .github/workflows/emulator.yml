@@ -20,7 +20,7 @@ jobs:
         with:
           submodules: true
           persist-credentials: false
-      - uses: msys2/setup-msys2@7fc5b595c39a0cc29c5bcd5612330d49ab8f6e1b
+      - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2 release distribution
         id: msys2
         with:
           msystem: UCRT64
