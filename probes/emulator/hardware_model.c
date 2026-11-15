@@ -18,6 +18,7 @@ typedef struct ProbeHardware {
     ILine cache[128][4]; /* 16 KiB, 32-byte lines; replacement is functional LRU. */
     bool firmware, file_stress;
     FxOsMapProfile os;
+    uint32_t search_slots;
     uint32_t original_pages[512];
     uint64_t file_rebuilds, table_refills;
     char version[11];
@@ -344,6 +345,15 @@ bool probe_hw_load_firmware(void *ptr,const char *path,bool stress)
     fclose(f);if(!ok||memcmp(e->rom+0x10000,"CASIOWIN",8))return false;
     int result=fx_os_profile(firmware_read,e,&h->os);
     if(result){fprintf(stderr,"unsupported OS mapping fingerprint: %d\n",result);return false;}
+    /* 0218 is a distinct four-entry, 36-byte search descriptor pool.
+     * Fingerprints agree in all nine supplied 3.40/3.60/3.71 branches. */
+    uint32_t close_search=fx_word(firmware_read,e,h->os.table+0x218*4,4);
+    if(!fx_rom(close_search,0x34)||fx_fingerprint(firmware_read,e,close_search,0x34)!=0xf4c8353bu)return false;
+    uint32_t check=fx_literal(firmware_read,e,close_search+4);
+    if(!fx_rom(check,40)||fx_fingerprint(firmware_read,e,check,40)!=0xd10b274eu)return false;
+    h->search_slots=fx_literal(firmware_read,e,close_search+0x1c);
+    if(h->search_slots<0x88000000u||h->search_slots>0x8803ff70u||
+       h->search_slots!=fx_literal(firmware_read,e,check+12))return false;
     for(unsigned i=0;i<512;i++) {
         uint8_t *p=e->mem.rd[(ADDIN_BASE+i*4096)>>PAGE_SHIFT];
         uintptr_t v=(uintptr_t)p,base=(uintptr_t)e->rom;
@@ -356,6 +366,7 @@ bool probe_hw_load_firmware(void *ptr,const char *path,bool stress)
     const char *suffix=(e->rom[0x302]=='5')?"2200":(e->rom[0x302]=='8')?"3200":"0200";
     memcpy(h->version+6,suffix,4);
     for(unsigned i=0;i<4;i++) {
+        raw_write(&e->mem,h->search_slots+i*36,0x0ffe,2);
         raw_write(&e->mem,h->os.slots+i*8,0xffffffffu,4);
         raw_write(&e->mem,h->os.slots+i*8+4,0xff,1);
         for(unsigned n=0;n<40;n+=4)raw_write(&e->mem,h->os.descriptors+i*40+n,0,4);
@@ -398,6 +409,14 @@ uint32_t probe_hw_close_slot(Cpu *cpu,uint32_t n)
     }
     if(raw_read(m,h->os.slots+n*8+4,1)==0xff||raw_read(m,descriptor,2)>0xffe)return UINT32_MAX;
     raw_write(m,h->os.slots+n*8,UINT32_MAX,4);raw_write(m,h->os.slots+n*8+4,0xff,1);return 0;
+}
+uint32_t probe_hw_close_search(Cpu *cpu,uint32_t n)
+{
+    Hardware *h=cpu->mem->probe_hw;
+    if(n>=4||!h||!h->firmware)return (uint32_t)-2;
+    uint32_t slot=h->search_slots+n*36;
+    if(raw_read(cpu->mem,slot,2)==0x0ffe)return (uint32_t)-2;
+    raw_write(cpu->mem,slot,0x0ffe,2);return 0;
 }
 void probe_hw_destroy(Memory *m){free(m->probe_hw);m->probe_hw=NULL;}
 void probe_hw_register_quit(Cpu *cpu,uint32_t fn)

@@ -56,6 +56,8 @@ for p in up.glob('*'):
 emu_h = (out / 'emu.h').read_text()
 emu_h = replace_once(emu_h, '    int cursor_x, cursor_y;',
     '    int fx_cursor_style, fx_cursor_mode, fx_cursor_flash_style;\n    int cursor_x, cursor_y;')
+emu_h = replace_once(emu_h, '    FILE *files[16];',
+    '    uint8_t fx_file_device[16];\n    FILE *files[16];')
 emu_h = replace_once(emu_h, '        uint32_t offset, size;',
     '        uint32_t offset, size, page_count, pages[512];\n        bool fragmented;')
 (out / 'emu.h').write_text(emu_h)
@@ -184,6 +186,12 @@ for old, new in {
     'sc_fx_cursor_settings': 'sc_fx_cursor_state',
     'sc_bfile_name_length': 'sc_fx_name_length',
     'sc_bfile_name_to_str': 'sc_fx_name_to_str',
+    'sc_bfile_open': 'sc_fx_bfile_open',
+    'sc_bfile_close': 'sc_fx_bfile_close',
+    'sc_bfile_size': 'sc_fx_bfile_size',
+    'sc_bfile_seek': 'sc_fx_bfile_seek',
+    'sc_bfile_read': 'sc_fx_bfile_read',
+    'sc_bfile_write': 'sc_fx_bfile_write',
 }.items():
     table = table.replace(', ' + old + '}', ', ' + new + '}')
 for name, fn in [('Cursor_SetFlashStyle','sc_fx_cursor_style'), ('Cursor_SetFlashMode','sc_fx_cursor_mode'),
@@ -191,6 +199,7 @@ for name, fn in [('Cursor_SetFlashStyle','sc_fx_cursor_style'), ('Cursor_SetFlas
     table = replace_once(table, f'"{name}", sc_nothing', f'"{name}", {fn}')
 entries = [
     (0x1E7,'InternalContainer_CloseSlot','sc_fx_close_container_slot'),
+    (0x218,'InternalSearch_CloseSlot','sc_fx_close_search_slot'),
     (0x15F,'atoi','sc_fx_atoi'), (0x161,'LongToAscHex','sc_fx_hex'),
     (0x162,'pc_toupper','sc_fx_upper'), (0x163,'pc_tolower','sc_fx_lower'),
     (0x172,'strcasecmp','sc_fx_casecmp'), (0x173,'strcasecmp','sc_fx_casecmp'),

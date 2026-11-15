@@ -7,6 +7,7 @@ static bool fx_partial_syscall(uint32_t n)
     return n==0x1e7 || (n>=0x139 && n<=0x13b) || n==0x80e || n==0x80f || n==0x811 || n==0x812;
 }
 static SC(sc_fx_close_container_slot) { return probe_hw_close_slot(&emu->cpu,a[0]); }
+static SC(sc_fx_close_search_slot) { return probe_hw_close_search(&emu->cpu,a[0]); }
 static uint8_t fx_lower(uint8_t c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
 static uint8_t fx_upper(uint8_t c) { return c >= 'a' && c <= 'z' ? c - 32 : c; }
 static SC(sc_fx_reset) { probe_request_reset(&emu->cpu, "syscall-0236"); return 0; }
@@ -123,6 +124,35 @@ static SC(sc_fx_device)
     char id[5]={0}; for(int i=0;i<4;i++)id[i]=(char)mem_read16(&emu->mem,p+2*i);
     return !strcmp(id,"fls0")?1:!strcmp(id,"crd0")?2:UINT32_MAX;
 }
+/* FX OS 042C adds 0x01000000 for fls0 and 0x02000000 for crd0.
+ * Small integers are NOT storage handles: SDK libraries use their zero
+ * device byte to select MCS. CG handlers keep their existing ABI. */
+static int fx_file_index(Emu *e,uint32_t handle)
+{
+    unsigned tag=handle>>24,index=handle&0x00ffffffu;
+    if((tag!=1&&tag!=2)||index>=sizeof e->files/sizeof e->files[0]||!e->files[index])return -1;
+    return tag==e->fx_file_device[index]?(int)index:-1;
+}
+static SC(sc_fx_bfile_open)
+{
+    uint32_t tag=sc_fx_device(emu,a);
+    if(tag!=1&&tag!=2)return (uint32_t)-1;
+    uint32_t index=sc_bfile_open(emu,a);
+    if((int32_t)index<0)return index;
+    emu->fx_file_device[index]=(uint8_t)tag;
+    return (tag<<24)|index;
+}
+#define FX_FILE_WRAPPER(name,original) \
+static SC(name) { \
+    int i=fx_file_index(emu,a[0]);if(i<0)return (uint32_t)-2; \
+    uint32_t args[4]={(uint32_t)i,a[1],a[2],a[3]};return original(emu,args); \
+}
+FX_FILE_WRAPPER(sc_fx_bfile_close,sc_bfile_close)
+FX_FILE_WRAPPER(sc_fx_bfile_size,sc_bfile_size)
+FX_FILE_WRAPPER(sc_fx_bfile_seek,sc_bfile_seek)
+FX_FILE_WRAPPER(sc_fx_bfile_read,sc_bfile_read)
+FX_FILE_WRAPPER(sc_fx_bfile_write,sc_bfile_write)
+#undef FX_FILE_WRAPPER
 /* Cursor state follows the legacy API. Blink rendering remains unsupported. */
 static SC(sc_fx_cursor_style)
 {

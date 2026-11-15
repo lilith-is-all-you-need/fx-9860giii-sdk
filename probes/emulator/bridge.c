@@ -467,7 +467,7 @@ int bridge_main(int argc,char **argv)
         else if(!strcmp(argv[i],"--fault-policy")&&i+1<argc){const char *v=argv[++i];if(strcmp(v,"pause")&&strcmp(v,"reboot"))return 2;fault_pause=!strcmp(v,"pause");}
         else if(!strcmp(argv[i],"--step-limit")&&i+1<argc){if(!parse_number(argv[++i],UINT64_MAX,&step_limit))return 2;}
         else if(!strcmp(argv[i],"--heap-bytes")&&i+1<argc){if(!parse_number(argv[++i],UINT32_MAX,&heap_bytes)||heap_bytes<16||(heap_bytes&7))return 2;}
-        else if(!strcmp(argv[i],"--memory-profile")&&i+1<argc){memory_profile=argv[++i];if(strcmp(memory_profile,"default")&&strcmp(memory_profile,"khicas"))return 2;}
+        else if(!strcmp(argv[i],"--memory-profile")&&i+1<argc){memory_profile=argv[++i];if(strcmp(memory_profile,"default")&&strcmp(memory_profile,"khicas")&&strcmp(memory_profile,"probe3"))return 2;}
         else if(argv[i][0]!='-'&&!path)path=argv[i];else{fprintf(stderr,"invalid argument\n");return 2;}
     }
     if(!path||!frame||gp>65535||cp>65535){fprintf(stderr,"usage: FxEmulator --gdb-port N --control-port M --framebuffer FILE.bmp ADDIN.g1a\n");return 2;}
@@ -492,6 +492,12 @@ int bridge_main(int argc,char **argv)
         /* Explicit diagnostic layout, NOT an assertion about the real OS. */
         active_layout.heap_base=0x88040000;active_layout.heap_size=0xC000;
         active_layout.stack_top=0x88051000;stack_floor=0x8804C000;
+    }
+    if(!strcmp(memory_profile,"probe3")){
+        /* Stress layout seeded by returned Probe3 addresses (03.70.0200).
+         * The 48 KiB capacity is a test constraint, not a recovered OS heap. */
+        active_layout.heap_base=0x88050298;active_layout.heap_size=0xC000;
+        active_layout.stack_top=0x88050000;stack_floor=0x8804C000;
     }
     if(heap_bytes){if(heap_bytes>active_layout.heap_size){fprintf(stderr,"heap exceeds selected memory profile\n");return 2;}active_layout.heap_size=(uint32_t)heap_bytes;}
     machine->layout=&active_layout;

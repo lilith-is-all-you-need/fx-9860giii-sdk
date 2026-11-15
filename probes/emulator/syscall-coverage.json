@@ -2,14 +2,14 @@
   "scope": "Historical FX 1.x/2.00 index; not verified exhaustive for GIII 03.70",
   "slotsAudited": 4147,
   "documentedEntries": 404,
-  "dispatchEntries": 159,
+  "dispatchEntries": 160,
   "counts": {
     "data-entry-unimplemented": 2,
     "documented-unimplemented": 247,
-    "hle-handler": 145,
+    "hle-handler": 146,
     "partial": 8,
     "stub": 6,
-    "undocumented": 3739
+    "undocumented": 3738
   },
   "meaning": "hle-handler means executable code, NOT full OS equivalence or device validation",
   "entries": [
@@ -2392,7 +2392,9 @@
     },
     {
       "number": "0x0218",
-      "status": "undocumented"
+      "status": "hle-handler",
+      "name": "InternalSearch_CloseSlot",
+      "handler": "sc_fx_close_search_slot"
     },
     {
       "number": "0x0219",
@@ -4793,14 +4795,14 @@
       "status": "hle-handler",
       "name": "Bfile_OpenFile",
       "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_BFile.htm",
-      "handler": "sc_bfile_open"
+      "handler": "sc_fx_bfile_open"
     },
     {
       "number": "0x042D",
       "status": "hle-handler",
       "name": "Bfile_CloseFile",
       "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_BFile.htm",
-      "handler": "sc_bfile_close"
+      "handler": "sc_fx_bfile_close"
     },
     {
       "number": "0x042E",
@@ -4814,7 +4816,7 @@
       "status": "hle-handler",
       "name": "Bfile_GetFileSize",
       "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_BFile.htm",
-      "handler": "sc_bfile_size"
+      "handler": "sc_fx_bfile_size"
     },
     {
       "number": "0x0430",
@@ -4825,14 +4827,14 @@
       "status": "hle-handler",
       "name": "Bfile_SeekFile",
       "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_BFile.htm",
-      "handler": "sc_bfile_seek"
+      "handler": "sc_fx_bfile_seek"
     },
     {
       "number": "0x0432",
       "status": "hle-handler",
       "name": "Bfile_ReadFile",
       "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_BFile.htm",
-      "handler": "sc_bfile_read"
+      "handler": "sc_fx_bfile_read"
     },
     {
       "number": "0x0433",
@@ -4850,7 +4852,7 @@
       "status": "hle-handler",
       "name": "Bfile_WriteFile",
       "reference": "https://media.taricorp.net/prizm/simon_chm/fx_legacy_BFile.htm",
-      "handler": "sc_bfile_write"
+      "handler": "sc_fx_bfile_write"
     },
     {
       "number": "0x0436",

@@ -205,11 +205,12 @@
  
  /* The serial port (3-pin link cable): nothing is plugged in, so nothing
   * ever arrives. What is sent goes out of the emulated TX pin (sh7305.c),
-@@ -749,6 +663,40 @@
+@@ -749,6 +663,41 @@
   * Simon Lothar's list (see syscalls_fx.c). The shared functions take the
   * same arguments as their fx-CG counterparts above. */
  static const Syscall SYSCALLS_FX[] = {
 +    {0x01E7, "InternalContainer_CloseSlot", sc_fx_close_container_slot},
++    {0x0218, "InternalSearch_CloseSlot", sc_fx_close_search_slot},
 +    {0x015F, "atoi", sc_fx_atoi},
 +    {0x0161, "LongToAscHex", sc_fx_hex},
 +    {0x0162, "pc_toupper", sc_fx_upper},
@@ -246,7 +247,7 @@
      {0x0013, "GlibAddinAplExecutionCheck", sc_fx_glib_execution_check},
      {0x0014, "GlibGetAddinLibInf", sc_fx_glib_lib_info},
      {0x0015, "GlibGetOSVersionInfo", sc_fx_os_version},
-@@ -766,9 +714,10 @@
+@@ -766,9 +715,10 @@
      {0x011A, "Timer_Start", sc_timer_start},
      {0x011B, "Timer_Stop", sc_timer_stop},
      {0x0135, "GetVRAMAddress", sc_get_vram_address}, /* the OS's 1 kB monochrome VRAM */
@@ -260,7 +261,7 @@
      {0x0142, "Bdisp_AllClr_DD", sc_fx_allclr_dd},
      {0x0143, "Bdisp_AllClr_VRAM", sc_fx_allclr_vram},
      {0x0144, "Bdisp_AllClr_DDVRAM", sc_fx_allclr_ddvram},
-@@ -784,9 +733,9 @@
+@@ -784,9 +734,9 @@
      {0x0150, "PrintXY", sc_fx_print_xy},
      {0x0156, "PopUpWin", sc_fx_popup_at},
      {0x015D, "PrintCR", sc_fx_print_cr},
@@ -272,7 +273,25 @@
      {0x0242, "Bkey_Set_RepeatTime", sc_nothing},  /* no key repeat here */
      {0x0244, "Bkey_Set_RepeatTime_Default", sc_nothing},
      {0x0245, "Keyboard_EnableAutoRepeat", sc_nothing},
-@@ -827,11 +776,12 @@
+@@ -815,23 +765,24 @@
+     {0x0420, "OS_inner_Sleep", sc_wait_ms},
+     {0x0422, "Serial_SpyNthByte", sc_serial_read_one},
+     {0x0425, "Serial_IsOpen", sc_serial_is_open},
+-    {0x042C, "Bfile_OpenFile", sc_bfile_open},
+-    {0x042D, "Bfile_CloseFile", sc_bfile_close},
++    {0x042C, "Bfile_OpenFile", sc_fx_bfile_open},
++    {0x042D, "Bfile_CloseFile", sc_fx_bfile_close},
+     {0x042E, "Bfile_GetMediaFree", sc_bfile_media_free},
+-    {0x042F, "Bfile_GetFileSize", sc_bfile_size},
+-    {0x0431, "Bfile_SeekFile", sc_bfile_seek},
+-    {0x0432, "Bfile_ReadFile", sc_bfile_read},
++    {0x042F, "Bfile_GetFileSize", sc_fx_bfile_size},
++    {0x0431, "Bfile_SeekFile", sc_fx_bfile_seek},
++    {0x0432, "Bfile_ReadFile", sc_fx_bfile_read},
+     {0x0434, "Bfile_CreateEntry", sc_bfile_create},
+-    {0x0435, "Bfile_WriteFile", sc_bfile_write},
++    {0x0435, "Bfile_WriteFile", sc_fx_bfile_write},
+     {0x0439, "Bfile_DeleteEntry", sc_bfile_delete},
      {0x043B, "Bfile_FindFirst", sc_bfile_find_first},
      {0x043C, "Bfile_FindNext", sc_bfile_find_next},
      {0x043D, "Bfile_FindClose", sc_bfile_find_close},
@@ -288,7 +307,7 @@
      {0x06C4, "Keyboard_PRGM_GetKey", sc_prgm_get_key_os}, /* same codes as on the fx-CG */
      {0x0807, "locate", sc_locate},
      {0x0808, "Print", sc_fx_print},
-@@ -840,7 +790,8 @@
+@@ -840,7 +791,8 @@
      {0x080B, "PrintRevC", sc_fx_print_rev_c},
      {0x080C, "PrintLine", sc_fx_print_line},
      {0x080D, "PrintRLine", sc_fx_print_rline},
@@ -298,7 +317,7 @@
      {0x0813, "SaveDisp", sc_fx_save_disp},
      {0x0814, "RestoreDisp", sc_fx_restore_disp},
      {0x0829, "MCS_CreateDirectory", sc_mcs_create_dir},
-@@ -868,6 +819,8 @@
+@@ -868,6 +820,8 @@
      {0x0AD9, "strncpy", sc_strncpy},
      {0x0ADA, "strrchr", sc_strrchr},
      {0x0C4F, "PrintMini", sc_fx_print_mini},
@@ -307,7 +326,7 @@
      {0x0E6D, "realloc", sc_realloc},
      {0x1032, "Keyboard_KeycodeTable", sc_fx_keycode_table},
  };
-@@ -905,19 +858,30 @@
+@@ -905,19 +859,30 @@
              printf("%9.3f ms  syscall %04X %-24s (%08X, %08X, %08X, %08X)\n",
                     (double)cpu->instructions * 1000 / sh7305_iphi_hz(&emu->hw), number, table[i].name,
                     args[0], args[1], args[2], args[3]);

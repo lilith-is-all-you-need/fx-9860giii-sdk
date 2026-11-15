@@ -1,8 +1,11 @@
 /* Internal FX function ABI recovered from the supplied OS images. */
 SC(probe_bfile_offset_address)
 {
-    FILE *f=handle_file(emu,a[0]);if(!f||(int32_t)a[1]<0)return (uint32_t)-2;
-    int i=emu->file_flash[a[0]];if(i<0||i>=emu->flash_file_count)return (uint32_t)-5;
+    uint32_t handle=a[0]&0x00ffffffu;
+    if((a[0]>>24)!=1)return (uint32_t)-2;
+    FILE *f=handle_file(emu,handle);if(!f||(int32_t)a[1]<0)return (uint32_t)-2;
+    if(emu->fx_file_device[handle]!=1)return (uint32_t)-2;
+    int i=emu->file_flash[handle];if(i<0||i>=emu->flash_file_count)return (uint32_t)-5;
     if(a[1]>=emu->flash_files[i].size)return 0;
     /* Dirty host copies must be refreshed through a new Bfile open; never
      * quietly return a stale physical address as if it were current data. */

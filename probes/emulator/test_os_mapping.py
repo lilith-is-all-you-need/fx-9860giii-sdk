@@ -5,6 +5,22 @@ from runtime_probe import Session,fixture,DEFAULT_EXE
 FIRMWARE=os.environ.get('FX_TEST_FIRMWARE')
 
 class IdleContainer(unittest.TestCase):
+ def test_device_handles_roundtrip_and_reject_wrong_namespace(self):
+  with tempfile.TemporaryDirectory(prefix='fx-device-') as temp:
+   root=Path(temp)
+   for device in ('fls0','crd0'):
+    (root/'storage'/device).mkdir(parents=True);(root/'storage'/device/'a.bin').write_bytes(b'....')
+   with Session(fixture(root/'a.g1a'),root/'run',cwd=root) as s:
+    for device,tag in [('fls0',1),('crd0',2)]:
+     s.remote.write(0x88030000,('\\\\'+device+'\\a.bin\0').encode('utf-16be'))
+     fd=s.syscall(0x42c,0x88030000,3,0);self.assertEqual(fd,tag<<24)
+     self.assertEqual(s.syscall(0x42f,(3-tag)<<24),0xfffffffe)
+     s.remote.write(0x88030100,b'ABCD');self.assertEqual(s.syscall(0x435,fd,0x88030100,4),4)
+     self.assertEqual(s.syscall(0x432,fd,0x88030200,4,0),4)
+     self.assertEqual(s.remote.read_memory(0x88030200,4),b'ABCD')
+     self.assertEqual(s.syscall(0x42d,fd),0)
+     self.assertEqual(s.syscall(0x42f,fd),0xfffffffe)
+     self.assertEqual((root/'storage'/device/'a.bin').read_bytes(),b'ABCD')
  def test_probe_profile_copies_match(self):
   probes=Path(__file__).resolve().parent.parent
   for name in ('os-map-profile.h','os-map-hashes.h'):
@@ -15,7 +31,11 @@ class IdleContainer(unittest.TestCase):
    with Session(fixture(root/'a.g1a'),root/'run',cwd=root) as s:
     name='\\\\fls0\\a.bin\0'.encode('utf-16be');s.remote.write(0x88030000,name)
     fd=s.syscall(0x42c,0x88030000,1,0)
+    self.assertEqual(fd,0x01000000)
+    self.assertEqual(s.syscall(0x42f,0),0xfffffffe)
+    self.assertEqual(s.syscall(0x42f,0x02000000),0xfffffffe)
     for i in range(4):self.assertEqual(s.syscall(0x1e7,i),0xffffffff)
+    for i in (0,1,2,3,4,0xffffffff):self.assertEqual(s.syscall(0x218,i),0xfffffffe)
     self.assertEqual(s.syscall(0x42f,fd),4)
     self.assertEqual(s.syscall(0x42d,fd),0)
  def test_strict_mode_rejects_partial_container_support(self):
@@ -33,6 +53,8 @@ class FirmwareMapping(unittest.TestCase):
   def lit(pc):
    off=pc&0x1fffffff;op=int.from_bytes(self.rom[off:off+2],'big');return word(((pc+4)&~3)+(op&255)*4)
   self.table=word(0x8001007c);self.refill=word(self.table+12);self.map=word(self.table+0x44)
+  self.open_file=word(self.table+0x42c*4)
+  self.close_search=word(self.table+0x218*4);self.search_slots=lit(self.close_search+0x1c)
   self.pages=lit(self.refill+0x28);self.cursor=self.pages+2048;self.query=lit(self.map+0x1c0)
   close=word(self.table+0x79c);self.close=close;self.slots=lit(close+16)
   op=int.from_bytes(self.rom[(close&0x1fffffff)+4:(close&0x1fffffff)+6],'big');disp=op&4095;disp=disp-4096 if disp&2048 else disp
@@ -79,6 +101,26 @@ class FirmwareMapping(unittest.TestCase):
    self.r.write(self.slots,original)
    modeled=(self.s.syscall(0x1e7,0),self.r.read_memory(self.slots,5))
    self.assertEqual(observed,modeled)
+ def test_search_close_matches_firmware_and_preserves_payload(self):
+  for slot in (0,3,4,0xffffffff):
+   for marker in (0x0ffe,0,0x0fff,0xffff):
+    original=marker.to_bytes(2,'big')+bytes(range(2,36))
+    at=self.search_slots+(slot if slot<4 else 0)*36
+    self.r.write(at,original)
+    actual=self.execute('470b0009',r4=slot,r7=self.close_search)
+    observed=(actual,self.r.read_memory(at,36))
+    self.r.write(at,original)
+    modeled=(self.s.syscall(0x218,slot),self.r.read_memory(at,36))
+    self.assertEqual(observed,modeled)
+    self.assertEqual(modeled[0],0xfffffffe if slot>=4 or marker==0x0ffe else 0)
+ def test_storage_device_tag_matches_firmware_instructions(self):
+  # Execute the actual fls0 success block through its branch delay slot,
+  # stopping before the enclosing routine's stack unwinding epilogue.
+  for index in (0,3,0x1234):
+   end=self.open_file+0xce
+   self.r.request(f'Z0,{end:x},2');self.r.set(14,index);self.r.set(16,self.open_file+0x64)
+   self.r.request('c');self.r.request(f'z0,{end:x},2')
+   self.assertEqual(self.r.get(14),0x01000000|index)
  def test_fragment_addresses_and_write_rebuild(self):
   store=self.root/'storage/fls0';store.mkdir(parents=True,exist_ok=True);data=bytes((i*7)&255 for i in range(8193));(store/'pages.bin').write_bytes(data)
   self.r.write(0x88031000,'\\\\fls0\\pages.bin\0'.encode('utf-16be'));fd=self.s.syscall(0x42c,0x88031000,3,0)

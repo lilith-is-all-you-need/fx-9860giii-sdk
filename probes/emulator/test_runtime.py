@@ -176,6 +176,16 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(s.command('status')['reason'], 'stack-range')
         self.assertEqual(s.command('diagnostics')['executedSteps'], 0)
 
+    def test_probe3_heap_address_and_bounded_capacity(self):
+        s = self.session('--memory-profile', 'probe3')
+        d = s.command('diagnostics')
+        self.assertEqual((d['heapBase'], d['heapBytes'], d['stackTop']),
+                         ('88050298', 49152, '88050000'))
+        p = s.syscall(MALLOC, 40800)
+        self.assertEqual(p, 0x880502a0)
+        self.assertLess(p+40800, 0x88060000)
+        self.assertEqual(s.syscall(MALLOC, 10000), 0)
+
     def test_cursor_bounds_and_setup_scope(self):
         s = self.session()
         self.assertEqual(s.syscall(0x138, 20, 7), 1)
