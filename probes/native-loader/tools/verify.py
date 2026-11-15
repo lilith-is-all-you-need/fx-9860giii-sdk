@@ -80,6 +80,7 @@ def main():
     p.add_argument('--emulator',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--section',choices=('all','samples','edges'),default='all')
+    p.add_argument('--fault-policy',choices=('reboot','pause'),default='reboot')
     a=p.parse_args()
     root,bundle,exe=a.output.resolve(),a.bundle.resolve(),a.emulator.resolve()
     items=json.loads(a.manifest.read_text('utf8'))
@@ -98,7 +99,8 @@ def main():
     def start(folder, addin, heap=196608, profile='default', label='session'):
         os.chdir(folder)
         s=Session(addin,folder/label,['--memory-profile',profile,'--heap-bytes',heap,
-                  '--step-limit','2000000000','--trace-syscalls',folder/(label+'-syscalls.jsonl')],exe)
+                  '--step-limit','2000000000','--trace-syscalls',folder/(label+'-syscalls.jsonl')],exe,
+                  fault_policy=a.fault_policy)
         s.remote.request('c',wait=False)
         wait(s,lambda:s.command('status')['state']=='running',allow_paused=True)
         return s
@@ -118,7 +120,7 @@ def main():
 
     def record(s,folder,name,storage,**extra):
         result={'case':name,'status':s.command('status'),'diagnostics':s.command('diagnostics'),
-                'syscalls':s.command('syscalls'),'log':read_log(storage),**extra}
+                'syscalls':s.command('syscalls'),'recovery':s.command('recovery'),'log':read_log(storage),**extra}
         (folder/'result.json').write_text(json.dumps(result,indent=2),encoding='utf8')
         results.append(result)
         print(name,result['status']['state'],result['status']['error'],flush=True)
@@ -180,7 +182,14 @@ def main():
                     press(s,key,hold=.15,gap=.5)
                     if s.command('status')['osMenu']:
                         s.command('menu-replace');time.sleep(.2)
-                screen(s,folder,'quit');record(s,folder,mode+'-quit-'+name,storage)
+                expected_state='rebooted' if a.fault_policy=='reboot' else 'error'
+                wait(s,lambda:s.command('status')['state']==expected_state)
+                recovery=s.command('recovery')
+                report=json.loads(Path(recovery['report']).read_text('utf8'))
+                assert report['kind']==('reset-vector' if name=='wolf' else 'unexpected-fault'),report
+                if name=='fruit':assert '0x01E7' in report['error'],report
+                screen(s,folder,'quit');record(s,folder,mode+'-quit-'+name,storage,
+                    rebootCause=report['kind'],faultError=report['error'],assertionsPassed=True)
 
     own=root/'authored';own.mkdir(exist_ok=True)
     fixture=authored_target(own/'fixture.g1a');prepare([fixture],own/'bundle')
@@ -228,7 +237,7 @@ def main():
             if case=='foreign-log':assert (storage/'Loader.txt').read_bytes()==b'keep this unrelated file'
             record(s,folder,'edge-'+case,storage,assertionsPassed=True)
 
-    report={'hardwareValidated':False,'targetMemoryInjected':False,
+    report={'hardwareValidated':False,'targetMemoryInjected':False,'faultPolicy':a.fault_policy,
             'loaderSha256':digest(bundle/'Loader.g1a'),'emulatorSha256':digest(exe),'cases':results}
     (root/'verification.json').write_text(json.dumps(report,indent=2),encoding='utf8')
     print('Saved',root/'verification.json')

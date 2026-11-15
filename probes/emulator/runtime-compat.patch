@@ -177,25 +177,107 @@
  
  static SC(sc_strlen)
  {
-@@ -766,6 +677,7 @@
+@@ -222,7 +133,7 @@
+ /* memcmp(p1, p2, n): like C's, the difference of the first differing bytes. */
+ static SC(sc_memcmp)
+ {
+-    for (uint32_t i = 0; i < a[2]; i++) {
++    for (uint32_t i = 0; i < a[2] && !emu->mem.fault && emu->cpu.state == CPU_RUNNING; i++) {
+         int d = mem_read8(&emu->mem, a[0] + i) - mem_read8(&emu->mem, a[1] + i);
+         if (d)
+             return (uint32_t)d;
+@@ -284,7 +195,8 @@
+ /* strncpy(dst, src, n): pads with NULs up to n. */
+ static SC(sc_strncpy)
+ {
+-    for (uint32_t i = str_copy(emu, a[0], a[1], a[2]); i < a[2]; i++)
++    if(!hle_span(emu,a[0],a[2],true))return 0;
++    for (uint32_t i = str_copy(emu, a[0], a[1], a[2]); i < a[2] && !emu->mem.fault && emu->cpu.state == CPU_RUNNING; i++)
+         mem_write8(&emu->mem, a[0] + i, 0);
+     return a[0];
+ }
+@@ -401,6 +313,8 @@
+         mem_write8(&emu->mem, a[1] + (uint32_t)i, (uint8_t)buf[i]);
+     return a[1]; /* add-ins use the result as the string */
+ }
++
++#include "fx_syscalls.h"
+ 
+ /* The serial port (3-pin link cable): nothing is plugged in, so nothing
+  * ever arrives. What is sent goes out of the emulated TX pin (sh7305.c),
+@@ -749,6 +663,38 @@
+  * Simon Lothar's list (see syscalls_fx.c). The shared functions take the
+  * same arguments as their fx-CG counterparts above. */
+ static const Syscall SYSCALLS_FX[] = {
++    {0x015F, "atoi", sc_fx_atoi},
++    {0x0161, "LongToAscHex", sc_fx_hex},
++    {0x0162, "pc_toupper", sc_fx_upper},
++    {0x0163, "pc_tolower", sc_fx_lower},
++    {0x0172, "strcasecmp", sc_fx_casecmp},
++    {0x0173, "strcasecmp", sc_fx_casecmp},
++    {0x018A, "InvertMem", sc_fx_invert},
++    {0x02A1, "HexToByte", sc_fx_hex_byte},
++    {0x02A2, "HexToWord", sc_fx_hex_word},
++    {0x02A3, "ByteToHex", sc_byte_to_hex},
++    {0x02A4, "WordToHex", sc_word_to_hex},
++    {0x02A7, "AscHexToNibble", sc_fx_hex_nibble},
++    {0x02A8, "NibbleToAscHex", sc_nibble_to_hex},
++    {0x02A9, "strlen", sc_strlen},
++    {0x0429, "Bfile_identify_device", sc_fx_device},
++    {0x0457, "Bfile_StrToName_ncpy", sc_fx_str_to_name},
++    {0x0467, "LongToAscHex", sc_fx_hex},
++    {0x0531, "MB_IsLead", sc_fx_mb_lead},
++    {0x0533, "MB_ElementCount", sc_fx_mb_count},
++    {0x0534, "MB_ByteCount", sc_strlen},
++    {0x0536, "MB_strcat", sc_strcat},
++    {0x0537, "MB_strncat", sc_fx_mb_ncat},
++    {0x0538, "MB_strcpy", sc_fx_strcpy},
++    {0x053C, "MB_GetSecondElemPtr", sc_fx_mb_next},
++    {0x053D, "MB_GetElement", sc_fx_mb_get},
++    {0x053E, "MB_CopyToHeap", sc_fx_mb_dup},
++    {0x0541, "itoa", sc_itoa},
++    {0x080E, "Cursor_GetFlashStyle", sc_fx_cursor_flash},
++    {0x080F, "Cursor_GetCurrentPosition", sc_fx_cursor_position_state},
++    {0x0E6E, "strchr", sc_fx_strchr},
++    {0x0E6F, "strstr", sc_fx_strstr},
++
+     {0x0013, "GlibAddinAplExecutionCheck", sc_fx_glib_execution_check},
+     {0x0014, "GlibGetAddinLibInf", sc_fx_glib_lib_info},
+     {0x0015, "GlibGetOSVersionInfo", sc_fx_os_version},
+@@ -766,9 +712,10 @@
      {0x011A, "Timer_Start", sc_timer_start},
      {0x011B, "Timer_Stop", sc_timer_stop},
      {0x0135, "GetVRAMAddress", sc_get_vram_address}, /* the OS's 1 kB monochrome VRAM */
+-    {0x0139, "Cursor_SetFlashStyle", sc_nothing}, /* we don't draw the text cursor */
+-    {0x013A, "Cursor_SetFlashMode", sc_nothing},
+-    {0x013B, "Cursor_GetSettings", sc_fx_cursor_settings},
 +    {0x0138, "Cursor_SetPosition", sc_fx_cursor_position},
-     {0x0139, "Cursor_SetFlashStyle", sc_nothing}, /* we don't draw the text cursor */
-     {0x013A, "Cursor_SetFlashMode", sc_nothing},
-     {0x013B, "Cursor_GetSettings", sc_fx_cursor_settings},
-@@ -786,7 +698,7 @@
++    {0x0139, "Cursor_SetFlashStyle", sc_fx_cursor_style}, /* we don't draw the text cursor */
++    {0x013A, "Cursor_SetFlashMode", sc_fx_cursor_mode},
++    {0x013B, "Cursor_GetSettings", sc_fx_cursor_state},
+     {0x0142, "Bdisp_AllClr_DD", sc_fx_allclr_dd},
+     {0x0143, "Bdisp_AllClr_VRAM", sc_fx_allclr_vram},
+     {0x0144, "Bdisp_AllClr_DDVRAM", sc_fx_allclr_ddvram},
+@@ -784,9 +731,9 @@
+     {0x0150, "PrintXY", sc_fx_print_xy},
+     {0x0156, "PopUpWin", sc_fx_popup_at},
      {0x015D, "PrintCR", sc_fx_print_cr},
-     {0x0236, "Reset", sc_restart},
+-    {0x0236, "Reset", sc_restart},
++    {0x0236, "Reset", sc_fx_reset},
      {0x023E, "RTC_SetDateTime", sc_rtc_set_date_time},
 -    {0x0241, "Keyboard_ClrBuffer", sc_nothing},
 +    {0x0241, "Keyboard_ClrBuffer", sc_clear_key_buffer},
      {0x0242, "Bkey_Set_RepeatTime", sc_nothing},  /* no key repeat here */
      {0x0244, "Bkey_Set_RepeatTime_Default", sc_nothing},
      {0x0245, "Keyboard_EnableAutoRepeat", sc_nothing},
-@@ -831,7 +743,8 @@
-     {0x0456, "Bfile_NameToStr_ncpy", sc_bfile_name_to_str},
+@@ -827,11 +774,12 @@
+     {0x043B, "Bfile_FindFirst", sc_bfile_find_first},
+     {0x043C, "Bfile_FindNext", sc_bfile_find_next},
+     {0x043D, "Bfile_FindClose", sc_bfile_find_close},
+-    {0x0450, "Bfile_GetFilenameLength", sc_bfile_name_length},
+-    {0x0456, "Bfile_NameToStr_ncpy", sc_bfile_name_to_str},
++    {0x0450, "Bfile_GetFilenameLength", sc_fx_name_length},
++    {0x0456, "Bfile_NameToStr_ncpy", sc_fx_name_to_str},
      {0x0462, "GetAppName", sc_get_app_name},
      {0x0486, "GetDataTablePtr", sc_fx_data_table},
 -    {0x0494, "SetQuitHandler", sc_nothing},    /* no OS menu to quit through */
@@ -204,15 +286,17 @@
      {0x06C4, "Keyboard_PRGM_GetKey", sc_prgm_get_key_os}, /* same codes as on the fx-CG */
      {0x0807, "locate", sc_locate},
      {0x0808, "Print", sc_fx_print},
-@@ -841,6 +754,7 @@
+@@ -840,7 +788,8 @@
+     {0x080B, "PrintRevC", sc_fx_print_rev_c},
      {0x080C, "PrintLine", sc_fx_print_line},
      {0x080D, "PrintRLine", sc_fx_print_rline},
-     {0x0811, "Cursor_SetFlashOn", sc_nothing},
-+    {0x0812, "Cursor_SetFlashOff", sc_nothing}, /* cursor is not rendered */
+-    {0x0811, "Cursor_SetFlashOn", sc_nothing},
++    {0x0811, "Cursor_SetFlashOn", sc_fx_cursor_on},
++    {0x0812, "Cursor_SetFlashOff", sc_fx_cursor_off}, /* cursor is not rendered */
      {0x0813, "SaveDisp", sc_fx_save_disp},
      {0x0814, "RestoreDisp", sc_fx_restore_disp},
      {0x0829, "MCS_CreateDirectory", sc_mcs_create_dir},
-@@ -868,6 +782,8 @@
+@@ -868,6 +817,8 @@
      {0x0AD9, "strncpy", sc_strncpy},
      {0x0ADA, "strrchr", sc_strrchr},
      {0x0C4F, "PrintMini", sc_fx_print_mini},
@@ -221,13 +305,13 @@
      {0x0E6D, "realloc", sc_realloc},
      {0x1032, "Keyboard_KeycodeTable", sc_fx_keycode_table},
  };
-@@ -905,6 +821,14 @@
+@@ -905,19 +856,30 @@
              printf("%9.3f ms  syscall %04X %-24s (%08X, %08X, %08X, %08X)\n",
                     (double)cpu->instructions * 1000 / sh7305_iphi_hz(&emu->hw), number, table[i].name,
                     args[0], args[1], args[2], args[3]);
 +        uint64_t event_id = probe_trace_enter(emu, number, args, table[i].name,
-+            table[i].fn == sc_nothing ? "stub" : "implemented");
-+        if (table[i].fn == sc_nothing && probe_trace_strict()) {
++            table[i].fn == sc_nothing ? "stub" : fx && fx_partial_syscall(number) ? "partial" : "implemented");
++        if ((table[i].fn == sc_nothing || (fx && fx_partial_syscall(number))) && probe_trace_strict()) {
 +            cpu_report(cpu, "stub syscall 0x%04X %s rejected by strict mode", number, table[i].name);
 +            cpu->state = CPU_ERROR;
 +            probe_trace_leave(emu, event_id, 0, false);
@@ -235,8 +319,10 @@
 +        }
          sc_spend(emu, SYSCALL_CYCLES);
          cpu->r[0] = table[i].fn(emu, args);
-         cpu->pc = cpu->pr;
-@@ -913,11 +837,14 @@
+-        cpu->pc = cpu->pr;
++        if(cpu->state == CPU_RUNNING) cpu->pc = cpu->pr; /* preserve fault PC */
+         if (emu->mem.fault) {
+             cpu_report(cpu, "syscall %04X %s: bad address 0x%08X", number, table[i].name,
                      emu->mem.fault_addr);
              cpu->state = CPU_ERROR;
          }
@@ -258,6 +344,15 @@
  /*
   * HLE syscalls: keyboard and line editing.
   *
+@@ -146,7 +147,7 @@
+         if (key == -2)
+             return injected;
+         if (key < 0) {
+-            emu->cpu.state = CPU_EXITED;
++            if(emu->cpu.state == CPU_RUNNING) emu->cpu.state = CPU_EXITED;
+             return -1;
+         }
+         const KeyInfo *k = &KEYS[key];
 @@ -177,8 +178,10 @@
          } else if (alpha != ALPHA_OFF && k->alpha) {
              code = k->alpha;
@@ -278,7 +373,13 @@
      int key;
      int ignored = 0;
      key = -1;
-@@ -226,6 +230,10 @@
+@@ -221,11 +225,15 @@
+     } else {
+         key = next_input(emu, false, &ignored);
+         if (key < 0) {
+-            emu->cpu.state = CPU_EXITED;
++            if(emu->cpu.state == CPU_RUNNING) emu->cpu.state = CPU_EXITED;
+             return 0;
          }
      }
      int col, row;

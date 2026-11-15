@@ -148,7 +148,7 @@ class RuntimeTests(unittest.TestCase):
         log = self.root / '系统调用.jsonl'
         s = self.session('--trace-syscalls', str(log))
         s.syscall(CALLOC, 17, 2)
-        s.syscall(0x812, 0)  # cursor flashing remains an explicit stub
+        s.syscall(0x242, 0)  # key-repeat timing remains an explicit stub
         s.syscall(0xffff, 1, 2, 3, 4)
         trace = s.command('syscalls')
         self.assertEqual((trace['total'], trace['implemented'], trace['stubs'], trace['missing']), (3, 1, 1, 1))
@@ -160,7 +160,7 @@ class RuntimeTests(unittest.TestCase):
         records = [json.loads(line) for line in log.read_text().splitlines()]
         self.assertEqual(len(records), 6)
         with Session(self.addin, self.root / 'strict', ['--strict-stubs']) as strict:
-            strict.syscall(0x812, 0)
+            strict.syscall(0x242, 0)
             self.assertEqual(strict.command('status')['state'], 'error')
             self.assertIn('strict mode', strict.command('status')['error'])
 

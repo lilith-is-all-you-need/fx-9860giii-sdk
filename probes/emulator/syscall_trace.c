@@ -11,14 +11,14 @@ typedef struct {
     bool completed, returned, failed;
 } Event;
 static Event recent[TRACE_COUNT];
-static uint64_t total, implemented, stubs, missing;
+static uint64_t total, implemented, partial, stubs, missing;
 static FILE *trace_file;
 static bool strict;
 
 void probe_trace_configure(FILE *output, bool strict_stubs)
 {
     memset(recent, 0, sizeof recent);
-    total = implemented = stubs = missing = 0;
+    total = implemented = partial = stubs = missing = 0;
     trace_file = output;
     strict = strict_stubs;
 }
@@ -55,6 +55,7 @@ uint64_t probe_trace_enter(Emu *emu, uint32_t number, const uint32_t *args,
     memcpy(e->args, args, sizeof e->args);
     if (!strcmp(kind, "stub")) ++stubs;
     else if (!strcmp(kind, "missing")) ++missing;
+    else if (!strcmp(kind, "partial")) ++partial;
     else ++implemented;
     emit(e, "enter");
     return id;
@@ -75,8 +76,8 @@ void probe_trace_json(char *buffer, size_t capacity)
     if (capacity < 16384) { if (capacity) snprintf(buffer, capacity, "{\"ok\":false}"); return; }
     int n = snprintf(buffer, capacity,
         "{\"ok\":true,\"total\":%" PRIu64 ",\"implemented\":%" PRIu64
-        ",\"stubs\":%" PRIu64 ",\"missing\":%" PRIu64 ",\"strictStubs\":%s,\"recent\":[",
-        total, implemented, stubs, missing, strict ? "true" : "false");
+        ",\"partial\":%" PRIu64 ",\"stubs\":%" PRIu64 ",\"missing\":%" PRIu64 ",\"strictStubs\":%s,\"recent\":[",
+        total, implemented, partial, stubs, missing, strict ? "true" : "false");
     uint64_t start = total > TRACE_COUNT ? total - TRACE_COUNT : 0;
     for (uint64_t i = start; i < total; ++i) {
         if (i != start) buffer[n++] = ',';

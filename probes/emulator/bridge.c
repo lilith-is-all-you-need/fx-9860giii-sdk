@@ -8,12 +8,15 @@
 #include "keys.h"
 #include "syscall_trace.h"
 #include "hardware_model.h"
+#include "platform.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 #include <errno.h>
 #include <ctype.h>
+#include <io.h>
+#include <fcntl.h>
 
 #define BUFFER 32768
 #define MAX_BREAKS 128
@@ -48,6 +51,13 @@ static uint32_t stack_floor;
 static FILE *syscall_log;
 static bool hardware_model=true, menu_waiting;
 static int menu_action;
+static bool fault_pause, fault_saved, fault_handled, reboot_waiting, manual_reboot;
+static unsigned reboot_count, report_count;
+static const char *addin_path;
+static char reset_kind[32], last_report[8192];
+static uint32_t recent_pc[64];
+static uint64_t recent_pc_count;
+static bool recover_machine(void);
 bool probe_debug_ignore_memory;
 static void flush_frame(bool force);
 
@@ -146,6 +156,7 @@ static void resume(bool single,const char *address)
     if(machine->cpu.state!=CPU_RUNNING){rsp("E31");return;}
     if(address&&*address){uint32_t a;if(!hex_u32(&address,&a)||*address||!set_reg(16,a)){rsp("E22");return;}}
     paused=false;step_budget=single?1:0;watch_pending=false;strcpy(stop_reason,"running");
+    reboot_waiting=false;
     stop_at_step = step_limit > UINT64_MAX - executed_steps ? UINT64_MAX : executed_steps + step_limit;
 }
 static void handle_packet(char *p,size_t length)
@@ -260,9 +271,18 @@ static void control_line(const char *json)
     char command[32]={0},key[32]={0},reply[16384],error[1024];bool down=false;
     if(!parse_control(json,command,key,&down)){const char *e="{\"ok\":false,\"error\":\"invalid command object\"}\n";send_all(control_client,e,strlen(e));return;}
     if(!strcmp(command,"status")){
-        const char *state=machine->cpu.state==CPU_ERROR?"error":machine->cpu.state==CPU_EXITED?"exited":paused?"paused":"running";
+        const char *state=reboot_waiting?"rebooted":machine->cpu.state==CPU_ERROR?"error":machine->cpu.state==CPU_EXITED?"exited":paused?"paused":"running";
         json_escape(machine->cpu.error,error,sizeof error);
         snprintf(reply,sizeof reply,"{\"ok\":true,\"state\":\"%s\",\"pc\":\"%08X\",\"cycles\":%" PRIu64 ",\"reason\":\"%s\",\"error\":\"%s\",\"osMenu\":%s}\n",state,machine->cpu.pc,machine->cpu.instructions,stop_reason,error,menu_waiting?"true":"false");
+    }else if(!strcmp(command,"recovery")){
+        char path[10000];json_escape(last_report,path,sizeof path);
+        snprintf(reply,sizeof reply,"{\"ok\":true,\"policy\":\"%s\",\"reboots\":%u,\"waiting\":%s,\"saved\":%s,\"report\":\"%s\",\"model\":\"HLE reset, not firmware boot\"}\n",fault_pause?"pause":"reboot",reboot_count,reboot_waiting?"true":"false",last_report[0]?"true":"false",path);
+    }else if(!strcmp(command,"reboot")){
+        if(machine->cpu.state==CPU_RUNNING && !paused)strcpy(reply,"{\"ok\":false,\"error\":\"pause before manual reboot\"}\n");
+        else {manual_reboot=true;paused=false;probe_request_reset(&machine->cpu,"debugger-reboot");strcpy(reply,"{\"ok\":true}\n");}
+    }else if(!strcmp(command,"launch")){
+        if(!reboot_waiting)strcpy(reply,"{\"ok\":false,\"error\":\"not in recovery menu\"}\n");
+        else {reboot_waiting=false;paused=false;strcpy(stop_reason,"running");stop_at_step=executed_steps+step_limit;strcpy(reply,"{\"ok\":true}\n");}
     }else if(!strcmp(command,"syscalls")){
         probe_trace_json(reply, sizeof reply);
     }else if(!strcmp(command,"diagnostics")){
@@ -336,13 +356,14 @@ int probe_os_menu(Cpu *cpu)
     if(!hardware_model || !machine)return 0;
     menu_waiting=true;menu_action=0;
     /* HLE lifecycle, not a rendered Casio menu: EXE/EXIT resume, F1 replaces. */
-    while(!menu_action&&!quitting) {
+    while(!menu_action&&!quitting&&cpu->state==CPU_RUNNING) {
         pump(20);
         if(queued_key==key_find("EXE")||queued_key==key_find("EXIT"))menu_action=1;
         if(queued_key==key_find("F1"))menu_action=2;
         if(menu_action)queued_key=-1;
     }
     menu_waiting=false;
+    if(cpu->state!=CPU_RUNNING)return 1;
     if(menu_action==2) {
         if(probe_hw_quit(machine))cpu->state=CPU_EXITED;
         return 1;
@@ -364,11 +385,14 @@ void probe_debug_before(Cpu *cpu,uint32_t address)
         else for(int i=0;i<break_count;i++)if(breaks[i].type<2&&breaks[i].address==address){stopped(5,"breakpoint");break;}
     }
     while(paused&&!quitting)pump(20);
+    if(cpu->state!=CPU_RUNNING)return;
+    address=cpu->pc; /* GDB may have changed PC while this hook was paused. */
+    recent_pc[recent_pc_count++ % 64]=address;
+    if(address==0xA0000000){probe_request_reset(cpu,"reset-vector");return;}
     if(stack_floor&&(cpu->r[15]<stack_floor||cpu->r[15]>active_layout.stack_top)){
         cpu_report(cpu,"configured stack range exceeded: SP=0x%08X",cpu->r[15]);
         cpu->state=CPU_ERROR;
-        stopped(11,"stack-range");
-        while(paused&&!quitting)pump(20);
+        return;
     }
     ++executed_steps;
     (void)cpu;
@@ -384,7 +408,7 @@ void probe_debug_memory(uint32_t address,int size,bool write)
 int bridge_wait_key(uint32_t timeout)
 {
     uint64_t end=GetTickCount64()+timeout;
-    for(;;){pump(10);while(paused)pump(20);if(queued_key>=0){int k=queued_key;queued_key=-1;return k;}if(timeout!=UINT32_MAX&&GetTickCount64()>=end)return -2;}
+    for(;;){pump(10);while(paused)pump(20);if(machine->cpu.state!=CPU_RUNNING)return -1;if(queued_key>=0){int k=queued_key;queued_key=-1;return k;}if(timeout!=UINT32_MAX&&GetTickCount64()>=end)return -2;}
 }
 static SOCKET listener(unsigned *port)
 {
@@ -420,6 +444,7 @@ static bool same_path(const char *a,const char *b)
     }
     free(wa);free(wb);return same;
 }
+#include "recovery.h"
 int bridge_main(int argc,char **argv)
 {
     unsigned gp=0,cp=0;const char *path=NULL,*frame=NULL;
@@ -433,12 +458,14 @@ int bridge_main(int argc,char **argv)
         else if(!strcmp(argv[i],"--trace-syscalls")&&i+1<argc)trace_path=argv[++i];
         else if(!strcmp(argv[i],"--strict-stubs"))strict_stubs=true;
         else if(!strcmp(argv[i],"--legacy-memory"))hardware_model=false;
+        else if(!strcmp(argv[i],"--fault-policy")&&i+1<argc){const char *v=argv[++i];if(strcmp(v,"pause")&&strcmp(v,"reboot"))return 2;fault_pause=!strcmp(v,"pause");}
         else if(!strcmp(argv[i],"--step-limit")&&i+1<argc){if(!parse_number(argv[++i],UINT64_MAX,&step_limit))return 2;}
         else if(!strcmp(argv[i],"--heap-bytes")&&i+1<argc){if(!parse_number(argv[++i],UINT32_MAX,&heap_bytes)||heap_bytes<16||(heap_bytes&7))return 2;}
         else if(!strcmp(argv[i],"--memory-profile")&&i+1<argc){memory_profile=argv[++i];if(strcmp(memory_profile,"default")&&strcmp(memory_profile,"khicas"))return 2;}
         else if(argv[i][0]!='-'&&!path)path=argv[i];else{fprintf(stderr,"invalid argument\n");return 2;}
     }
     if(!path||!frame||gp>65535||cp>65535){fprintf(stderr,"usage: FxEmulator --gdb-port N --control-port M --framebuffer FILE.bmp ADDIN.g1a\n");return 2;}
+    addin_path=path;
     if(same_path(path,frame)||same_path(path,trace_path)||same_path(frame,trace_path)){fprintf(stderr,"input, framebuffer and trace paths must differ\n");return 2;}
     wchar_t *wf=wide(frame);if(!wf||wcslen(wf)>32740)return 2;wcscpy(frame_path,wf);swprintf(frame_temp,32768,L"%ls.tmp-%lu",wf,GetCurrentProcessId());free(wf);
     FILE *frame_test=_wfopen(frame_temp,L"wb");
@@ -469,17 +496,23 @@ int bridge_main(int argc,char **argv)
     setvbuf(stdout,NULL,_IONBF,0);
     printf("{\"event\":\"ready\",\"gdbPort\":%u,\"controlPort\":%u}\n",gp,cp);
     while(!quitting){
-        if(machine->cpu.state==CPU_RUNNING){
+        if(reboot_waiting){
+            pump(20);
+            if(queued_key==key_find("EXE")){
+                queued_key=-1;reboot_waiting=false;paused=false;strcpy(stop_reason,"running");
+                stop_at_step=step_limit>UINT64_MAX-executed_steps?UINT64_MAX:executed_steps+step_limit;
+            }
+        }else if(machine->cpu.state==CPU_RUNNING){
             /* A running burst always enters a CPU hook before executing. */
             uint64_t slice_start=GetTickCount64();
             emu_update_keys(machine,host_keys);
             emu_run(machine,sh7305_iphi_hz(&machine->hw)/100);
             emu_present(machine);
             if(machine->cpu.state==CPU_EXITED){paused=true;strcpy(stop_reason,"exited");rsp("W00");}
-            else if(machine->cpu.state==CPU_ERROR){paused=true;stopped(11,"error");fprintf(stderr,"%s\n",machine->cpu.error);}
             uint64_t elapsed=GetTickCount64()-slice_start;
             if(!paused&&elapsed<10)pump((unsigned)(10-elapsed));
         }else pump(20);
+        if(machine->cpu.state==CPU_ERROR && (!fault_handled || manual_reboot))recover_machine();
         pump(0);
     }
     return 0;

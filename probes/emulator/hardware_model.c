@@ -14,6 +14,23 @@ typedef struct ProbeHardware {
     ILine cache[128][4]; /* 16 KiB, 32-byte lines; replacement is functional LRU. */
 } Hardware;
 
+void probe_hw_snapshot(const Memory *m,FILE *f)
+{
+    const Hardware *h=m->probe_hw;
+    if(!h){fputs("null",f);return;}
+    fprintf(f,"{\"pteh\":%u,\"ptel\":%u,\"ptea\":%u,\"mmucr\":%u,\"ccr\":%u,\"quitHandler\":%u,\"exiting\":%s,\"utlb\":[",h->pteh,h->ptel,h->ptea,h->mmucr,h->ccr,h->quit,h->exiting?"true":"false");
+    for(int i=0;i<64;i++)fprintf(f,"%s[%u,%u,%u]",i?",":"",h->u[i].a,h->u[i].d,h->u[i].x);
+    fputs("],\"itlb\":[",f);
+    for(int i=0;i<4;i++)fprintf(f,"%s[%u,%u,%u]",i?",":"",h->i[i].a,h->i[i].d,h->i[i].x);
+    fputs("],\"instructionCache\":[",f);bool first=true;
+    for(int s=0;s<128;s++)for(int w=0;w<4;w++)if(h->cache[s][w].valid){
+        const ILine *line=&h->cache[s][w];fprintf(f,"%s{\"set\":%d,\"way\":%d,\"tag\":%u,\"bytes\":\"",first?"":",",s,w,line->tag);first=false;
+        for(int i=0;i<32;i++)fprintf(f,"%02x",line->bytes[i]);
+        fputs("\"}",f);
+    }
+    fputs("]}",f);
+}
+
 static uint32_t raw_read(Memory *m, uint32_t a, int size)
 {
     uint8_t *p = m->rd[a >> PAGE_SHIFT];

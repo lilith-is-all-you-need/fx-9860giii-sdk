@@ -1,6 +1,7 @@
 #ifndef FX_HARDWARE_MODEL_H
 #define FX_HARDWARE_MODEL_H
 #include "cpu.h"
+#include <stdio.h>
 /* Functional SH7305 model. OS refill/lifecycle are explicit HLE policies. */
 struct ProbeHardware;
 struct EmuTag;
@@ -19,4 +20,5 @@ bool probe_hw_init(void *emu, bool enable);
 bool probe_hw_quit(void *emu);
 bool probe_hw_enabled(const Memory *);
 uint8_t *probe_hw_debug_byte(Memory *m, uint32_t a, bool write);
+void probe_hw_snapshot(const Memory *, FILE *);
 #endif

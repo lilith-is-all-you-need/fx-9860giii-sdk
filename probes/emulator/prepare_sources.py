@@ -15,13 +15,15 @@ cpu = original_cpu = (up / 'cpu.c').read_text()
 cpu = '#include "debug_bridge.h"\n#include "hardware_model.h"\n' + cpu
 cpu = replace_once(cpu, '    exec(cpu, pc + 2);', '''    cpu->pc = pc + 2;
     probe_debug_before(cpu, pc + 2);
+    if (cpu->state != CPU_RUNNING) return;
     exec(cpu, pc + 2);''')
 cpu = replace_once(cpu, '    uint16_t op = mem_read16(mem, pc);', '''    probe_debug_ignore_memory = true;
     uint16_t op = probe_hw_fetch(cpu, pc);
     probe_debug_ignore_memory = false;''')
 cpu = replace_once(cpu, 'static inline void step_one(Cpu *cpu)\n{', '''static inline void step_one(Cpu *cpu)
 {
-    probe_debug_before(cpu, cpu->pc);''')
+    probe_debug_before(cpu, cpu->pc);
+    if (cpu->state != CPU_RUNNING) return;''')
 cpu = replace_once(cpu, '        cpu->attention = false;', '''        probe_debug_poll(cpu);
         cpu->attention = false;''')
 cpu = replace_once(cpu, 'case 0x0038: return;', 'case 0x0038: probe_hw_ldtlb(cpu); return;')
@@ -50,6 +52,10 @@ for bits in (8,16,32):
 for p in up.glob('*'):
     if p.suffix in ('.c', '.h') and p.name not in ('cpu.c', 'mem.h'):
         (out / p.name).write_bytes(p.read_bytes())
+emu_h = (out / 'emu.h').read_text()
+emu_h = replace_once(emu_h, '    int cursor_x, cursor_y;',
+    '    int fx_cursor_style, fx_cursor_mode, fx_cursor_flash_style;\n    int cursor_x, cursor_y;')
+(out / 'emu.h').write_text(emu_h)
 mem_c = original_mem_c = (up / 'mem.c').read_text()
 mem_c = '#include "hardware_model.h"\n' + mem_c
 mem_c = replace_once(mem_c, 'void mem_free(Memory *mem)\n{', 'void mem_free(Memory *mem)\n{\n    probe_hw_destroy(mem);')
@@ -113,8 +119,8 @@ syscalls = replace_once(syscalls, '    {0x0139, "Cursor_SetFlashStyle", sc_nothi
 syscalls = replace_once(syscalls, '    {0x0813, "SaveDisp", sc_fx_save_disp},',
     '    {0x0812, "Cursor_SetFlashOff", sc_nothing}, /* cursor is not rendered */\n    {0x0813, "SaveDisp", sc_fx_save_disp},')
 syscalls = replace_once(syscalls, '        sc_spend(emu, SYSCALL_CYCLES);', '''        uint64_t event_id = probe_trace_enter(emu, number, args, table[i].name,
-            table[i].fn == sc_nothing ? "stub" : "implemented");
-        if (table[i].fn == sc_nothing && probe_trace_strict()) {
+            table[i].fn == sc_nothing ? "stub" : fx && fx_partial_syscall(number) ? "partial" : "implemented");
+        if ((table[i].fn == sc_nothing || (fx && fx_partial_syscall(number))) && probe_trace_strict()) {
             cpu_report(cpu, "stub syscall 0x%04X %s rejected by strict mode", number, table[i].name);
             cpu->state = CPU_ERROR;
             probe_trace_leave(emu, event_id, 0, false);
@@ -139,6 +145,8 @@ void syscalls_install''')
 (os_out / 'syscalls.c').write_text(syscalls)
 keys = original_keys = (up / 'os/syscalls_keys.c').read_text()
 keys = '#include "debug_bridge.h"\n' + keys
+keys = keys.replace('            emu->cpu.state = CPU_EXITED;',
+    '            if(emu->cpu.state == CPU_RUNNING) emu->cpu.state = CPU_EXITED;')
 keys = replace_once(keys, '        if (menu_dropped(emu, code))\n            continue;',
     '        if (menu_dropped(emu, code)) {\n            if(probe_os_menu(&emu->cpu)) return -1;\n            continue;\n        }')
 # gint uses a timer-injected matrix MENU followed by GetKeyWait(menu=0).
@@ -163,6 +171,51 @@ SC(sc_clear_key_buffer)
 (os_out / 'syscalls_impl.h').write_text((os_out / 'syscalls_impl.h').read_text()+'\nSC(sc_clear_key_buffer);\n')
 syscalls = replace_once(syscalls, '{0x0241, "Keyboard_ClrBuffer", sc_nothing}',
     '{0x0241, "Keyboard_ClrBuffer", sc_clear_key_buffer}')
+# FX-only additions: never borrow a CG syscall number or return convention.
+syscalls = replace_once(syscalls, '/* The serial port (3-pin link cable):',
+    '#include "fx_syscalls.h"\n\n/* The serial port (3-pin link cable):')
+fx_start = syscalls.index('static const Syscall SYSCALLS_FX[]')
+prefix, table = syscalls[:fx_start], syscalls[fx_start:]
+for old, new in {
+    'sc_restart': 'sc_fx_reset',
+    'sc_fx_cursor_settings': 'sc_fx_cursor_state',
+    'sc_bfile_name_length': 'sc_fx_name_length',
+    'sc_bfile_name_to_str': 'sc_fx_name_to_str',
+}.items():
+    table = table.replace(', ' + old + '}', ', ' + new + '}')
+for name, fn in [('Cursor_SetFlashStyle','sc_fx_cursor_style'), ('Cursor_SetFlashMode','sc_fx_cursor_mode'),
+                 ('Cursor_SetFlashOn','sc_fx_cursor_on'), ('Cursor_SetFlashOff','sc_fx_cursor_off')]:
+    table = replace_once(table, f'"{name}", sc_nothing', f'"{name}", {fn}')
+entries = [
+    (0x15F,'atoi','sc_fx_atoi'), (0x161,'LongToAscHex','sc_fx_hex'),
+    (0x162,'pc_toupper','sc_fx_upper'), (0x163,'pc_tolower','sc_fx_lower'),
+    (0x172,'strcasecmp','sc_fx_casecmp'), (0x173,'strcasecmp','sc_fx_casecmp'),
+    (0x18A,'InvertMem','sc_fx_invert'),
+    (0x2A1,'HexToByte','sc_fx_hex_byte'), (0x2A2,'HexToWord','sc_fx_hex_word'),
+    (0x2A3,'ByteToHex','sc_byte_to_hex'), (0x2A4,'WordToHex','sc_word_to_hex'),
+    (0x2A7,'AscHexToNibble','sc_fx_hex_nibble'), (0x2A8,'NibbleToAscHex','sc_nibble_to_hex'),
+    (0x2A9,'strlen','sc_strlen'), (0x429,'Bfile_identify_device','sc_fx_device'),
+    (0x457,'Bfile_StrToName_ncpy','sc_fx_str_to_name'), (0x467,'LongToAscHex','sc_fx_hex'),
+    (0x531,'MB_IsLead','sc_fx_mb_lead'), (0x533,'MB_ElementCount','sc_fx_mb_count'),
+    (0x534,'MB_ByteCount','sc_strlen'), (0x536,'MB_strcat','sc_strcat'),
+    (0x537,'MB_strncat','sc_fx_mb_ncat'), (0x538,'MB_strcpy','sc_fx_strcpy'),
+    (0x53C,'MB_GetSecondElemPtr','sc_fx_mb_next'), (0x53D,'MB_GetElement','sc_fx_mb_get'),
+    (0x53E,'MB_CopyToHeap','sc_fx_mb_dup'), (0x541,'itoa','sc_itoa'),
+    (0x80E,'Cursor_GetFlashStyle','sc_fx_cursor_flash'), (0x80F,'Cursor_GetCurrentPosition','sc_fx_cursor_position_state'),
+    (0xE6E,'strchr','sc_fx_strchr'), (0xE6F,'strstr','sc_fx_strstr'),
+]
+table = table.replace('static const Syscall SYSCALLS_FX[] = {',
+    'static const Syscall SYSCALLS_FX[] = {\n' + ''.join(f'    {{0x{n:04X}, "{name}", {fn}}},\n' for n,name,fn in entries), 1)
+syscalls = prefix + table
+syscalls = replace_once(syscalls, '        cpu->pc = cpu->pr;',
+    '        if(cpu->state == CPU_RUNNING) cpu->pc = cpu->pr; /* preserve fault PC */')
+# Bulk/string HLE must unwind on a fault, not loop over an untrusted count.
+syscalls = replace_once(syscalls, '    for (uint32_t i = 0; i < a[2]; i++) {\n        int d =',
+    '    for (uint32_t i = 0; i < a[2] && !emu->mem.fault && emu->cpu.state == CPU_RUNNING; i++) {\n        int d =')
+syscalls = replace_once(syscalls, 'static SC(sc_strncpy)\n{',
+    'static SC(sc_strncpy)\n{\n    if(!hle_span(emu,a[0],a[2],true))return 0;')
+syscalls = replace_once(syscalls, 'i < a[2]; i++)\n        mem_write8',
+    'i < a[2] && !emu->mem.fault && emu->cpu.state == CPU_RUNNING; i++)\n        mem_write8')
 (os_out / 'syscalls.c').write_text(syscalls)
 (os_out / 'syscalls_keys.c').write_text(keys)
 fx = original_fx = (up / 'os/syscalls_fx.c').read_text()

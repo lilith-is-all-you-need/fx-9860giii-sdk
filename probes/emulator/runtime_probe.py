@@ -82,7 +82,7 @@ class Remote:
 
 
 class Session:
-    def __init__(self, addin, output, options=(), executable=None, timeout=10):
+    def __init__(self, addin, output, options=(), executable=None, timeout=10, fault_policy='pause', cwd=None):
         self.output = Path(output)
         self.output.mkdir(parents=True, exist_ok=True)
         self.remote = self.control = self.stream = None
@@ -90,8 +90,9 @@ class Session:
         self.process = subprocess.Popen([
             str(executable or DEFAULT_EXE), '--gdb-port', '0',
             '--control-port', '0', '--framebuffer', str(self.output / 'screen.bmp'),
+            *(['--fault-policy', fault_policy] if fault_policy else []),
             *map(str, options), str(Path(addin).resolve())], stdout=subprocess.PIPE,
-            stderr=self.stderr, text=True, encoding='utf8')
+            stderr=self.stderr, text=True, encoding='utf8', cwd=cwd)
         ready = queue.Queue()
         threading.Thread(target=lambda: ready.put(self.process.stdout.readline()), daemon=True).start()
         try:

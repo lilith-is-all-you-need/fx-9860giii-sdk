@@ -6,16 +6,17 @@
  /*
   * SH4AL-DSP integer interpreter (the fx-CG50's SH7305 has no FPU, so 0xFxxx
   * opcodes, which are DSP data instructions here, are treated as illegal).
-@@ -134,6 +136,8 @@
+@@ -134,6 +136,9 @@
          return;
      }
      cpu->in_delay_slot = true;
 +    cpu->pc = pc + 2;
 +    probe_debug_before(cpu, pc + 2);
++    if (cpu->state != CPU_RUNNING) return;
      exec(cpu, pc + 2);
      cpu->in_delay_slot = false;
      if (cpu->exception || cpu->mem->fault || cpu->state != CPU_RUNNING) {
-@@ -294,7 +298,7 @@
+@@ -294,7 +299,7 @@
          case 0x6: R0 = mem_read32(mem, RN); return;                               /* MOVLI.L @Rm,R0 */
          case 0x7: mem_write32(mem, RN, R0); set_t(cpu, true); return;             /* MOVCO.L R0,@Rn */
          case 0xC: mem_write32(mem, RN, R0); return;                               /* MOVCA.L R0,@Rn */
@@ -24,7 +25,7 @@
          }
          break;
      case 0x4: mem_write8(mem, R0 + RN, (uint8_t)RM); return;
-@@ -306,7 +310,7 @@
+@@ -306,7 +311,7 @@
          case 0x0008: set_t(cpu, false); return;                 /* CLRT */
          case 0x0018: set_t(cpu, true); return;                  /* SETT */
          case 0x0028: cpu->mach = cpu->macl = 0; return;         /* CLRMAC */
@@ -33,7 +34,7 @@
          case 0x0048: set_bit(cpu, SR_S, false); return;         /* CLRS */
          case 0x0058: set_bit(cpu, SR_S, true); return;          /* SETS */
          }
-@@ -572,7 +576,9 @@
+@@ -572,7 +577,9 @@
  {
      Memory *mem = cpu->mem;
      cpu->op_pc = pc;
@@ -44,15 +45,16 @@
      if (mem->fault)
          return;
      unsigned n = op >> 8 & 0xF, m = op >> 4 & 0xF;
-@@ -656,6 +662,7 @@
+@@ -656,6 +663,8 @@
  /* Executes the instruction at PC (or the syscall/exit it stands for). */
  static inline void step_one(Cpu *cpu)
  {
 +    probe_debug_before(cpu, cpu->pc);
++    if (cpu->state != CPU_RUNNING) return;
      if ((cpu->pc & ~(SYSCALL_ENTRY ^ SYSCALL_ENTRY_FX)) == (SYSCALL_ENTRY & SYSCALL_ENTRY_FX)) { /* either OS's */
          if (cpu->syscall) {
              cpu->syscall(cpu, cpu->syscall_user);
-@@ -667,6 +674,7 @@
+@@ -667,6 +676,7 @@
          return;
      }
      if (cpu->pc == EXIT_ADDR) {
@@ -60,7 +62,7 @@
          cpu->state = CPU_EXITED;
          cpu->attention = true;
          return;
-@@ -705,6 +713,7 @@
+@@ -705,6 +715,7 @@
  static void run_until(Cpu *cpu, uint64_t end)
  {
      while (cpu->state == CPU_RUNNING && cpu->instructions < end) {

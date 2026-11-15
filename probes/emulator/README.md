@@ -2,6 +2,11 @@
 
 本目录已实现可运行的 `FxEmulator.exe`，直接装载 `.g1a` 中的 SuperH 指令。没有将计算器源码重编译成 PC 程序。界面、数学计算和按键处理均由被加载的 G1A 执行。
 
+2026-11-15 更新：新增 31 个 FX syscall 入口、默认故障留档后重建 HLE OS、可选保留现场
+的暂停模式。完整范围与缺失项见 [系统调用覆盖和恢复说明](SYSCALL-COVERAGE.md)，
+KhiCAS 的加载瓶颈见 [具体卡点与映射路线](../native-loader/KHICAS-BLOCKERS.md)。
+这仍不是完整的 Casio OS 模拟。
+
 ## 来源与结构
 
 - 基础解释器：`third_party/emuCasioCalc`，上游 `https://github.com/joserodpt/emuCasioCalc`。
@@ -41,7 +46,7 @@ FxEmulator.exe --gdb-port 0 --control-port 0 --framebuffer "绝对路径.bmp" "�
 {"command":"quit"}
 ```
 
-状态包含 `state` (`paused` / `running` / `exited` / `error`)、`pc`（8 位十六进制）、`cycles`、`reason`、`error`。支持的键名以 `src/utils/keys.c` 为准，包括数字、F1–F6、EXE、EXIT、MENU、SHIFT、ALPHA、AC、DEL、方向键、PLUS、MINUS、MULT、DIV、DP 等。未知键或未知命令返回 `ok:false`。
+状态包含 `state` (`paused` / `running` / `exited` / `error` / `rebooted`)、`pc`（8 位十六进制）、`cycles`、`reason`、`error`。支持的键名以 `src/utils/keys.c` 为准，包括数字、F1–F6、EXE、EXIT、MENU、SHIFT、ALPHA、AC、DEL、方向键、PLUS、MINUS、MULT、DIV、DP 等。未知键或未知命令返回 `ok:false`。
 
 屏幕是 128×64、24 位 BMP，先写同目录临时文件再原子替换；运行时最多约 15 帧/秒。断点、单步或中断停下时，在发送 GDB 停止通知前强制读取并刷新当前硬件 framebuffer，不额外执行目标指令。UI 应打开并读取文件后立即释放文件句柄，以便原子替换。首次 continue 前不存在画面是正常的。路径不可写时后端启动失败，不宣称已 ready。退出时使用有界 socket linger，让最后的控制回复在 Winsock 清理前发送完毕。
 
@@ -86,14 +91,15 @@ FxEmulator.exe --gdb-port 0 --control-port 0 --framebuffer "绝对路径.bmp" "�
 
 `calloc`（0x0E6B）和 `memmove`（0x0E6C）已补充。堆分配器检查乘法/对齐溢出、块边界、损坏的元数据、非法释放和重复释放；`realloc` 失败保留原块。此 HLE 对零长度分配返回 NULL，对非法释放报错，这些是模拟器的诊断策略，不宣称复现真机在未定义行为下的表现。
 
-批量复制/填充先验证完整地址范围，失败时不部分写入；复制支持重叠、跨页和 P1/P2 别名，并触发观察点。补充 `Cursor_SetPosition`（0x0138）的边界和返回值、`Setup_GetEntry`（0x04DC）中 0x14 键盘状态项。其他设置索引仍明确报错。`Cursor_SetFlashOff`（0x0812）与原有光标闪烁接口一样属于占位实现，尚不画闪烁光标。
+批量复制/填充先验证完整地址范围，失败时不部分写入；复制支持重叠、跨页和 P1/P2 别名，并触发观察点。补充 `Cursor_SetPosition`（0x0138）的边界和返回值、`Setup_GetEntry`（0x04DC）中 0x14 键盘状态项。其他设置索引仍明确报错。光标设置及查询现在保存并返回状态，但仍不画闪烁光标，调用跟踪标为 `partial`。
 
 额外启动选项：
 
 | 选项 | 用途 |
 | --- | --- |
 | `--trace-syscalls FILE.jsonl` | 每次调用的进入/完成、编号、名称、r4–r7、PR、SP、返回值和失败状态 |
-| `--strict-stubs` | 遇到 `sc_nothing` 占位实现立即报错；SetQuitHandler 已有回调实现 |
+| `--strict-stubs` | 遇到 `sc_nothing` 占位或已标记的 `partial` 实现立即报错；SetQuitHandler 已有回调实现 |
+| `--fault-policy reboot/pause` | 默认记录并重建 HLE OS；pause 保留故障现场供 GDB 查看 |
 | `--legacy-memory` | 对照旧版固定映射、无指令缓存/退出回调的模型，不用于 Loader 验收 |
 | `--step-limit N` | 每次继续/单步后最多 N 次 CPU 执行钩子，含延迟槽；0 表示无限制 |
 | `--heap-bytes N` | 缩小所选模拟堆，测试内存不足；至少 16 字节且为 8 的倍数 |

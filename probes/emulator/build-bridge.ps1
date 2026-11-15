@@ -32,7 +32,7 @@ try {
         sha256 = (Get-FileHash probes/emulator/build/FxEmulator.exe -Algorithm SHA256).Hash.ToLowerInvariant()
         sourcePatchSha256 = (Get-FileHash probes/emulator/debugger-hooks.patch -Algorithm SHA256).Hash.ToLowerInvariant()
         compatibilityPatchSha256 = (Get-FileHash probes/emulator/runtime-compat.patch -Algorithm SHA256).Hash.ToLowerInvariant()
-        bridgeSources = @('hardware_model.c', 'hardware_model.h', 'heap_compat.h', 'memory_compat.h', 'syscall_trace.c', 'syscall_trace.h',
+        bridgeSources = @('hardware_model.c', 'hardware_model.h', 'heap_compat.h', 'memory_compat.h', 'fx_syscalls.h', 'recovery.h', 'syscall_trace.c', 'syscall_trace.h',
             'bridge.c', 'bridge_platform.c', 'bridge_compat.h', 'compat.h', 'debug_bridge.h',
             'prepare_sources.py', 'build-bridge.ps1') | ForEach-Object {
             [ordered]@{ name = $_; sha256 = (Get-FileHash (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash.ToLowerInvariant() }
