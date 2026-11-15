@@ -65,6 +65,7 @@ def main():
     shutil.copy2(ROOT / 'probes/emulator/build/FxEmulator.exe', emu_target)
     shutil.copy2(ROOT / 'probes/emulator/build/BUILD-MANIFEST.json', emu_target)
     copy_tree(ROOT / 'docs', target / 'docs')
+    copy_tree(ROOT / 'skills', target / 'skills')
     (target / 'automation').mkdir()
     shutil.copy2(ROOT / 'tooling/fxstudio_client.py', target / 'automation/fxstudio_client.py')
     for example in ('counter-c', 'counter-cpp'):
@@ -117,6 +118,7 @@ def main():
         'Open docs/USER-GUIDE.zh-CN.html or docs/USER-GUIDE.en.html.\n'
         'See docs/VALIDATION.html for tested capabilities and remaining limits.\n'
         'Automation: FxStudio.Agent.exe --stdio (MCP); see docs/AUTOMATION.md.\n'
+        'Skill (no client MCP setup): skills/fxstudio; see its references/quickstart.zh-CN.md.\n'
         'Matching corresponding sources and notices are included under sources/.\n', encoding='utf8')
     manifest = {'schemaVersion': 1, 'name': args.name, 'files': []}
     for path in sorted(target.rglob('*')):

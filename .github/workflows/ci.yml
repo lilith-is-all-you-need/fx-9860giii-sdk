@@ -26,3 +26,9 @@ jobs:
         run: dotnet run --project tests/FxStudio.Core.Tests --configuration Release --no-build
       - name: Automation contract tests
         run: dotnet run --project tests/FxStudio.Automation.Tests --configuration Release --no-build
+      - name: Check skill helper Python syntax
+        run: python -m py_compile skills/fxstudio/scripts/fxstudio.py tooling/test_skill_bridge.py tooling/package_skill.py
+      - name: Publish merged desktop and automation runtime
+        run: ./tooling/Publish-App.ps1 -StagingDirectory "$env:RUNNER_TEMP\fxstudio-published"
+      - name: Verify actual merged runtime starts
+        run: ./tooling/Test-PublishedApp.ps1 -ApplicationDirectory "$env:RUNNER_TEMP\fxstudio-published"

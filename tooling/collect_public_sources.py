@@ -28,7 +28,7 @@ EMU_REVISION = '63e325708e9eea53eb4769b9c057082614ebd919'
 CODE_SUFFIXES = {'.cs', '.csproj', '.sln', '.slnx', '.xaml', '.json', '.xml', '.config',
                  '.props', '.targets', '.py', '.ps1', '.sh', '.c', '.h', '.cpp', '.hpp',
                  '.cmake', '.in', '.txt', '.md', '.html', '.css', '.manifest', '.patch',
-                 '.png', '.svg', '.ico', '.resx', '.editorconfig'}
+                 '.png', '.svg', '.ico', '.resx', '.editorconfig', '.yaml', '.yml'}
 OMIT_DIRS = {'bin', 'obj', 'build', 'source', '__pycache__', '.git', '.vs', '.fxstudio',
              '.fxide-source', 'integration-work', 'node_modules'}
 COMPRESSED = {'.xz', '.gz', '.bz2', '.zst', '.zip', '.nupkg', '.png', '.ico'}
@@ -164,7 +164,7 @@ def collect():
     for name in ('LICENSE', 'THIRD-PARTY-NOTICES.txt', '.gitignore', '.gitattributes',
                  'README.txt', 'README.md', 'FxStudio.slnx', 'global.json'):
         add(ROOT / name)
-    for folder in ('src', 'tests', 'tooling', 'docs', 'examples'):
+    for folder in ('src', 'tests', 'tooling', 'docs', 'examples', 'skills'):
         tree(folder, 'Fx Studio source', code_only=True)
     tree('sdk/examples', 'Fx Studio calculator examples', code_only=True)
     for name in ('BUILD-SERVICE.md', 'PROVISIONING-STATUS.md'):

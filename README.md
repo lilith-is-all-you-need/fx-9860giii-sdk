@@ -18,6 +18,14 @@ The `v0.2.0-r1` packaging revision fixes Windows IDE startup by preserving the d
 
 Download the complete Windows archive from Releases, extract it, and run `FxStudio.exe`. Open a bundled example, build, and start debugging. Normal calculator development works offline. GitHub's automatically generated **Source code** ZIP is a source checkout, not the offline application bundle.
 
+### AI / Skill 接入
+
+有本地文件和命令执行能力的 AI 可以使用 [fxstudio skill](skills/fxstudio/SKILL.md)，
+无需手动配置 MCP，也无需打开 IDE。安装 Release 附件 `FxStudio-skill-1.0.0.zip`
+或复制仓库的 `skills/fxstudio`，再提供完整 SDK 的解压路径。
+见 [中文快速入门](skills/fxstudio/references/quickstart.zh-CN.md)：自动定位 SDK、持续调试会话、
+编译/按键/截图、退出清理及并发隔离。单独安装 skill 不包含编译器或赋予本地执行权限。
+
 ## 功能 / Features
 
 | Area | Included in 0.2.0 |

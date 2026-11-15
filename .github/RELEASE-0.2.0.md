@@ -8,6 +8,7 @@ Fx Studio 0.2.0 provides a portable Windows C/C++ development environment for th
 - **FxStudio-0.2.0-sources.zip**: matching corresponding-source companion with exact upstream dependency archives, build recipes, local patches and notices. It is also included in the Windows package.
 - **FxStudio-0.2.0-sources.manifest.json**: source archive identity and per-file inventory.
 - **SHA256SUMS.txt**: SHA-256 checksums for the attached ZIPs and source manifest.
+- **FxStudio-skill-1.0.0.zip** and its **.sha256**: optional skill add-on for local coding agents. Copy its `fxstudio` folder to your client's skills directory and provide the complete SDK path. No manual MCP registration or GUI session is required. The r1 runtime ZIP is unchanged; this add-on is downloaded separately. See the [Chinese quickstart](https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/blob/main/skills/fxstudio/references/quickstart.zh-CN.md).
 
 GitHub's automatic “Source code” downloads contain the repository snapshot, not the full offline SDK or the complete dependency source companion. Initialize submodules when cloning the repository.
 
@@ -20,6 +21,8 @@ GitHub's automatic “Source code” downloads contain the repository snapshot, 
 - `FxStudio.Agent.exe --stdio` with four stable MCP entry points, versioned commands, operations, events and snapshots.
 
 ## Validation and boundaries
+
+Skill 1.0.0 was tested against the corrected r1 package using its bundled Python: concurrent starts share one host, different task hosts remain isolated, authenticated loopback requests and retry deduplication work, and separate CLI calls complete real C++ Debug/Release builds, source debugging, a PLUS key press (counter becomes 1), PNG export and cleanup. Windows CI now also publishes the combined GUI/Agent directory and starts both entry points, guarding against a recurrence of the WindowsBase packaging failure.
 
 The corrected package was tested from its actual portable directory in both Chinese and English: 14 real WPF/GDB/emulator interaction checks passed, including building and starting debug sessions, breakpoint controls, instruction stepping and screen/resource previews. The corrected merged publish script was also executed successfully. Fx Studio application binaries and the native compiler/debugger/emulator are unchanged; the desktop runtime assembly, source companion, documentation, verification script and inventories were refreshed. Corrected ZIPs are verified by full SHA-256 and ZIP CRC before publication.
 

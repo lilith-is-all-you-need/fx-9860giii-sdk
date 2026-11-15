@@ -1,5 +1,11 @@
 # FxStudio automation contract 1.0
 
+For a local coding agent with shell/file tools, use the bundled
+[Fx Studio skill](../skills/fxstudio/SKILL.md) and its
+[Chinese quickstart](../skills/fxstudio/references/quickstart.zh-CN.md).
+It starts the Agent and preserves sessions across CLI calls without registering
+an MCP server in the client. The same MCP protocol below remains the backend.
+
 The desktop IDE and automation service use the same build/GDB/emulator Core.
 The automation service currently owns **separate sessions**. It does not attach to
 the GUI's live session, operate a physical calculator, or require an online LLM.
@@ -89,10 +95,15 @@ Sources: [MCP transport](https://modelcontextprotocol.io/specification/2025-11-2
 6. Submit `session.close` when finished. Closing stdin also cancels outstanding
    operations and releases owned emulator/debugger processes.
 
-`tooling/fxstudio_client.py` is a dependency-free Python example using exactly the
+`automation/fxstudio_client.py` in the portable package (`tooling/fxstudio_client.py`
+in the source checkout) is a dependency-free Python example using exactly the
 same MCP transport. Run it with `--agent PATH --package DIR --project DIR`; its
 optional `--screen FILE.png` exports the stopped main() screen, which can be blank
 because drawing has not happened yet. It is a client example, not a second protocol.
+
+The example CLI closes its session on exit. For interactive debugging across
+separate shell calls, the skill's `scripts/fxstudio.py` keeps one host per `--state`
+directory. Give concurrently working agents separate state and build directories.
 
 ## State and retry semantics
 

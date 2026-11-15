@@ -24,6 +24,19 @@ To publish the desktop application and MCP host:
 
 The script publishes the console agent first and the WPF application last so the desktop runtime wins shared-file conflicts. Publishing the agent over the application replaces `WindowsBase.dll` with the NETCore facade and prevents the GUI from starting. Validate the merged output, not only the separate application publish directory.
 
+Run `tooling/Test-PublishedApp.ps1 -ApplicationDirectory C:\fxstudio-build\publish`
+to render the actual merged GUI with a fresh profile and check Agent discovery.
+Windows CI runs this after publishing, in addition to the assembly-version gate.
+
+The standalone `skills/fxstudio` add-on needs a complete offline runtime but no
+client MCP registration. Verify it with `python tooling/test_skill_bridge.py
+--package C:\FxStudio --output C:\fxstudio-build\skill-check` (use a fresh output
+directory). This exercises separate CLI invocations, concurrent startup, isolated
+hosts, request deduplication, a real C++ build/debug/key/screen sequence and Release
+output. Package it with `python tooling/package_skill.py --output
+C:\fxstudio-build\FxStudio-skill-1.0.0.zip`. It is also included by the full runtime
+and corresponding-source assemblers.
+
 Publishing these .NET projects alone does not assemble the compiler, GDB, emulator or their corresponding sources. For a local development run, use a separate copy of the complete release as the runtime directory and replace its application files with the published output. Preserve `sdk/`, `runtime/`, `sources/` and license notices. Do not overwrite your only validated release copy.
 
 ## Emulator bridge
