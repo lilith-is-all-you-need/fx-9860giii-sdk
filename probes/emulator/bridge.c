@@ -7,6 +7,7 @@
 #include "g3a.h"
 #include "keys.h"
 #include "syscall_trace.h"
+#include "hardware_model.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,6 +46,8 @@ static Layout active_layout;
 static const char *memory_profile = "default";
 static uint32_t stack_floor;
 static FILE *syscall_log;
+static bool hardware_model=true, menu_waiting;
+static int menu_action;
 bool probe_debug_ignore_memory;
 static void flush_frame(bool force);
 
@@ -131,7 +134,7 @@ static bool set_reg(unsigned reg,uint32_t value)
 }
 /* Debugger memory reads do not invoke MMIO, consume device state or advance time. */
 static uint8_t *byte_ptr(uint32_t addr,bool write)
-{ return (write?machine->mem.wr:machine->mem.rd)[addr>>PAGE_SHIFT] ? (write?machine->mem.wr:machine->mem.rd)[addr>>PAGE_SHIFT]+(addr&(PAGE_SIZE-1)) : NULL; }
+{ return probe_hw_debug_byte(&machine->mem,addr,write); }
 static bool range_valid(uint32_t address,uint32_t size,bool write)
 {
     if(size>8192 || (uint64_t)address+size>0x100000000ULL)return false;
@@ -259,12 +262,16 @@ static void control_line(const char *json)
     if(!strcmp(command,"status")){
         const char *state=machine->cpu.state==CPU_ERROR?"error":machine->cpu.state==CPU_EXITED?"exited":paused?"paused":"running";
         json_escape(machine->cpu.error,error,sizeof error);
-        snprintf(reply,sizeof reply,"{\"ok\":true,\"state\":\"%s\",\"pc\":\"%08X\",\"cycles\":%" PRIu64 ",\"reason\":\"%s\",\"error\":\"%s\"}\n",state,machine->cpu.pc,machine->cpu.instructions,stop_reason,error);
+        snprintf(reply,sizeof reply,"{\"ok\":true,\"state\":\"%s\",\"pc\":\"%08X\",\"cycles\":%" PRIu64 ",\"reason\":\"%s\",\"error\":\"%s\",\"osMenu\":%s}\n",state,machine->cpu.pc,machine->cpu.instructions,stop_reason,error,menu_waiting?"true":"false");
     }else if(!strcmp(command,"syscalls")){
         probe_trace_json(reply, sizeof reply);
     }else if(!strcmp(command,"diagnostics")){
-        snprintf(reply,sizeof reply,"{\"ok\":true,\"memoryProfile\":\"%s\",\"heapBase\":\"%08X\",\"heapBytes\":%u,\"stackTop\":\"%08X\",\"stackFloor\":\"%08X\",\"executedSteps\":%" PRIu64 ",\"stepLimit\":%" PRIu64 ",\"realMmu\":false,\"realOsExit\":false,\"writableAddin\":true,\"osModel\":\"HLE\"}\n",
-            memory_profile,active_layout.heap_base,active_layout.heap_size,active_layout.stack_top,stack_floor,executed_steps,step_limit);
+        snprintf(reply,sizeof reply,"{\"ok\":true,\"memoryProfile\":\"%s\",\"heapBase\":\"%08X\",\"heapBytes\":%u,\"stackTop\":\"%08X\",\"stackFloor\":\"%08X\",\"executedSteps\":%" PRIu64 ",\"stepLimit\":%" PRIu64 ",\"realMmu\":false,\"realOsExit\":false,\"functionalTlb\":%s,\"instructionCache\":%s,\"quitCallback\":%s,\"copyBackDataCache\":false,\"writableAddin\":%s,\"osRefill\":\"HLE-owned-pages-only\",\"osModel\":\"HLE\"}\n",
+            memory_profile,active_layout.heap_base,active_layout.heap_size,active_layout.stack_top,stack_floor,executed_steps,step_limit,
+            hardware_model?"true":"false",hardware_model?"true":"false",hardware_model?"true":"false",hardware_model?"false":"true");
+    }else if(!strcmp(command,"menu-resume")||!strcmp(command,"menu-replace")){
+        if(!menu_waiting)strcpy(reply,"{\"ok\":false,\"error\":\"not in HLE menu\"}\n");
+        else{menu_action=!strcmp(command,"menu-resume")?1:2;strcpy(reply,"{\"ok\":true}\n");}
     }else if(!strcmp(command,"key")){
         int k=key_find(key);if(k<0)strcpy(reply,"{\"ok\":false,\"error\":\"unknown key\"}\n");else{host_keys[k]=down;if(down)queued_key=k;else if(queued_key==k)queued_key=-1;strcpy(reply,"{\"ok\":true}\n");}
     }else if(!strcmp(command,"quit")){quitting=true;strcpy(reply,"{\"ok\":true}\n");}
@@ -323,6 +330,24 @@ void probe_debug_poll(Cpu *cpu)
     if(!machine)return;
     if(GetTickCount64()-poll_tick>=10){poll_tick=GetTickCount64();pump(0);}
     while(paused&&cpu->sleeping&&!quitting)pump(20);
+}
+int probe_os_menu(Cpu *cpu)
+{
+    if(!hardware_model || !machine)return 0;
+    menu_waiting=true;menu_action=0;
+    /* HLE lifecycle, not a rendered Casio menu: EXE/EXIT resume, F1 replaces. */
+    while(!menu_action&&!quitting) {
+        pump(20);
+        if(queued_key==key_find("EXE")||queued_key==key_find("EXIT"))menu_action=1;
+        if(queued_key==key_find("F1"))menu_action=2;
+        if(menu_action)queued_key=-1;
+    }
+    menu_waiting=false;
+    if(menu_action==2) {
+        if(probe_hw_quit(machine))cpu->state=CPU_EXITED;
+        return 1;
+    }
+    return 0;
 }
 void probe_debug_before(Cpu *cpu,uint32_t address)
 {
@@ -403,6 +428,7 @@ int bridge_main(int argc,char **argv)
         else if(!strcmp(argv[i],"--framebuffer")&&i+1<argc)frame=argv[++i];
         else if(!strcmp(argv[i],"--trace-syscalls")&&i+1<argc)trace_path=argv[++i];
         else if(!strcmp(argv[i],"--strict-stubs"))strict_stubs=true;
+        else if(!strcmp(argv[i],"--legacy-memory"))hardware_model=false;
         else if(!strcmp(argv[i],"--step-limit")&&i+1<argc){if(!parse_number(argv[++i],UINT64_MAX,&step_limit))return 2;}
         else if(!strcmp(argv[i],"--heap-bytes")&&i+1<argc){if(!parse_number(argv[++i],UINT32_MAX,&heap_bytes)||heap_bytes<16||(heap_bytes&7))return 2;}
         else if(!strcmp(argv[i],"--memory-profile")&&i+1<argc){memory_profile=argv[++i];if(strcmp(memory_profile,"default")&&strcmp(memory_profile,"khicas"))return 2;}
@@ -418,6 +444,11 @@ int bridge_main(int argc,char **argv)
     machine=calloc(1,sizeof *machine);if(!machine||!emu_init(machine,MODEL_FX9750G3)||!g3a_map(machine,&addin))return 4;
     g3a_close(&addin);machine->headless=false;
     active_layout=*machine->layout;
+    if(hardware_model){
+        /* Declared HLE baseline from Probe v1; this does not load OS firmware. */
+        active_layout.os_version="03.70.0200";
+        memcpy(machine->rom+0x10020,active_layout.os_version,10);
+    }
     if(!strcmp(memory_profile,"khicas")){
         /* Explicit diagnostic layout, NOT an assertion about the real OS. */
         active_layout.heap_base=0x88040000;active_layout.heap_size=0xC000;
@@ -428,6 +459,7 @@ int bridge_main(int argc,char **argv)
     if(trace_path){syscall_log=probe_utf8_fopen(trace_path,"wb");if(!syscall_log){fprintf(stderr,"cannot create syscall trace\n");return 6;}}
     probe_trace_configure(syscall_log,strict_stubs);
     emu_start(machine);
+    if(!probe_hw_init(machine,hardware_model)){fprintf(stderr,"hardware model allocation failed\n");return 4;}
     WSADATA ws;if(WSAStartup(MAKEWORD(2,2),&ws))return 5;
     gdb_listener=listener(&gp);control_listener=listener(&cp);if(gdb_listener==INVALID_SOCKET||control_listener==INVALID_SOCKET){fprintf(stderr,"could not bind loopback listener\n");return 5;}
     setvbuf(stdout,NULL,_IONBF,0);

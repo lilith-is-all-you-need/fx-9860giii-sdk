@@ -93,7 +93,8 @@ FxEmulator.exe --gdb-port 0 --control-port 0 --framebuffer "绝对路径.bmp" "�
 | 选项 | 用途 |
 | --- | --- |
 | `--trace-syscalls FILE.jsonl` | 每次调用的进入/完成、编号、名称、r4–r7、PR、SP、返回值和失败状态 |
-| `--strict-stubs` | 遇到 `sc_nothing` 占位实现立即报错，包含 SetQuitHandler |
+| `--strict-stubs` | 遇到 `sc_nothing` 占位实现立即报错；SetQuitHandler 已有回调实现 |
+| `--legacy-memory` | 对照旧版固定映射、无指令缓存/退出回调的模型，不用于 Loader 验收 |
 | `--step-limit N` | 每次继续/单步后最多 N 次 CPU 执行钩子，含延迟槽；0 表示无限制 |
 | `--heap-bytes N` | 缩小所选模拟堆，测试内存不足；至少 16 字节且为 8 的倍数 |
 | `--memory-profile khicas` | 使用下表中的隔离布局，并检查每次指令前 SP 是否越界 |
@@ -110,7 +111,11 @@ KhiCAS 样本自身使用 `88051000`、`88052000`、`[88053800,8807D000)` 等区
 
 新增控制请求 `{"command":"syscalls"}` 返回调用计数和最近 16 次调用；`{"command":"diagnostics"}` 返回内存配置、步数和模拟假设。`implemented` 仅表示有 HLE 处理函数，不能理解为完整 OS 实现；`stub` 专指 `sc_nothing`，`missing` 表示无对应处理。进入阻塞 GetKey 时 `completed:false` 是正常的等待。嵌套回调超过环形记录容量时，较早父调用的完成记录可能被省略，完整 JSONL 仍保留其进入记录。
 
-`realMmu:false`、`realOsExit:false`、`writableAddin:true` 明确揭示当前模型：没有真实 TLB/缓存一致性和 OS 退出生命周期；add-in 映射可写。未知系统调用仍停止执行。严格占位检查也不能排除其他 HLE 函数中的简化。
+默认启用功能级 UTLB/ITLB、指令缓存和退出回调，add-in 的 OS 原映射只读。
+`functionalTlb:true`、`instructionCache:true`、`quitCallback:true` 表示这些路径已实现。
+`realMmu:false`、`realOsExit:false` 仍保留：不运行完整固件的缺页/退出处理。
+`copyBackDataCache:false` 表示数据缓存仍采用一致内存近似。未知系统调用停止执行；
+严格占位检查也不能排除其他 HLE 函数中的简化。
 
 独立复现与回归（普通 Python 3，无额外 Python 包）：
 
@@ -121,11 +126,42 @@ python probes/emulator/runtime_probe.py C:/samples/khicas.bin --output probes/em
 
 探针会输出 `report.json`、`syscalls.jsonl`、屏幕 BMP、每次按键前的 BMP 和 stderr；输入 `.bin` 只改扩展名即可。`--timeout` 是等待停止包的墙钟超时，之后发送 Ctrl-C；指令预算无法终止在宿主端等待按键的 HLE，因此应同时使用墙钟超时。按键自动化采用固定间隔，报告“sent”仅表示送出，需结合画面确认目标程序消费。
 
-`test_runtime.py` 自行生成小型 SH/G1A，不依赖 KhiCAS 或官方 SDK。`test-runtime.ps1` 构建解释器并运行上游 CPU 测试与本地 13 组运行时测试（多组含参数化、随机分配检查）。GitHub 的 `Native emulator regression` 工作流执行同样检查。原有 `test_bridge.py` 55 项还依赖本机历史 CAS02 夹具，不放进公开 CI。
+`test_runtime.py` 自行生成小型 SH/G1A，不依赖 KhiCAS 或官方 SDK。`test-runtime.ps1` 构建解释器并运行上游 CPU 测试、本地 13 组运行时测试和 12 组 `test_hardware.py` 硬件模型测试。GitHub 的 `Native emulator regression` 工作流执行同样检查。原有 `test_bridge.py` 55 项还依赖本机历史 CAS02 夹具，不放进公开 CI。
 
 2026-11-15 本机验证：SHA-256 为 `4a9d1c18009d987dc7c8745b7fc099b3c6e8006ebbb2ee5e4b483934be757473` 的外部 KhiCAS 样本在两种布局均进入界面并显示 `2+2` 的结果 `4`；隔离布局下另走过除零、缺操作数、删除修改、EXIT/MENU 按键路径，无 CPU 错误或未知调用。MENU 按键测试不等于返回真实 OS 菜单。短路径通过不代表 KhiCAS 全功能或长期稳定；样本文件未纳入仓库。
 
 语义核对来源：[fx legacy Setup](https://media.taricorp.net/prizm/simon_chm/fx_legacy_Setup.htm)、[fx legacy Cursor](https://media.taricorp.net/prizm/simon_chm/fx_legacy_Cursor.HTM)，以及本机 KhiCAS 关联源码的 syscall 桩。编号通过运行时实际调用核对，未据关联源码推定二进制完全同源。
+
+## 2026-11-15 实机 Probe 反馈与 Loader Probe 2
+
+本轮校正依据为用户回传的 Probe v1：数据已修改但旧指令仍执行，ICBI 后更新；
+LDTLB 换页后数据侧切换而 ITLB 仍旧，单独失效 ITLB 后才执行新页；main 返回或
+菜单切换后退出回调写入标记。注入 MENU 返回键值 30003，不触发实体菜单。
+这些是实测现象；物理页、空闲槽号、URC/LRUI 动态值没有硬编码成该次快照。
+HLE 声明的 OS 基线为此次的 `03.70.0200`，版本查询按实测输出 BCD 的
+`03 / 70 / 0200 / 0000`，不再把次版本号误转为十进制数值；这不代表载入了该固件。
+
+新模型提供 64 项 UTLB / 4 项 ITLB、1/4/64 KiB 与 1 MiB 页、V/D/ASID/共享位、
+访问权限检查、LDTLB、URB/URC 和目标 TLB 失效。多重命中、未知临时页缺失和
+权限错误停止执行。仅已知 OS 后备映射可由 HLE 重填；临时映射被替换后不会
+偷偷从影子表复活。替换策略是可重复的功能近似，未实现完整异常向量或 OS 算法。
+指令缓存为 16 KiB、4 路、32 字节行，写数据不会自动修改已有指令缓存。
+GDB 普通内存读取跟随有效 UTLB，并支持 P2 别名，不产生缺页、MMIO 或缓存副作用。
+
+`SetQuitHandler` 在主入口返回或模拟的菜单替换路径调用一次，清除旧注册后才执行
+客户回调，回调错误可见。实体 MENU 在 GetKey 中进入 `status.osMenu:true`；
+控制请求 `menu-resume` 恢复当前应用，`menu-replace` 调用退出回调并结束应用。
+菜单等待中 EXE/EXIT 对应恢复，F1 对应替换。这不是完整 Casio 菜单或内置应用；
+回调发生在“替换”时是目前的 HLE 策略，v1 记录不能确定实机的精确时刻。
+OS 定时器在屏蔽中断时不运行，等待循环不会因到期但无法交付的定时器而死循环；
+没有模拟每个硬件中断源的优先级和完整中断入口。
+
+[Loader Probe 2](../hardware-loader/README.md) 使用独立 RAM 常驻代码、配套 BIN
+与配置文件，测多页映射、资源/静态数据、OS 调用、定时器、退出/菜单恢复及持久日志。
+它的模拟通过属于回归证据；URB 保护能否跨实际 OS 调用与切换保持，需其真机回传。
+操作数 copy-back 缓存、DMA、总线写回时序、完整 OS 菜单/缺页仍未模拟。
+尤其 `CCR=0x105` 的 CB 位为 1，不能把一次读到新数据解释为 write-through。
+参考：[Renesas SH4AL-DSP 软件手册](https://www.renesas.com/en/document/mas/sh4al-dsp-software-manual)。
 
 ## 仍未覆盖的硬件行为
 

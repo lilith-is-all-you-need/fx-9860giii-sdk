@@ -3,9 +3,9 @@ name: Native emulator regression
 on:
   push:
     branches: [main]
-    paths: ['probes/emulator/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
+    paths: ['probes/emulator/**', 'probes/hardware-loader/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
   pull_request:
-    paths: ['probes/emulator/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
+    paths: ['probes/emulator/**', 'probes/hardware-loader/**', 'third_party/emuCasioCalc', '.github/workflows/emulator.yml']
   workflow_dispatch:
 
 permissions:

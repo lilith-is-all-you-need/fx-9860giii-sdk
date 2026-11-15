@@ -3,6 +3,7 @@
 static uint8_t *hle_byte(Emu *emu, uint32_t address, bool write)
 {
     Memory *mem = &emu->mem;
+    if(mem->probe_hw) return probe_hw_byte(mem, address, write);
     uint8_t *page = (write ? mem->wr : mem->rd)[address >> PAGE_SHIFT];
     if (page) return page + (address & (PAGE_SIZE - 1));
     /* P2 RAM/ROM is an uncached-region device in this model, not a flat page. */
@@ -20,7 +21,7 @@ static bool hle_span(Emu *emu, uint32_t address, uint32_t size, bool write)
     if ((uint64_t)address + size > UINT64_C(0x100000000)) goto invalid;
     for (uint64_t at = address, end = at + size; at < end;) {
         if (!hle_byte(emu, (uint32_t)at, write)) { address = (uint32_t)at; goto invalid; }
-        at = (at & ~(uint64_t)(PAGE_SIZE - 1)) + PAGE_SIZE;
+        at = (at & ~(uint64_t)1023) + 1024;
     }
     return true;
 invalid:

@@ -9,5 +9,6 @@ void probe_debug_memory(uint32_t address, int size, bool write);
 extern bool probe_debug_ignore_memory;
 int bridge_main(int argc, char **argv);
 int bridge_wait_key(uint32_t timeout);
+int probe_os_menu(Cpu *cpu);
 void bridge_frame(const uint16_t *pixels, int width, int height);
 #endif

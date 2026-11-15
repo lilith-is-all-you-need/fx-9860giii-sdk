@@ -1,13 +1,14 @@
 --- upstream/os/syscalls.c
 +++ patched/os/syscalls.c
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,7 @@
 +#include "debug_bridge.h"
++#include "hardware_model.h"
 +#include "syscall_trace.h"
 +#include <stdlib.h>
  /*
   * High-level emulation of the Casio OS: instead of running the OS, we catch
   * jumps to SYSCALL_ENTRY and implement each syscall on the host.
-@@ -73,106 +76,32 @@
+@@ -73,106 +77,38 @@
      return 0;
  }
  
@@ -112,6 +113,12 @@
  /* Timer_Install(id, handler, ms): OS timers would need their callbacks
   * run like interrupts; report that none is free. (gint's return-to-menu
   * uses one, and simply comes back when it can't get it.) */
++static SC(sc_quit_handler)
++{
++    probe_hw_register_quit(&emu->cpu, a[0]);
++    return 0;
++}
++
 +static SC(sc_fx_cursor_position)
 +{
 +    int x = (int8_t)a[0], y = (int8_t)a[1];
@@ -136,7 +143,7 @@
  static SC(sc_get_setup_setting)
  {
      return emu->setup[a[0] & 0xFF];
-@@ -184,32 +113,7 @@
+@@ -184,32 +120,7 @@
      return 0;
  }
  
@@ -170,7 +177,7 @@
  
  static SC(sc_strlen)
  {
-@@ -766,6 +670,7 @@
+@@ -766,6 +677,7 @@
      {0x011A, "Timer_Start", sc_timer_start},
      {0x011B, "Timer_Stop", sc_timer_stop},
      {0x0135, "GetVRAMAddress", sc_get_vram_address}, /* the OS's 1 kB monochrome VRAM */
@@ -178,15 +185,17 @@
      {0x0139, "Cursor_SetFlashStyle", sc_nothing}, /* we don't draw the text cursor */
      {0x013A, "Cursor_SetFlashMode", sc_nothing},
      {0x013B, "Cursor_GetSettings", sc_fx_cursor_settings},
-@@ -831,6 +736,7 @@
+@@ -831,7 +743,8 @@
      {0x0456, "Bfile_NameToStr_ncpy", sc_bfile_name_to_str},
      {0x0462, "GetAppName", sc_get_app_name},
      {0x0486, "GetDataTablePtr", sc_fx_data_table},
+-    {0x0494, "SetQuitHandler", sc_nothing},    /* no OS menu to quit through */
 +    {0x04DC, "Setup_GetEntry", sc_fx_setup_get},
-     {0x0494, "SetQuitHandler", sc_nothing},    /* no OS menu to quit through */
++    {0x0494, "SetQuitHandler", sc_quit_handler},    /* no OS menu to quit through */
      {0x06C4, "Keyboard_PRGM_GetKey", sc_prgm_get_key_os}, /* same codes as on the fx-CG */
      {0x0807, "locate", sc_locate},
-@@ -841,6 +747,7 @@
+     {0x0808, "Print", sc_fx_print},
+@@ -841,6 +754,7 @@
      {0x080C, "PrintLine", sc_fx_print_line},
      {0x080D, "PrintRLine", sc_fx_print_rline},
      {0x0811, "Cursor_SetFlashOn", sc_nothing},
@@ -194,7 +203,7 @@
      {0x0813, "SaveDisp", sc_fx_save_disp},
      {0x0814, "RestoreDisp", sc_fx_restore_disp},
      {0x0829, "MCS_CreateDirectory", sc_mcs_create_dir},
-@@ -868,6 +775,8 @@
+@@ -868,6 +782,8 @@
      {0x0AD9, "strncpy", sc_strncpy},
      {0x0ADA, "strrchr", sc_strrchr},
      {0x0C4F, "PrintMini", sc_fx_print_mini},
@@ -203,7 +212,7 @@
      {0x0E6D, "realloc", sc_realloc},
      {0x1032, "Keyboard_KeycodeTable", sc_fx_keycode_table},
  };
-@@ -905,6 +814,14 @@
+@@ -905,6 +821,14 @@
              printf("%9.3f ms  syscall %04X %-24s (%08X, %08X, %08X, %08X)\n",
                     (double)cpu->instructions * 1000 / sh7305_iphi_hz(&emu->hw), number, table[i].name,
                     args[0], args[1], args[2], args[3]);
@@ -218,7 +227,7 @@
          sc_spend(emu, SYSCALL_CYCLES);
          cpu->r[0] = table[i].fn(emu, args);
          cpu->pc = cpu->pr;
-@@ -913,11 +830,14 @@
+@@ -913,11 +837,14 @@
                      emu->mem.fault_addr);
              cpu->state = CPU_ERROR;
          }
@@ -233,3 +242,61 @@
  }
  
  void syscalls_install(Emu *emu)
+--- upstream/os/syscalls_keys.c
++++ patched/os/syscalls_keys.c
+@@ -1,3 +1,4 @@
++#include "debug_bridge.h"
+ /*
+  * HLE syscalls: keyboard and line editing.
+  *
+@@ -177,8 +178,10 @@
+         } else if (alpha != ALPHA_OFF && k->alpha) {
+             code = k->alpha;
+         }
+-        if (menu_dropped(emu, code))
++        if (menu_dropped(emu, code)) {
++            if(probe_os_menu(&emu->cpu)) return -1;
+             continue;
++        }
+         return code;
+     }
+ }
+--- upstream/os/syscalls_time.c
++++ patched/os/syscalls_time.c
+@@ -33,6 +33,7 @@
+ 
+ uint64_t timers_next_due(const Emu *emu)
+ {
++    if(emu->in_timer || (emu->cpu.sr & (SR_IMASK|SR_BL))) return UINT64_MAX;
+     uint64_t due = UINT64_MAX;
+     for (int i = 1; i <= TIMER_COUNT; i++)
+         if (emu->timers[i].running && emu->timers[i].next < due)
+@@ -42,7 +43,7 @@
+ 
+ void timers_fire_due(Emu *emu)
+ {
+-    if (emu->in_timer || emu->cpu.state != CPU_RUNNING)
++    if (emu->in_timer || emu->cpu.state != CPU_RUNNING || (emu->cpu.sr & (SR_IMASK|SR_BL)))
+         return;
+     uint64_t now = emu->cpu.instructions;
+     for (int i = 1; i <= TIMER_COUNT; i++) {
+@@ -70,7 +71,7 @@
+ void time_advance(Emu *emu, uint64_t cycles)
+ {
+     uint64_t end = emu->cpu.instructions + cycles;
+-    while (emu->cpu.state == CPU_RUNNING && !emu->in_timer) {
++    while (emu->cpu.state == CPU_RUNNING && !emu->in_timer && !(emu->cpu.sr & (SR_IMASK|SR_BL))) {
+         uint64_t due = timers_next_due(emu);
+         if (due > end)
+             break;
+--- upstream/os/syscalls_fx.c
++++ patched/os/syscalls_fx.c
+@@ -110,7 +110,7 @@
+ SC(sc_fx_os_version)
+ {
+     const char *v = emu->layout->os_version ? emu->layout->os_version : "02.05.2201";
+-    int major = (v[0] - '0') * 10 + (v[1] - '0'), minor = (v[3] - '0') * 10 + (v[4] - '0');
++    int major = (v[0] - '0') * 16 + (v[1] - '0'), minor = (v[3] - '0') * 16 + (v[4] - '0');
+     unsigned local = (unsigned)((v[6] - '0') << 12 | (v[7] - '0') << 8 | (v[8] - '0') << 4 | (v[9] - '0'));
+     if (a[0])
+         mem_write8(&emu->mem, a[0], (uint8_t)major);
