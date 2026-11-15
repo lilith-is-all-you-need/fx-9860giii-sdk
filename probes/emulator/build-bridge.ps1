@@ -3,6 +3,16 @@ $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 Push-Location $root
 try {
+    $upstreamRoot = Join-Path $root 'third_party/emuCasioCalc'
+    if (Test-Path (Join-Path $upstreamRoot '.git')) {
+        $upstreamCommit = (git -C $upstreamRoot rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'Could not identify emulator source revision' }
+    } else {
+        # Corresponding-source archives deliberately do not contain Git metadata.
+        $origin = Get-Content -Raw -LiteralPath (Join-Path $upstreamRoot 'SOURCE-ORIGIN.json') | ConvertFrom-Json
+        $upstreamCommit = $origin.revision
+    }
+    if ($upstreamCommit -ne '63e325708e9eea53eb4769b9c057082614ebd919') { throw 'Unexpected emulator upstream revision' }
     & $Python probes/emulator/prepare_sources.py
     if ($LASTEXITCODE -ne 0) { throw 'Could not prepare source hooks' }
     $core = @('cpu.c','mem.c','sh7305.c','audio.c','r61524.c','t6k11.c','emu.c') | ForEach-Object { 'probes/emulator/build/patched/' + $_ }
@@ -15,7 +25,7 @@ try {
     & $Compiler @flags @sources '-lm' '-lws2_32' '-o' 'probes/emulator/build/FxEmulator.exe' 2>&1 | Tee-Object -FilePath probes/emulator/build/bridge-build.log
     if ($LASTEXITCODE -ne 0) { throw "Bridge build failed: $LASTEXITCODE" }
     $manifest = [ordered]@{
-        upstreamCommit = (git -C third_party/emuCasioCalc rev-parse HEAD).Trim()
+        upstreamCommit = $upstreamCommit
         compiler = (& $Compiler --version | Select-Object -First 1)
         executable = 'FxEmulator.exe'
         bytes = (Get-Item probes/emulator/build/FxEmulator.exe).Length
