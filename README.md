@@ -10,6 +10,8 @@ A Windows C/C++ IDE and offline SDK for the Casio fx-9860GIII, with SuperH machi
 
 ## 使用 / Getting started
 
+The `v0.2.0-r1` packaging revision fixes Windows IDE startup by preserving the desktop `WindowsBase.dll` when the application and console agent share a portable directory. Use the current release assets and checksums.
+
 1. 在 Releases 下载 `FxStudio-0.2.0-win-x64.zip`，完整解压后运行 `FxStudio.exe`。需要 Windows 10 x64 1903 或更新版本；已验证系统为 Windows 10 22H2。无需安装 .NET、WSL 或在线恢复依赖。
 2. 打开随包的 `examples/counter-c` 或 `examples/counter-cpp`，编译并启动调试。包内 HTML 文档可直接用浏览器阅读。
 3. 编译输出 `.g1a` 用于计算器；配套未剥离 `.elf` 用于源码调试。SDK 本身运行在电脑上。

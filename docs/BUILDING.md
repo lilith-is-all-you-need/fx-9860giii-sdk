@@ -22,6 +22,8 @@ To publish the desktop application and MCP host:
 ./tooling/Publish-App.ps1 -StagingDirectory C:\fxstudio-build\publish
 ```
 
+The script publishes the console agent first and the WPF application last so the desktop runtime wins shared-file conflicts. Publishing the agent over the application replaces `WindowsBase.dll` with the NETCore facade and prevents the GUI from starting. Validate the merged output, not only the separate application publish directory.
+
 Publishing these .NET projects alone does not assemble the compiler, GDB, emulator or their corresponding sources. For a local development run, use a separate copy of the complete release as the runtime directory and replace its application files with the published output. Preserve `sdk/`, `runtime/`, `sources/` and license notices. Do not overwrite your only validated release copy.
 
 ## Emulator bridge
@@ -51,3 +53,5 @@ Read [source-notices/README.md](../source-notices/README.md), [native compiler](
 - Before publishing a new version, repeat the native C/C++ build/debug and screen/input integration checks described in [VALIDATION.html](VALIDATION.html).
 
 For slow upstream connections, `tooling/release_transfer.py` can prepare transfer parts for existing validated ZIPs. It replaces stored, hash-pinned public dependency archives with download references and references the source companion once inside the runtime ZIP. The manual `release-transfer.yml` workflow restores the exact original ZIP bytes, verifies full SHA-256 and ZIP CRCs, and uploads them to an existing draft. It does not build new application binaries or publish the draft. Remove temporary `transfer-` assets after verifying the final release attachments.
+
+For a packaging correction, `prepare-delta` reuses unchanged compressed members from hash-pinned baseline ZIPs. The workflow stages corrected archives with a `ready-` prefix, preserving the baselines until the maintainer verifies both new archives and switches the final attachment names.

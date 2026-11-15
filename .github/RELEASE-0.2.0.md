@@ -1,5 +1,7 @@
 Fx Studio 0.2.0 provides a portable Windows C/C++ development environment for the Casio fx-9860GIII, including native compiler tools, a SuperH emulator, GDB debugging and a local MCP automation host.
 
+**Windows packaging revision r1:** fixes an IDE startup failure caused by the console agent overwriting the desktop `WindowsBase.dll` with a NETCore facade. The release now contains the correct Windows Desktop Runtime assembly. The publish script writes the WPF application last, and package verification rejects the wrong assembly version. Use the current `SHA256SUMS.txt`; the previous runtime ZIP has been withdrawn.
+
 ## 下载 / Downloads
 
 - **FxStudio-0.2.0-win-x64.zip**: complete offline application, native SDK, GDB, emulator, examples, Chinese/English guides, license notices and the matching source companion. Extract the complete archive and run `FxStudio.exe`. Windows 10 x64 1903 or later; validated on Windows 10 22H2. Normal builds and debugging do not require WSL, a separate .NET installation or online package restoration.
@@ -19,7 +21,7 @@ GitHub's automatic “Source code” downloads contain the repository snapshot, 
 
 ## Validation and boundaries
 
-The existing release ZIPs retain their previously validated bytes. Their hashes and ZIP integrity were rechecked for this upload. Repository organization, build documentation and CI were added without replacing the release binaries.
+The corrected package was tested from its actual portable directory in both Chinese and English: 14 real WPF/GDB/emulator interaction checks passed, including building and starting debug sessions, breakpoint controls, instruction stepping and screen/resource previews. The corrected merged publish script was also executed successfully. Fx Studio application binaries and the native compiler/debugger/emulator are unchanged; the desktop runtime assembly, source companion, documentation, verification script and inventories were refreshed. Corrected ZIPs are verified by full SHA-256 and ZIP CRC before publication.
 
 The Windows solution builds successfully; 65 core checks and 129 automation contract/state checks passed locally during publication. The bundled validation report records the broader native compiler, GDB/emulator, C++ and UI checks performed for this release. Additional external G1A smoke tests reached interactive Wolfenstein gameplay (movement, turning and shooting) and Fruit Ninja gameplay (cutting and score increase to 12); the games themselves are not included.
 

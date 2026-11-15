@@ -29,7 +29,18 @@ jobs:
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" = true
           gh release download "$RELEASE_TAG" --pattern "transfer-${RELEASE_TAG}-*" --dir transfer
+      - name: Download pinned baselines for a corrective transfer
+        run: |
+          if [ "$(jq '(.baseAssets // []) | length' "transfer/transfer-${RELEASE_TAG}-manifest.json")" != 0 ]; then
+            gh release download "$RELEASE_TAG" --pattern 'FxStudio-*-sources.zip' --pattern 'FxStudio-*-win-x64.zip' --dir baseline
+          fi
       - name: Restore exact original ZIP bytes and verify hashes
-        run: python3 tooling/release_transfer.py restore --manifest "transfer/transfer-${RELEASE_TAG}-manifest.json" --output restored --cache upstream-cache
+        run: python3 tooling/release_transfer.py restore --manifest "transfer/transfer-${RELEASE_TAG}-manifest.json" --output restored --cache upstream-cache --base-directory baseline
       - name: Upload verified complete release ZIPs
-        run: gh release upload "$RELEASE_TAG" restored/FxStudio-*-sources.zip restored/FxStudio-*-win-x64.zip
+        run: |
+          if [ "$(jq '(.baseAssets // []) | length' "transfer/transfer-${RELEASE_TAG}-manifest.json")" != 0 ]; then
+            for file in restored/FxStudio-*.zip; do mv "$file" "$(dirname "$file")/ready-$(basename "$file")"; done
+            gh release upload "$RELEASE_TAG" restored/ready-FxStudio-*.zip --clobber
+          else
+            gh release upload "$RELEASE_TAG" restored/FxStudio-*-sources.zip restored/FxStudio-*-win-x64.zip
+          fi

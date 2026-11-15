@@ -14,4 +14,7 @@ foreach ($file in $manifest.files) {
     }
 }
 if ($failures.Count) { $failures | Write-Host; throw "$($failures.Count) package files failed verification." }
+$desktopVersion = [Reflection.AssemblyName]::GetAssemblyName((Join-Path $root 'PresentationFramework.dll')).Version
+$windowsBaseVersion = [Reflection.AssemblyName]::GetAssemblyName((Join-Path $root 'WindowsBase.dll')).Version
+if ($windowsBaseVersion -ne $desktopVersion) { throw 'The package contains the console WindowsBase facade instead of the desktop runtime. Republish the WPF application last.' }
 Write-Host "Verified $($manifest.files.Count) files. No network access was used."

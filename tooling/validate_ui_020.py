@@ -45,6 +45,6 @@ for language in ('zh-CN','en'):
     records.append(record)
 validation = dict(passed=True, checks=records, appSha256=hashlib.sha256((app/'FxStudio.dll').read_bytes()).hexdigest(),
                   application=str(app), package=str(package), hardwareTested=False,
-                  desktopCapture='CUA screenshot timed out; accessibility tree verified live main breakpoint. Actual WPF visual tree rendered and handlers exercised.')
+                  desktopCapture='Actual WPF visual tree rendered and handlers exercised; this runner does not perform desktop capture.')
 (root/'research/ui-0.2.0-validation.json').write_text(json.dumps(validation, indent=2), encoding='utf8')
 print(json.dumps(validation, indent=2))
