@@ -1,7 +1,7 @@
 #include "probe.h"
 static void show(const char *a,const char *b)
 {
- r_clear();r_print(0,0,(const unsigned char *)"Loader Probe 2",0);
+ r_clear();r_print(0,0,(const unsigned char *)"Loader Probe 2.1",0);
  r_print(0,15,(const unsigned char *)a,0);r_print(0,29,(const unsigned char *)b,0);
  r_print(0,52,(const unsigned char *)"EXIT: quit",0);r_display();
 }
@@ -9,6 +9,37 @@ static void wide(uint16_t *out,const char *in){while(*in)*out++=(unsigned char)*
 static uintptr_t align(void *p,unsigned n){return ((uintptr_t)p+n-1)&~(uintptr_t)(n-1);}
 static int p1(void *p){return ((uintptr_t)p&0xe0000000)==0x80000000;}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
+/* Preflight evidence lives on the physical OS stack; it needs no heap. */
+typedef struct { char data[1024]; unsigned used; } Boot;
+static void boot_text(Boot *b,const char *s)
+{while(*s&&b->used<sizeof b->data)b->data[b->used++]=*s++;}
+static void boot_hex(Boot *b,uint32_t n)
+{for(int i=7;i>=0;i--){unsigned d=(n>>(i*4))&15;char s[2]={(char)(d<10?'0'+d:'A'+d-10),0};boot_text(b,s);}}
+static void boot_event(Boot *b,const char *name,uint32_t bytes,uintptr_t address)
+{boot_text(b,name);boot_text(b,"=");boot_hex(b,bytes);boot_text(b,",");boot_hex(b,address);boot_text(b,"\n");}
+static int boot_save(Boot *b)
+{
+ uint16_t path[32];wide(path,"\\\\fls0\\P2Alloc.txt");
+ int fd=r_open(path,1,0),rc;
+ if(fd>=0){
+  char magic[10];int size=r_size(fd),n=r_read(fd,magic,10,0);rc=r_close(fd);
+  const char *expected="FXP2ALLOC\n";
+  if(size!=sizeof b->data||n!=10||rc<0)return -1030;
+  for(unsigned i=0;i<10;i++)if(magic[i]!=expected[i])return -1031;
+ }else{
+  if(fd!=-1)return fd;
+  int size=sizeof b->data;rc=r_create(path,1,&size);if(rc<0)return rc;
+ }
+ fd=r_open(path,2,0);if(fd<0)return fd;
+ int n=r_write(fd,b->data,sizeof b->data);rc=r_close(fd);
+ if(n!=sizeof b->data||rc<0)return -1032;
+ char tail[32];unsigned count=b->used<32?b->used:32;
+ fd=r_open(path,1,0);if(fd<0)return fd;
+ n=r_read(fd,tail,count,b->used-count);rc=r_close(fd);
+ if(n!=(int)count||rc<0)return -1033;
+ for(unsigned i=0;i<count;i++)if(tail[i]!=b->data[b->used-count+i])return -1034;
+ return 0;
+}
 static int number(const char *s,unsigned base,uint32_t *out)
 {
  uint32_t n=0;if(!*s)return 0;
@@ -57,18 +88,32 @@ static void finalize(Context *c)
 int main(void)
 {
  Context *c=0;const char *problem="Not started";
+ Boot boot;boot.used=0;
+ for(unsigned i=0;i<sizeof boot.data;i++)boot.data[i]=' ';
+ boot_text(&boot,"FXP2ALLOC\nBuild=2.1\n");
  show("Loading configuration","Please wait");
- c=r_malloc(sizeof *c);if(!c){problem="Not enough memory";goto failed;}
+ c=r_malloc(sizeof *c);boot_event(&boot,"ALLOC_CONTEXT",sizeof *c,(uintptr_t)c);
+ if(!c){problem="No heap: context";goto failed;}
  if(!p1(c)){r_free(c);c=0;problem="Unsupported OS heap";goto failed;}
  for(unsigned i=0;i<sizeof *c;i++)((unsigned char *)c)[i]=0;
  c->finalize=finalize;wide(c->log_path,"\\\\fls0\\Probe2.txt");wide(c->bin_path,"\\\\fls0\\Probe2.bin");
  if(!config(c)){problem="Check Probe2.cfg";goto failed;}
  unsigned bytes=(unsigned)(resident_end-resident_begin);
- c->allocations[0]=r_malloc(bytes+32);c->allocations[1]=r_malloc(IMAGE_BYTES+8192);c->allocations[2]=r_malloc(8192+8192);
- for(unsigned i=0;i<3;i++)if(!c->allocations[i]||!p1(c->allocations[i])){problem="Not enough P1 memory";goto failed;}
+ /* The image and RAM share one 8 KiB alignment allowance. */
+ unsigned pool_bytes=IMAGE_BYTES+8192+8191;
+ c->allocations[1]=r_malloc(pool_bytes);
+ boot_event(&boot,"ALLOC_IMAGE_RAM",pool_bytes,(uintptr_t)c->allocations[1]);
+ if(!c->allocations[1]){problem="No heap: image/RAM";goto failed;}
+ if(!p1(c->allocations[1])){problem="Pool address not P1";goto failed;}
+ c->allocations[0]=r_malloc(bytes+32);
+ boot_event(&boot,"ALLOC_RUNNER",bytes+32,(uintptr_t)c->allocations[0]);
+ if(!c->allocations[0]){problem="No heap: runner";goto failed;}
+ if(!p1(c->allocations[0])){problem="Runner address not P1";goto failed;}
  uintptr_t runner=align(c->allocations[0],32);c->resident=runner|0x20000000;
  /* Match virtual bits [12:5] for P1/P0 data-cache aliases (32 KiB / 4 way). */
- c->image=align(c->allocations[1],8192);c->ram=align(c->allocations[2],8192);
+ c->image=align(c->allocations[1],8192);c->ram=c->image+IMAGE_BYTES;
+ boot_event(&boot,"IMAGE_RAM",c->image,c->ram);
+ boot_event(&boot,"REQUEST_TOTAL",sizeof *c+pool_bytes+bytes+32,0);
  int fd=r_open(c->bin_path,1,0);if(fd<0){problem="Missing Probe2.bin";goto failed;}
  int size=r_size(fd),n=size==IMAGE_BYTES?r_read(fd,(void *)c->image,IMAGE_BYTES,0):-1,closed=r_close(fd);
  if(n!=IMAGE_BYTES||closed<0){problem="BIN read/size failed";goto failed;}
@@ -84,6 +129,8 @@ int main(void)
   if(v<(uintptr_t)resident_begin||v>=(uintptr_t)resident_end){problem="Bad resident pointer";goto failed;}
   REG(c->resident+off)=v-(uintptr_t)resident_begin+c->resident;
  }BARRIER();
+ boot_text(&boot,"RESULT=READY\n");
+ if(boot_save(&boot)<0){problem="Alloc log I/O failed";goto failed;}
  int (*run)(Context *,int)=(int(*)(Context *,int))(c->resident+(uintptr_t)resident_main-(uintptr_t)resident_begin);
  int result=run(c,1);
  if(result==2){run(c,0);return 1;}
@@ -96,7 +143,10 @@ int main(void)
  return 1;
 failed:
  if(c)release(c);
+ boot_text(&boot,"RESULT=FAILED\nDETAIL=");boot_text(&boot,problem);boot_text(&boot,"\n");
+ int report=boot_save(&boot);
  show("Probe not run",problem);
+ r_print(0,41,(const unsigned char *)(report<0?"Alloc log unavailable":"P2Alloc.txt saved"),0);r_display();
  {int key=0;while(key!=30002)r_getkey(&key);}
  return 1;
 }

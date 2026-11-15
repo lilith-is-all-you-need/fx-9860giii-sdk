@@ -1,13 +1,21 @@
-# Loader Probe 2
+# Loader Probe 2.1
 
 面向 fx-9860GIII / SH7305 的下一轮实机探测。它加载配套的 `Probe2.bin`，
 保留 G1A 容器和镜像布局，通过独立 RAM 中的恢复代码暂时替换原程序的
 4 个代码/资源页与 2 个静态数据页。不是通用 Loader，也不加载未知第三方文件。
 
+2.1 修复启动内存开销：16 KiB 结果文件只用 2 KiB 内存缓冲分段写入，
+镜像与目标静态 RAM 共用一次 8 KiB 对齐预留，保留原探测项目。
+分段写入保持偶数长度与偶数起始位置，并读回尾部核对；兼容读取 2.0 的结果。
+另生成 1024 字节的 `P2Alloc.txt`，记录每次分配的大小、原始返回地址和失败原因。
+该启动诊断使用栈内缓冲；失败后先释放已申请内存，再尝试写文件。
+它会更新上次同格式诊断，但不会覆盖同名的外来文件。
+
 ## 放进计算器的文件
 
 将发布包的 `Probe2.g1a`、`Probe2.bin`、`Probe2.cfg` 放到存储根目录。
 结果由程序创建为 `Probe2.txt`；不覆盖上一版 `Probe.txt`。
+从 2.0 升级时请同时替换 G1A、BIN、CFG 三份文件。
 旧的 `Probe2.txt` 会保留并追加重入/退出记录，**不会自动重跑**。
 要重新探测，先把该结果复制回电脑，再删除计算器上的 `Probe2.txt`。
 请先备份计算器资料；本轮会改变临时地址映射，未通过的实机路径可能卡住或重启。
@@ -32,6 +40,10 @@
 若出现 `NEED REVIEW`、`File write failed`、卡住或重启，保留已有结果，
 回传文件并说明停在哪个画面/按键。`Probe not run` 表示尚未执行映射测试，
 第二行会提示配置、BIN 或内存问题。不要通过连续重跑覆盖失败现场。
+若再次出现 `Probe not run`，先按 EXIT 正常退出，回传 `P2Alloc.txt`。
+其中 `No heap: context / image/RAM / runner` 表示对应申请返回 NULL；
+`address not P1` 表示非空地址不符合本探针要求。若显示 `Alloc log unavailable`，
+说明连启动诊断也未成功保存，请记录屏幕两行错误。启动失败不等于映射测试失败。
 菜单操作与 `Auto tests passed` 是不同阶段；自动通过并不等于菜单阶段通过。
 
 ## 记录内容与结论范围
@@ -69,6 +81,10 @@
 python probes/hardware-loader/tools/verify.py --bundle C:/bundle --emulator probes/emulator/build/FxEmulator.exe --output C:/new-empty-verification
 python probes/hardware-loader/tools/inspect_result.py C:/returned/Probe2-menu.txt
 ```
+
+集成回归默认限定 48 KiB 堆，覆盖 8/16 轮、两种退出路径、旧日志跨缓冲边界读取、
+三处内存不足及文件保护，并检查实际调用的写入长度/定位均为偶数。
+48 KiB 是保守测试预算，不是本次实机剩余堆的测量结果。
 
 常驻代码通过 P2 执行；上下文、恢复栈与日志不在被替换的虚拟区。
 镜像/静态 RAM 按 8 KiB 对齐，使缓存索引位 [12:5] 与目标虚拟地址一致；

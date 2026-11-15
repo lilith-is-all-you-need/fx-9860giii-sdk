@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #define LOG_BYTES 16384
+#define LOG_BUFFER_BYTES 2048
 #define IMAGE_BYTES 16384
 #define MAP_COUNT 6
 #define REG(a) (*(volatile uint32_t *)(uintptr_t)(a))
@@ -21,7 +22,7 @@ struct Context {
  void (*finalize)(Context *); /* callback.S relies on offset zero */
  void *allocations[5];
  uintptr_t resident, image, ram;
- unsigned loops, hold_ms, log_used;
+ unsigned loops, hold_ms, log_used, log_saved, log_flags;
  int io_error, previous, active, pinned, failed, timer_id, in_callback;
  uint32_t original_mmucr,pteh,ptel,ptea;
  Entry old[64]; uint8_t touched[64];
@@ -30,7 +31,7 @@ struct Context {
  volatile uint32_t timer_bad;
  PayloadState payload;
  uint16_t log_path[32], bin_path[32];
- char log[LOG_BYTES];
+ char log[LOG_BUFFER_BYTES];
 };
 extern const unsigned char resident_begin[],resident_end[];
 extern const uint32_t resident_fixups[];
@@ -51,6 +52,7 @@ int r_open(const uint16_t *,int,int);
 int r_close(int);
 int r_size(int);
 int r_read(int,void *,int,int);
+int r_seek(int,int);
 int r_create(const uint16_t *,int,int *);
 int r_write(int,const void *,int);
 int r_ticks(void);

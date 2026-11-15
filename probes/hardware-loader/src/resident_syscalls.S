@@ -23,6 +23,7 @@ _\name:
  SC r_close,0x42d
  SC r_size,0x42f
  SC r_read,0x432
+ SC r_seek,0x431
  SC r_create,0x434
  SC r_write,0x435
  SC r_ticks,0x3b

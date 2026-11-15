@@ -4,7 +4,9 @@
 Context *resident_context=(Context *)(uintptr_t)1;
 static void text(Context *c,const char *s)
 {
- while(*s&&c->log_used<LOG_BYTES-2)c->log[c->log_used++]=*s++;
+ while(*s&&c->log_used<LOG_BYTES-2&&c->log_used-c->log_saved<LOG_BUFFER_BYTES){
+  c->log[c->log_used-c->log_saved]=*s++;c->log_used++;
+ }
  if(*s)c->io_error=-1007;
 }
 static void hex(Context *c,uint32_t n)
@@ -13,27 +15,38 @@ static void hex(Context *c,uint32_t n)
 }
 static void event(Context *c,const char *s,uint32_t a,uint32_t b)
 {text(c,s);text(c,"=");hex(c,a);text(c,",");hex(c,b);text(c,"\n");}
-static int has(Context *c,const char *s)
+static int prefix(const char *line,const char *s)
 {
- for(unsigned i=0;i<c->log_used;i++){unsigned j=0;while(s[j]&&i+j<c->log_used&&c->log[i+j]==s[j])j++;if(!s[j])return 1;}return 0;
+ while(*s)if(*line++!=*s++)return 0;
+ return 1;
 }
 static int save(Context *c)
 {
  if(c->io_error)return 0;
- for(unsigned i=c->log_used;i<LOG_BYTES;i++)c->log[i]=' ';
+ unsigned pending=c->log_used-c->log_saved;
+ if(!pending)return 1;
+ /* CASIOWIN writes must be even-sized. Keep an odd final byte as carry
+  * so the next seek is also even; pad only beyond the logical log end. */
+ unsigned written=(pending+511)&~511u;
+ if(written>LOG_BYTES-c->log_saved)written=LOG_BYTES-c->log_saved;
+ for(unsigned i=pending;i<written;i++)c->log[i]=' ';
  int fd=r_open(c->log_path,2,0);if(fd<0){c->io_error=fd;return 0;}
- int n=r_write(fd,c->log,LOG_BYTES),rc=r_close(fd);
- if(n!=LOG_BYTES||rc<0){c->io_error=n<0?n:rc<0?rc:-1001;return 0;}
- char tail[32];unsigned count=c->log_used<32?c->log_used:32;
+ int seek=r_seek(fd,c->log_saved);
+ int n=seek<0?seek:r_write(fd,c->log,written),rc=r_close(fd);
+ if(n!=(int)written||rc<0){c->io_error=n<0?n:rc<0?rc:-1001;return 0;}
+ char tail[32];unsigned count=pending<32?pending:32;
  fd=r_open(c->log_path,1,0);if(fd<0){c->io_error=fd;return 0;}
  n=r_read(fd,tail,count,c->log_used-count);rc=r_close(fd);
  if(n!=(int)count||rc<0){c->io_error=-1002;return 0;}
- for(unsigned i=0;i<count;i++)if(tail[i]!=c->log[c->log_used-count+i]){c->io_error=-1003;return 0;}
+ for(unsigned i=0;i<count;i++)if(tail[i]!=c->log[pending-count+i]){c->io_error=-1003;return 0;}
+ char last=c->log[pending-1];
+ c->log_saved=c->log_used&~1u;
+ if(c->log_used&1)c->log[0]=last;
  return 1;
 }
 static void screen(const char *a,const char *b,const char *d)
 {
- r_clear();r_print(0,0,(const unsigned char *)"Loader Probe 2",0);
+ r_clear();r_print(0,0,(const unsigned char *)"Loader Probe 2.1",0);
  r_print(0,13,(const unsigned char *)a,0);r_print(0,26,(const unsigned char *)b,0);
  r_print(0,39,(const unsigned char *)d,0);r_print(0,53,(const unsigned char *)"Probe2.txt / EXIT",0);r_display();
 }
@@ -186,13 +199,37 @@ static int load_log(Context *c)
  int fd=r_open(c->log_path,1,0);
  if(fd<0){if(fd!=-1){c->io_error=fd;return -1;}
   int size=LOG_BYTES,rc=r_create(c->log_path,1,&size);if(rc<0){c->io_error=rc;return -1;}
-  text(c,"FXPROBE2\nFormat=2\n");return save(c)?0:-1;
+  fd=r_open(c->log_path,2,0);if(fd<0){c->io_error=fd;return -1;}
+  for(unsigned i=0;i<LOG_BUFFER_BYTES;i++)c->log[i]=' ';
+  for(unsigned i=0;i<LOG_BYTES;i+=LOG_BUFFER_BYTES){
+   int n=r_write(fd,c->log,LOG_BUFFER_BYTES);
+   if(n!=LOG_BUFFER_BYTES){c->io_error=n<0?n:-1001;break;}
+  }
+  rc=r_close(fd);if(rc<0)c->io_error=rc;
+  text(c,"FXPROBE2\nFormat=2\nBuild=2.1\n");return save(c)?0:-1;
  }
- int size=r_size(fd),n=size==LOG_BYTES?r_read(fd,c->log,LOG_BYTES,0):-1,rc=r_close(fd);
- if(n!=LOG_BYTES||rc<0){c->io_error=-1010;return -1;}
- const char *magic="FXPROBE2\n";for(unsigned i=0;magic[i];i++)if(c->log[i]!=magic[i]){c->io_error=-1011;return -1;}
- c->log_used=LOG_BYTES;while(c->log_used&&c->log[c->log_used-1]==' ')c->log_used--;
- if(c->log_used>LOG_BYTES-1024){c->io_error=-1007;return -1;}return 1;
+ if(r_size(fd)!=LOG_BYTES){r_close(fd);c->io_error=-1010;return -1;}
+ char line[96],last=0;unsigned used=0;
+ for(unsigned offset=0;offset<LOG_BYTES;offset+=LOG_BUFFER_BYTES){
+  if(r_read(fd,c->log,LOG_BUFFER_BYTES,offset)!=LOG_BUFFER_BYTES){c->io_error=-1010;break;}
+  if(!offset&&!prefix(c->log,"FXPROBE2\n")){c->io_error=-1011;break;}
+  for(unsigned i=0;i<LOG_BUFFER_BYTES;i++){
+   char ch=c->log[i];if(ch!=' '){c->log_used=offset+i+1;last=ch;}
+   if(ch=='\n'){
+    line[used]=0;
+    if(prefix(line,"FAIL_")||prefix(line,"SKIP_"))c->log_flags|=1;
+    if(prefix(line,"AUTO_DONE="))c->log_flags|=2;
+    if(prefix(line,"CALLBACK_CLEANED="))c->log_flags|=4;
+    used=0;
+   }else if(used<sizeof line-1)line[used++]=ch;
+  }
+ }
+ int rc=r_close(fd);if(rc<0)c->io_error=rc;
+ if(c->io_error)return -1;
+ if(c->log_used>LOG_BYTES-1024){c->io_error=-1007;return -1;}
+ c->log_saved=c->log_used&~1u;
+ if(c->log_used&1)c->log[0]=last;
+ return 1;
 }
 int resident_main(Context *c,int mode)
 {
@@ -203,8 +240,8 @@ int resident_main(Context *c,int mode)
  if(previous<0)return -1;
  if(previous){
   event(c,"REENTERED_NEW_STARTUP",REG(0xff000010),REG(0xff00001c));
-  c->failed=has(c,"FAIL_");c->completed=has(c,"AUTO_DONE");
-  checkpoint(c,has(c,"CALLBACK_CLEANED")?"CALLBACK_OBSERVED":"CALLBACK_NOT_OBSERVED");
+  c->failed=(c->log_flags&1)||!(c->log_flags&2);c->completed=(c->log_flags&2)!=0;
+  checkpoint(c,c->log_flags&4?"CALLBACK_OBSERVED":"CALLBACK_NOT_OBSERVED");
   r_quit(resident_quit_entry);return 0;
  }
  event(c,"CONFIG_LOOPS_HOLD",c->loops,c->hold_ms);event(c,"IMAGE_BYTES_FNV",IMAGE_BYTES,c->image_hash);

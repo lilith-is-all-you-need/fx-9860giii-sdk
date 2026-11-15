@@ -5,6 +5,18 @@ from pathlib import Path
 
 def inspect(data):
     lines=data.rstrip(' \r\n').splitlines()
+    if lines and lines[0]=='FXP2ALLOC':
+        fields=dict(s.split('=',1) for s in lines[1:] if '=' in s)
+        allocations=[]
+        for name,value in fields.items():
+            if name.startswith('ALLOC_'):
+                size,address=(int(v,16) for v in value.split(','))
+                allocations.append({'purpose':name[6:],'requestedBytes':size,
+                    'returnedAddress':f'{address:08X}',
+                    'result':'NULL' if not address else 'P1' if address&0xe0000000==0x80000000 else 'non-P1'})
+        return {'kind':'preflight','build':fields.get('Build'),'result':fields.get('RESULT'),
+                'detail':fields.get('DETAIL'),'allocations':allocations,
+                'loaderMappingTestProven':False}
     if not lines or lines[0]!='FXPROBE2':raise ValueError('not a Probe2 result')
     reentry=next((i for i,s in enumerate(lines) if s.startswith('REENTERED_NEW_STARTUP=')),len(lines))
     first=lines[:reentry]
