@@ -28,7 +28,12 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 
 ## 功能 / Features
 
-| Area | Included in 0.2.0 |
+Loader Suite 的当前源码和本地集成包增加了目录式程序包、FX Profile Studio 0.2、
+动态扩展页表及研究资料。旧版 Release 附件不会因为本页更新而自动获得这些功能。
+Current Loader Suite sources and integration builds add the following features;
+older release archives retain their original feature set.
+
+| Area | Capabilities and scope |
 | --- | --- |
 | IDE | WPF/AvalonEdit editor, Chinese/English UI, CMake projects, Debug/Release builds, diagnostics |
 | Toolchain | Native Windows GCC 14.1, binutils 2.42, fxSDK/gint 2.11, fxlibc, OpenLibm, C++ runtime |
@@ -36,13 +41,26 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 | Preview | Execution of actual SuperH G1A instructions, 128×64 calculator screen, keys, integer zoom and PNG capture |
 | Resources | fxconv conversion through CMake, source-image preview with dimensions/transparency |
 | Automation | `FxStudio.Agent.exe --stdio`: four stable MCP entry points, versioned domain commands, operations, events and snapshots |
+| Profile Studio | Native WinUI 3, Chinese/English switching, batch input, stable name + short SHA folders, dependencies-only default, optional or independent Loader export |
+| Ordinary Loader | Shared `FlashLd.g1a` scans `FXAPPS` folders; monochrome icon list; complete immutable images; full verification or explicit cached Fast mode |
+| Large-program runtime | Source C/C++ integration and `ExtLoad.g1a`; profile-sized resident table, unused entries invalid, runtime storage/RAM bounds; no fixed 699-page requirement |
+| Binary analysis | Offline Ghidra, references, original instruction bytes, exception/VBR ownership sites and review obligations; analysis does not automatically authorize patches |
+| Calculator knowledge | Searchable embedded syscall coverage and evidence levels; separate Chinese/English developer and pitfalls manuals |
+| Caller-session library | Cooperative business-state transactions and two MENU policies; current Flash launcher has no general caller-return backend and is rejected by capability checks |
+
+详见 [Loader 套件中文手册](docs/LOADER-SUITE.zh-CN.md)、
+[English Loader guide](docs/LOADER-SUITE.en.md) 和
+[SDK 开发/踩坑手册](docs/loader/handbook/DEVELOPER-GUIDE.zh-CN.txt)。
+普通 G1A 不需要程序名单，但不能保证所有程序；未知超限二进制仍需运行库适配。
+The ordinary backend has no program whitelist. Arbitrary binary compatibility,
+universal SH3 adaptation and full caller-state restoration are not guaranteed.
 
 详细支持范围见 [SDK 能力说明](docs/SDK-CAPABILITIES.zh-CN.html) 和 [验证报告](docs/VALIDATION.html)。另外已用原始 `Wolfenst.g1a` 和 `Fruitnin.g1a` 验证基本游戏交互，见 [兼容性记录](docs/COMPATIBILITY.md)。
 
 ## 边界 / Limits
 
 - The emulator implements a subset of Casio OS calls and hardware behavior; it is not a complete OS or cycle-accurate hardware replacement. No Casio ROM or proprietary SDK is distributed.
-- Physical fx-9860GIII verification has not been performed. Emulator success alone does not guarantee hardware compatibility.
+- Selected Loader probes and the two CAS first-launch paths have user-returned fx-9860GIII evidence. The complete SDK and the new folder/dynamic-runtime builds are not hardware-certified; prior CAS MENU re-entry failed. Emulator success does not establish stability.
 - Source debugging requires a matching ELF with symbols. Optimized SDK library internals have more limited source visibility.
 - C++ exceptions/threads, full USB/serial behavior, reverse debugging, automatic resource compression and a complete converted-resource preview are not included.
 - The native release uses no WSL. Historical WSL provisioning scripts remain optional development material and do not constitute a finished offline rootfs.
@@ -58,6 +76,7 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 | `tests`, `probes/emulator` | Contract tests, machine-code integration probes and emulator bridge |
 | `third_party/emuCasioCalc` | Pinned upstream Git submodule; local debugger changes live in the bridge directory |
 | `tooling` | Build, validation and packaging scripts |
+| `desktop/ProfileStudio`, `sdk/caller-session`, `sdk/fxlarge` | Desktop preparation, cooperative caller contracts and source-integrated large runtime |
 | `docs`, `source-notices` | User/developer documentation and source/license inventories |
 
 Clone with `git clone --recurse-submodules https://github.com/lilith-is-all-you-need/fx-9860giii-sdk.git`. Read [BUILDING.md](docs/BUILDING.md) before rebuilding; the Git checkout does not contain large compiler binaries or dependency source archives.

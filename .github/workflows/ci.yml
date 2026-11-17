@@ -28,6 +28,12 @@ jobs:
         run: dotnet run --project tests/FxStudio.Automation.Tests --configuration Release --no-build
       - name: Check skill helper Python syntax
         run: python -m py_compile skills/fxstudio/scripts/fxstudio.py tooling/test_skill_bridge.py tooling/package_skill.py
+      - name: Verify pinned Loader components and offline contracts
+        run: |
+          python tooling/check_loader_components.py
+          python -m unittest discover -s tests -p "test_*profile*.py" -v
+          python -m unittest discover -s tests -p "test_caller_session.py" -v
+          python -m unittest discover -s sdk/fxlarge/tests -p "test_profiles.py" -v
       - name: Publish merged desktop and automation runtime
         run: ./tooling/Publish-App.ps1 -StagingDirectory "$env:RUNNER_TEMP\fxstudio-published"
       - name: Verify actual merged runtime starts

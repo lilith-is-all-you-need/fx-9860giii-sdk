@@ -24,8 +24,11 @@ def sources(kind):
         return sorted(set(files('probes/emulator'))|{'probes/os-map-profile.h','probes/os-map-hashes.h',
             'probes/file-map-probe/src/os-map-profile.h','probes/file-map-probe/src/os-map-hashes.h'})
     if kind=='loader':
-        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|set(files('desktop/ProfileStudio'))|set(files('tooling/ghidra'))|{'tooling/loader_suite.py','tooling/profile_job.py','tooling/package_profile_studio.py','tests/test_profile_job.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','profiles/registry.json',
+        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|set(files('desktop/ProfileStudio'))|set(files('sdk/caller-session'))|set(files('tooling/ghidra'))|{'tooling/loader_suite.py','tooling/profile_job.py','tooling/bundle_v2.py','tooling/ext_profile.py','tooling/hook_review.py','tooling/package_profile_studio.py','tests/test_profile_job.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','tests/test_hook_review.py','tests/test_caller_session.py','profiles/registry.json',
             'probes/mapped-loader/tools/prepare.py'})
+    if (ROOT/'sdk/fxlarge/source-manifest.json').exists():
+        manifest=json.loads((ROOT/'sdk/fxlarge/source-manifest.json').read_text('utf-8'))
+        return ['sdk/fxlarge/'+rel for rel in manifest['files']]
     return sorted(set(files('probes/mapped-loader'))|set(files('probes/extended-loader'))|set(files('probes/extended-cas'))|{
         'probes/native-loader/tools/prepare.py','probes/os-map-profile.h','probes/os-map-hashes.h','profiles/hardware-results-20261117.json'})
 
@@ -33,10 +36,11 @@ def export(kind, destination):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=False)
     copied={}
     for rel in sources(kind):
-        p=destination/rel;p.parent.mkdir(parents=True,exist_ok=True)
+        exported=rel.removeprefix('sdk/fxlarge/') if kind=='large-loader' else rel
+        p=destination/exported;p.parent.mkdir(parents=True,exist_ok=True)
         if p.suffix=='.png':shutil.copyfile(ROOT/rel,p)
         else:p.write_text((ROOT/rel).read_text(encoding='utf-8'),encoding='utf-8',newline='\n')
-        copied[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
+        copied[exported]=hashlib.sha256(p.read_bytes()).hexdigest()
     shutil.copyfile(ROOT/'LICENSE',destination/'LICENSE')
     if kind!='emulator':
         hardware=ROOT/'docs/loader'/('HARDWARE-'+('ram' if kind=='loader' else 'mapped')+'-20261117.md')
