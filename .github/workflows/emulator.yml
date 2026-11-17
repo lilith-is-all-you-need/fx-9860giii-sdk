@@ -31,3 +31,8 @@ jobs:
         run: ./probes/emulator/test-runtime.ps1 -Compiler "$env:MSYS2_LOCATION/ucrt64/bin/gcc.exe"
       - name: Verify native Loader profiles against authored fixtures
         run: python probes/native-loader/tools/test_prepare.py
+      - name: Verify generic Loader profiles and pinned component snapshots
+        run: |
+          python -m unittest discover -s tests -p "test_*profiles.py" -v
+          python tests/test_loader_suite.py
+          python tooling/check_loader_components.py

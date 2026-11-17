@@ -24,7 +24,7 @@ def sources(kind):
         return sorted(set(files('probes/emulator'))|{'probes/os-map-profile.h','probes/os-map-hashes.h',
             'probes/file-map-probe/src/os-map-profile.h','probes/file-map-probe/src/os-map-hashes.h'})
     if kind=='loader':
-        return sorted(set(files('probes/native-loader'))|set(files('profiles'))|{'tooling/loader_suite.py','tests/test_loader_suite.py','profiles/registry.json',
+        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|{'tooling/loader_suite.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','profiles/registry.json',
             'probes/mapped-loader/tools/prepare.py'})
     return sorted(set(files('probes/mapped-loader'))|set(files('probes/extended-loader'))|set(files('probes/extended-cas'))|{
         'probes/native-loader/tools/prepare.py','probes/os-map-profile.h','probes/os-map-hashes.h','profiles/hardware-results-20261117.json'})
@@ -70,31 +70,34 @@ emulator component. Shared OS profile headers are hash-checked in that snapshot.
 ''',
         'loader':'''# fx9860-loader
 
-Offline G1A preparation and calculator RAM Loader. Standard-library Python;
+Offline G1A preparation and generic Flash/RAM loaders. Standard-library Python;
 no LLM service or network is required for analysis or conversion.
 
 ```
 python tooling/loader_suite.py input.g1a --output new-result
 python tooling/loader_suite.py --batch jobs.json --artifacts C:/LoaderSuite/loader-artifacts
-python tests/test_loader_suite.py
+python -m unittest discover -s tests -v
 python probes/native-loader/tools/test_prepare.py
 ```
 
 The converter preserves every original byte, emits page hashes and instruction
-evidence, chooses RAM / mapped / extended by size and validates a SHA-bound
-review profile. Known exact versions can produce test bundles; unknown or
-blocked versions produce a report rather than a false success. Exit codes:
+evidence, and uses the generic Flash backend for ordinary G1As within 2 MiB.
+No program whitelist is needed for that backend. Structurally unsupported inputs
+produce a report; accepted inputs remain test candidates, not a hardware guarantee. Exit codes:
 0 = candidate bundle, 2 = analysis/profile only, 1 = error.
 
-Build `probes/native-loader` with the FxStudio offline SDK (target `loader`).
+Build `probes/storage-loader` with the FxStudio offline SDK (target `flashloader`).
+See its README and VALIDATION.json for memory, callback and hardware limitations.
+The optional legacy RAM backend is `probes/native-loader` (target `loader`).
 Put `Loader.g1a` and the sibling project's `KLoad.g1a` in `loader-artifacts/`
-with `manifest.json`: `{"files":{"Loader.g1a":"sha256", "KLoad.g1a":"sha256"}}`.
+with `manifest.json` hashes; ordinary bundles require `FlashLd.g1a` there as well.
 The calculator reads the generated index and profiles and uses EXE to launch.
 
 RAM images are limited to 160 KiB *and* available contiguous heap, which may be
 much smaller on hardware. The mapped KhiCAS adapter is exact-version only.
 Hardware rejected Fruit and Minesweeper image allocations; their RAM profiles
-are blocked. See HARDWARE-20261117.md for the returned evidence and limits.
+are blocked only for RAM; generic Flash candidates use a smaller resident allocation.
+See HARDWARE-20261117.md for the historical returned evidence and limits.
 For >2 MiB, [fx9860-large-loader](https://github.com/lilith-is-all-you-need/fx9860-large-loader)
 owns the experimental guest-refill backend. Arbitrary oversized G1As are not
 automatically made compatible by changing their filename.
@@ -155,7 +158,7 @@ Code is MIT; third-party program licenses remain their owners'.
         workflow.write_text(body)
         shutil.copyfile(ROOT/'.gitmodules',destination/'.gitmodules')
     else:
-        commands=('python tests/test_loader_suite.py\n          python probes/native-loader/tools/test_prepare.py' if kind=='loader'
+        commands=('python -m unittest discover -s tests -v\n          python probes/native-loader/tools/test_prepare.py' if kind=='loader'
                   else 'python -m compileall -q probes\n          python probes/extended-loader/tools/test_payload.py')
         workflow.write_text('name: Offline contracts\non: [push, pull_request, workflow_dispatch]\npermissions:\n  contents: read\njobs:\n  contracts:\n    runs-on: windows-latest\n    steps:\n      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803\n        with:\n          persist-credentials: false\n      - run: |\n          '+commands+'\n')
     return copied

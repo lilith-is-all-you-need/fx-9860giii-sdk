@@ -13,9 +13,9 @@
   },
   {
     "Title": "RAM 小文件加载",
-    "Evidence": "模拟器已验证，实机候选",
-    "Text": "Loader.g1a 读取 BIN 和 384 字节 LPF，验证 SHA-256，将镜像映射到原虚拟地址。理论镜像上限 160 KiB；还需要 context、常驻代码、对齐和目标堆。默认模拟器 192 KiB OS 堆不代表实机。48 KiB 预算会拒绝 Fruit 等程序；文件小于 2 MiB 不等于适合 RAM Loader。",
-    "Source": "probes/native-loader/VALIDATION.md"
+    "Evidence": "历史实机失败 + 新通用后端",
+    "Text": "旧 Loader.g1a 需要复制完整镜像，Fruit 和 Minesweeper 的实机分配已失败，旧 RAM profile 保留阻止。新的 FlashLd.g1a 只复制需修改 syscall 网关的页，保留原始镜像和 CRT，并按实际分配地址安排缓存颜色。结构检查通过的普通 G1A 无需程序白名单即可生成候选包，但仍需验证目标堆、回调和退出。",
+    "Source": "probes/storage-loader/README.md"
   },
   {
     "Title": "OS 原生 512 页映射",
@@ -31,8 +31,8 @@
   },
   {
     "Title": "KhiCAS 精确版本适配",
-    "Evidence": "模拟器完成计算、保存和重入",
-    "Text": "2,094,444 字节原版 KhiCAS 用 KLoad + khicas.bin + khicas.kpf。BIN 不变，在 4 个 RAM 影子页执行 51 个 syscall 网关补丁和 3 个内存池补丁。常驻分配约 39 KiB；目标 arena 从 166 KiB 减至 106 KiB，大计算更容易 OOM。这个完整 Loader 仍待实机验收，Probe3 通过不能替代它。",
+    "Evidence": "首次启动实机可用；重入仍待确认",
+    "Text": "2,094,444 字节原版 KhiCAS 使用 KLoad。BIN 不变；影子页修改 syscall 网关和私有内存池，把 arena 从 166 KiB 减至 106 KiB。用户报告首次启动可用，MENU 后直接选择同一图标出现 Loading；不能据第一次成功认定重入稳定。",
     "Source": "probes/mapped-loader/README.zh-CN.md"
   },
   {
@@ -50,7 +50,7 @@
   {
     "Title": "自定义异常向量与缺页重试",
     "Evidence": "CPU 回归 + 698 页模拟器探测",
-    "Text": "程序安装 RAM 中的 VBR 后，TLB miss 应转交 VBR+0x400。缺页重试必须恢复指令前的寄存器，否则 MOV.B @Rm+,Rn 可能重复递增。现已验证自增读、自减写和分支延迟槽；多次总线访问及外设副作用的完整回滚仍未实现。",
+    "Text": "程序安装 RAM 中的 VBR 后，TLB miss 应转交 VBR+0x400。缺页重试必须恢复指令前的寄存器，否则 MOV.B @Rm+,Rn 可能重复递增。现已验证自增读、自减写和分支延迟槽；多次总线访问及外设副作用的完整回滚仍未实现。 gint 也会从其 RAM 向量调用 OS 0x0003，现已接入当前 OS 页表的 UTLB 补页并验证 RTE；保护异常等其他分支仍未完整实现。",
     "Source": "probes/emulator/test_guest_refill.py"
   },
   {
@@ -80,13 +80,13 @@
   {
     "Title": "自动化适配的边界",
     "Evidence": "实现约束",
-    "Text": "离线工具无需 LLM；匹配已审核 SHA-256 的适配器可以无人干预生成 BIN/profile。未知文件输出逐页哈希、syscall 使用证据及阻塞项。Ghidra/ELF 能帮助证明数值用途和内存边界，但无法保证所有剥离 G1A 的间接跳转、回调和动态地址均可静态判定。未审核输入不会被自动标记为可运行。",
+    "Text": "离线工具无需 LLM。普通 ≤2 MiB G1A 自动使用通用 Flash 后端，SHA 用于绑定文件完整性，不是程序准入名单。已识别的直接复位跳转、未分类网关、过多补丁或超限文件会明确列出阻塞项。结构检查不能证明全部间接调用、私有 RAM、回调、MMU 或重入行为，生成候选包也不等于硬件兼容证明。原版 KhiCAS 内存池和超限 Giac 仍保留各自适配器。",
     "Source": "tooling/loader_suite.py"
   },
   {
     "Source": "probes/extended-cas/README.md",
-    "Text": "新的 KHICAS.BIN 为 2,859,236 字节、699 页；KhiMap 启动器为 9,880 字节。启动器分配 6,912 字节，CAS arena 分配 32,768 字节，合计 39,680 字节。计算、绘图、清理已通过模拟器复测，实机尚待验收。通过运行库源码接入常驻 API；不是任意超限 G1A 的通用转换。运行中文件操作和定时/退出回调注册被拒绝，MENU/OFF 先清理。部分初始化失败仍可能需要 RESET。",
+    "Text": "2,859,236 字节、699 页的 Giac 通过源码接入常驻 API。用户已报告 RC1 首次运行可用，直接选回出现 Loading；RC2 显示会话已结束并按 EXE 重新加载，旧计算不保留。RC2 模拟器通过，实机复测待完成。这不是通用超限二进制转换器。",
     "Title": "699 页 Giac 完整接入候选",
-    "Evidence": "源码接入 + 完整 CAS 模拟器复测"
+    "Evidence": "RC1 首次启动实机可用；RC2 等待回传"
   }
 ]

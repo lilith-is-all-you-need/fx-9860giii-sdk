@@ -68,8 +68,8 @@ public partial class MainWindow
         var panel=new StackPanel { Margin=new Thickness(20) };
         panel.Children.Add(new TextBlock { Text=source.FileName,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12) });
         panel.Children.Add(new TextBlock { Text=T("Loading method", "加载方式") });
-        var mode=new ComboBox { ItemsSource=new[]{"auto","ram","mapped","extended"},SelectedIndex=0,Margin=new Thickness(0,5,0,12) };panel.Children.Add(mode);
-        var hint=new TextBlock { Text=T("Auto chooses by image size and reviewed profiles. Unknown inputs receive a report with remaining requirements.","自动模式按文件大小和已审核 profile 选择。未知文件会生成报告，列出仍需完成的适配。"),TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12) };panel.Children.Add(hint);
+        var mode=new ComboBox { ItemsSource=new[]{"auto","flash","ram","mapped","extended"},SelectedIndex=0,Margin=new Thickness(0,5,0,12) };panel.Children.Add(mode);
+        var hint=new TextBlock { Text=T("Auto prepares ordinary G1As with the generic Flash loader. Unsupported structures receive a report; generated bundles still need device testing.","自动模式为普通 G1A 准备通用 Flash 加载包，不依赖程序名单。不支持的结构会列出原因；生成测试包仍需实机验证。"),TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12) };panel.Children.Add(hint);
         var review=new TextBox { IsReadOnly=true,Margin=new Thickness(0,0,0,6) };panel.Children.Add(review);
         var pick=new Button { Content=T("Optional: select reviewed profile…","可选：选择已审核 profile…"),HorizontalAlignment=HorizontalAlignment.Left };panel.Children.Add(pick);
         pick.Click+=(_,_)=>{var dialog=new OpenFileDialog{Filter="JSON profile|*.json"};if(dialog.ShowDialog(this)==true)review.Text=dialog.FileName;};
