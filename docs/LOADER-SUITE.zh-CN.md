@@ -16,6 +16,13 @@ FxStudio 的“工具 → 为 Loader 准备 G1A”选择输入和新的输出目
 内容嵌入程序，不需要联网。输出中的 `calculator` 才是安装文件；其余
 `analysis.json`、逐页校验和及 profile 供电脑端复核。
 
+另有独立的 [FX Profile Studio（WinUI 3）](../desktop/ProfileStudio/README.zh-CN.md)：
+支持批量导入、生成测试包、逐页分析以及可选 Ghidra 无界面深度分析。
+Ghidra 导出实际引用、函数与反编译样本，不自动授权新补丁。未知超限文件仍明确
+显示“需要运行时适配”；电脑端页表分析不能替代计算器上的物理页查询和补页异常处理。
+本机已完成实际 WinUI 批处理、Tetris/KhiCAS/Giac 深度分析与取消任务验证，
+记录在 `desktop/ProfileStudio/VALIDATION.json`。此次新增的是电脑工具，不是新的实机稳定性结论。
+
 ## 后端与边界
 
 | 后端 | 输入/入口 | 状态 |

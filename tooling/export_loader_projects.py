@@ -10,8 +10,8 @@ import shutil
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-SUFFIXES={'.c','.h','.cpp','.hpp','.S','.ld','.cmake','.py','.ps1','.md','.json','.png','.patch','.txt'}
-IGNORED={'build','.fxstudio','__pycache__','evidence','graphics-audit'}
+SUFFIXES={'.c','.h','.cpp','.hpp','.S','.ld','.cmake','.py','.ps1','.md','.json','.png','.patch','.txt','.cs','.xaml','.csproj','.manifest','.java','.xml'}
+IGNORED={'build','.fxstudio','__pycache__','evidence','graphics-audit','bin','obj','.vs'}
 
 def files(folder):
     for p in (ROOT/folder).rglob('*'):
@@ -24,7 +24,7 @@ def sources(kind):
         return sorted(set(files('probes/emulator'))|{'probes/os-map-profile.h','probes/os-map-hashes.h',
             'probes/file-map-probe/src/os-map-profile.h','probes/file-map-probe/src/os-map-hashes.h'})
     if kind=='loader':
-        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|{'tooling/loader_suite.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','profiles/registry.json',
+        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|set(files('desktop/ProfileStudio'))|set(files('tooling/ghidra'))|{'tooling/loader_suite.py','tooling/profile_job.py','tooling/package_profile_studio.py','tests/test_profile_job.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','profiles/registry.json',
             'probes/mapped-loader/tools/prepare.py'})
     return sorted(set(files('probes/mapped-loader'))|set(files('probes/extended-loader'))|set(files('probes/extended-cas'))|{
         'probes/native-loader/tools/prepare.py','probes/os-map-profile.h','probes/os-map-hashes.h','profiles/hardware-results-20261117.json'})
@@ -41,7 +41,7 @@ def export(kind, destination):
     if kind!='emulator':
         hardware=ROOT/'docs/loader'/('HARDWARE-'+('ram' if kind=='loader' else 'mapped')+'-20261117.md')
         shutil.copyfile(hardware,destination/'HARDWARE-20261117.md')
-    (destination/'.gitignore').write_text('**/__pycache__/\n**/.fxstudio/\n**/build/\n**/evidence/\nloader-artifacts/\n*.zip\n*.elf\n*.g1a\n*.bin\n*.log\n',encoding='utf-8')
+    (destination/'.gitignore').write_text('**/__pycache__/\n**/.fxstudio/\n**/build/\n**/evidence/\n**/bin/\n**/obj/\n**/.vs/\nloader-artifacts/\n*.zip\n*.elf\n*.g1a\n*.bin\n*.log\n',encoding='utf-8')
     (destination/'source-manifest.json').write_text(json.dumps({'schemaVersion':1,'component':kind,'files':copied},indent=2)+'\n',encoding='utf-8')
     (destination/'.gitattributes').write_text('* text=auto eol=lf\n*.png binary\n',encoding='utf-8')
     readmes={
