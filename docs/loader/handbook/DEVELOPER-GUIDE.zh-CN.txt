@@ -1,0 +1,187 @@
+fx-9860GIII Loader 开发手册
+审阅日期：2026-11-18；语言配对：DEVELOPER-GUIDE.en.txt
+
+范围与版本
+本文整理已存在的实现与实验，不是新增功能的交付声明。审阅基线为 SDK
+1a145961、普通 Loader fcaa21d、超限 Loader 7cd3257、模拟器 00e3fb1。
+组件的完整提交与文件摘要以 loader-components.lock.json 为准。
+“未来合约”单独标出，尤其不能把返回任意调用者、目录扫描和 SH3 适配说成现有能力。
+所有来源路径均相对于 SDK 仓库根目录。相关操作例子面向开发环境，不包含私有固件。
+
+01. 路线与证据等级 / evidence-and-roadmap
+[实机日志] 在指定设备、OS、镜像、操作下记录的事件；不能自动推广到全部布局。
+[用户反馈] 例如首次运行成功、画面疑似 Loading；保留操作和不确定性，不能补造日志。
+[反汇编] 证明被检查的指令和参数关系，不证明所有调用者和外围状态。
+[模拟器] 证明模型中实际执行的场景；压力模式和 HLE 不是完整 OS。
+[实现] 表示代码已有此路径；[推断] 表示待定向测试；[未来合约] 表示设计目标。
+验收至少分别记录：输入 SHA、OS/构建、首次启动、交互、退出、同图标选回、
+进入其他应用后新启动、清理与内存归还。不要只有一个笼统的 pass。
+来源：loader-components.lock.json；profiles/hardware-results-20261117.json；
+probes/storage-loader/VALIDATION.json；probes/file-map-probe/HARDWARE-RESULT-2026-11-16.json。
+
+02. G1A、资源与运行库 / g1a-runtime-layout
+[实现/分析] 保留完整 512 字节 G1A 头与后续镜像；常规基址为 0x00300000，
+入口为 0x00300200。代码、常量池、图片、字串和 .data 初值可能交错。
+.data 的文件初值地址与运行时 RAM 地址不同；BSS、堆、栈不按镜像长度计算。
+平坦 G1A 不保留原 ELF 的全部符号和重定位，不能无损反推出原构建。
+改扩展名不会重定位。保留原布局可让内部 ROM 引用继续成立，但不能解决私有 RAM 冲突。
+不要剪掉初始化字节再补一个 main 调用：构造器、分配器、退出注册和 SR.T 等副作用
+可能仍需执行。任何替代初始化都要在明确边界比较寄存器、RAM 与必要系统状态。
+来源：src/FxStudio.App/CalculatorKnowledge.json；probes/native-loader/tools/prepare.py；
+probes/storage-loader/tools/prepare.py；probes/hardware-loader/README.md。
+
+03. 虚拟地址与 OS 文件映射 / os-file-mapping
+[反汇编/实机] 原 OS 窗口是 [0x00300000,0x00500000)，512 项、每页 4096 字节。
+虚拟页相邻不表示物理 Flash 页相邻。Probe3 在 03.70.0200 上独立核对全部 512 页，
+完成三轮页执行，并观察到不同刷新时点的地址变化。6、3、11 是各轮变化计数，
+不能相加为不同页总数；逐页扫描也不是同一时刻的原子 Flash 分布图。
+[实现] 启动时根据 OS 指纹和指令常量池取得页表/查询入口，未知指纹拒绝运行。
+不要把一版固件的内部地址永久硬编码给另一版；版本字符串只是识别线索。
+PC profile 记录文件偏移、虚拟地址、长度和摘要；物理地址须在设备上查询。
+来源：probes/os-map-profile.h；probes/emulator/OS-MAPPING.md；
+probes/file-map-probe/README.md；probes/file-map-probe/HARDWARE-RESULT-2026-11-16.json。
+
+04. 缓存、TLB 与异常上下文 / cache-and-exceptions
+[实现/实机探测支持] 代码复制完成后，要分别考虑 D-cache 写回、I-cache 失效、
+屏障与地址翻译；只改 UTLB 不代表旧 ITLB 条目已失效。不要由一次未观察到脏行
+推断可以省略缓存维护，也不要把 CCR=0x105 简单解释成 write-through。
+普通 Flash 后端按实际分配地址选择影子页颜色，保留虚拟/物理地址 bit 12 的关系。
+P2 常驻代码、状态和恢复栈必须在目标清零/覆盖范围外，且不可引用即将被切走的代码。
+异常 refill 中只读常驻页表并安装翻译；禁止递归 Bfile、动态分配和写日志。
+超限实现另协调 VBR、SR、寄存器银行和 gint/OS world；并非只更换一个函数指针。
+来源：probes/hardware-loader/README.md；probes/storage-loader/src/resident.c；
+probes/storage-loader/src/main.c；probes/extended-cas/src/resident.c；
+probes/emulator/test_hardware.py。缓存测试通过不等于模拟器已实现完整 copy-back D-cache。
+
+05. 内存所有权 / memory-ownership
+[实机] 旧 RAM Loader 申请 Fruit 77823 字节、Mines 135167 字节连续镜像块失败；
+此前已分配 3036 字节上下文。这不测定最大空闲块，也不否定后来的 Flash 后端。
+[实现] 当前普通 Flash 后端只复制网关修改页，仍需要常驻代码、上下文、页信息、
+对齐空间和目标自己的堆/栈。原版 KhiCAS 的私有池需精确版本适配。
+禁止把固定虚拟 RAM 地址当作独占物理空间；P0/P1/P2 别名也要统一核对所有权。
+[未来合约] A 的恢复状态、B 的可写区、库常驻区三方需要明确边界。必须先检查容量、
+所有权和支持的宿主接口，再进行任何不可回退的交接；保存任意调用者尚未实现。
+来源：docs/loader/HARDWARE-ram-20261117.md；profiles/hardware-results-20261117.json；
+probes/storage-loader/src/main.c；probes/mapped-loader/README.zh-CN.md。
+
+06. 系统调用、查表与回调 / syscalls-and-callbacks
+[实现/反汇编] 已识别的 syscall 跳板可改为常驻网关；不能把所有值为 0x80010070
+的字无条件修补。未知形态、计算出的直跳和直接硬件操作仍可能绕开网关。
+0x02EE 为 System_GetOSVersion：本模型输出 10 个可见 ASCII 字符加 NUL，缓冲需
+11 字节；无文档保证返回值，勿依赖 r0。补齐它不表示超频软件的硬件访问都兼容。
+0x0003 缺页入口在模型中是部分实现；内部文件页查询入口来自指纹解析，不能把
+0x0011 的“按应用索引建立 G1A 映射”误用成任意路径加载 API。
+FX Bfile 句柄的设备高字节需保持；普通文件、内部搜索槽、容器槽不是同一对象池。
+当前回调只接受已支持的目标镜像地址；timer/quit 必须由常驻包装管理生命周期。
+清理完成前不能释放仍可能执行的回调代码；文件操作临界期跳过目标计时器有记录。
+来源：probes/emulator/SYSCALL-COVERAGE.md；probes/emulator/OS-MAPPING.md；
+probes/emulator/syscall-coverage.json；probes/storage-loader/src/resident.c；
+probes/native-loader/tools/prepare.py。handler/partial/stub 数量不是兼容率。
+
+07. 退出、重入与调用者 / lifecycle-and-reentry
+[实机] Probe2 验证受控 16 KiB 镜像/8 KiB 静态 RAM 的退出清理和新启动；第二份
+日志没有 GETKEY_RESUMED，不能证明原会话无缝恢复。Probe3 的受控回调成功也不能
+覆盖真实 KhiCAS/Giac RC1 的同图标选回失败。Giac RC2 明确重载页目前有模拟证据。
+[未来合约；未交付] 普通库首版只允许单层 A→B，拒绝 B 再嵌套启动 C。
+正常结束 B 后必须恢复 A 的受支持状态。MENU 后直接选回宿主时，由宿主选择恢复 A
+或继续 B；宿主可用界面表达这一策略，但两条底层恢复路径仍需单独验收。
+进入其他 OS 应用即结束旧会话；之后冷启动 A 可通过宿主接口恢复业务状态，
+不保证旧栈地址、裸指针或原机器现场仍有效。业务状态应使用有版本的值/稳定 ID，
+不能把序列化的内存地址当作冷启动可解引用的指针。首版不提供崩溃恢复。
+现有独立 Loader 不具备“返回任意调用者并保留状态”的通用能力；不要把 main 返回
+或 OS 重启恢复误写成该能力。支持哪些宿主/目标运行库须由新接口和测试明示。
+来源：probes/hardware-loader/VALIDATION.md；docs/loader/HARDWARE-mapped-20261117.md；
+probes/extended-cas/VALIDATION-REENTRY-20261117.json；probes/storage-loader/src/resident.c。
+未来合约来源：docs/loader/design/requirements-20261118.zh-CN.txt；不是上述代码已实现的证明。
+
+08. 离线 Profile 与文件包 / offline-profiles
+[实现] PC 分析和 Ghidra 脚本无需 LLM。SHA-256 绑定输入；普通 ≤2 MiB Flash 候选
+不按程序名单准入。KhiCAS 私有池和超限 Giac 仍有精确版本适配。
+Ghidra 提供有界函数、引用、常量候选及反编译样本，不自动证明所有代码/数据边界。
+未分析/未覆盖/间接目标未知必须保留未知。paging-plan.json 是分析文档，不能代替
+计算器可执行 profile；分析成功也不能自动把未知超限程序升格为可运行。
+[现有文件合约] v0.1 使用根目录 Loader.idx、短 ASCII ID 和配套 BIN/FPF；桌面默认
+每个结果内有 calculator，混合两个固定 target 包会覆盖。此格式不是目录扫描器。
+[未来合约] 每程序独立兼容目录，身份/显示名分离，公共 Loader 能识别；PC 默认生成
+目标依赖，另有导出 Loader 选项。具体磁盘格式须版本化，不能只改文件名却保留旧索引。
+身份默认名称加短 hash，完整 SHA 负责绑定；检测截断碰撞，同名不同内容允许共存。
+计算器短目录 ID 与完整显示名分开；重复导出不能静默抹去旧运行记录。
+文件路径统一规范化并限制在选定输出根/设备包根：拒绝绝对路径、..、分隔符注入、
+重复身份、大小写归一后冲突和转义根目录的链接。先校验全包，再原子发布；旧包和
+不属于本工具的同名日志不得静默覆盖。目标资源的相对路径语义也须明确并实机测试。
+后一段是新目录协议的工程要求，不表示当前代码已检查所有未来目录情形。
+来源：tooling/loader_suite.py；tooling/profile_job.py；probes/storage-loader/tools/prepare.py；
+probes/storage-loader/src/main.c；tooling/ghidra/ExportG1aEvidence.java；tests/test_profile_job.py。
+
+09. 512、698、699 页与超限库 / extended-runtime-library
+512 页：OS 原有 2 MiB 窗口；原版 2094444 字节 KhiCAS 位于其中。
+698 页：2857444 字节自行编写的合成探针，验证客体页表/自动异常补页。
+699 页：2859236 字节特定 Giac 源码接入构建，有独立运行库协议；不是任意 G1A。
+[反汇编] 已检查的 OS refill 函数本身没有完整窗口上界检查，不能靠越界访问 OS 表
+扩容。超限页表在自有常驻内存中，保留 OS 原表，检查镜像末尾与每个映射范围。
+[实现] Giac 候选总分配 6912+32768=39680 字节，在 40960 字节模拟堆测试；
+这不是通用剩余 RAM。它禁止运行期文件操作/OS timer/quit 注册和直接复位，
+Flash 暂用无缓存映射，限制是合约的一部分，不能报告假成功来掩盖。
+[未来合约] 超限库优先给有源码的大项目接入，封装页表、异常、宿主交接和能力检查。
+源码适配构建与冻结 LTO 对象需匹配工具链；同 GCC 版本号不保证 Windows/Linux 对象互通。
+来源：probes/extended-loader/README.md；probes/extended-cas/README.md；
+probes/extended-cas/src/resident.c；probes/emulator/OS-MAPPING.md。
+
+10. 模拟器与调试 / emulator-debugging
+[实现] 目前是 HLE，固件辅助模式也没有执行完整 OS 开机。未知异常可留档后重建 HLE；
+--fault-policy pause 用于保留调试现场。这不等于计算器 Loader 支持崩溃恢复。
+文件碎片/映射恢复/OS 显存重绘是独立压力维度，不要把每次写后强制恢复当成实机规律。
+固件对照只证明指定指令区间与测试输入；模拟器仍缺完整 copy-back 数据缓存、所有
+异常/中断嵌套、外设周期及文件系统内部语义。无固件测试和本地私有固件测试分开记录。
+定位问题时保留原版直接执行对照，真实 Loader 文件与真实按键，不注入目标成功标志。
+来源：probes/emulator/README.md；probes/emulator/OS-MAPPING.md；
+probes/emulator/test_os_mapping.py；probes/storage-loader/tools/verify.py。
+
+11. 性能、复现与验收 / reproduction-and-acceptance
+[实现计数，非实机计时] 普通 Flash 的启动先逐 4 KiB Bfile 读取做整文件 SHA 与逐页 FNV；
+随后 refresh 查询自身和目标页，必要时从物理页复核内容。影子页还需复制和缓存维护。
+现有成功交接路径的静态计数为 open/close 各 11 次、6 次 write（5120 字节）、
+8 次 size、2 次 seek、目标页数+3 次 read，以及 2×(目标页数+Loader 页数) 次物理查页。
+FVMGIII 25 页、WSCGIII 27 页配 5 页 Loader 时为 60/64 次查页；这不含目标初始化
+或 syscall 内部隐藏工作，也不是毫秒测量。首次物理页 FNV 与 Bfile 初读 FNV 有重复，
+阶段日志写入使最后再刷新仍有必要；EXE 释放等待也应单独计时。
+运行期 file/GetKey 路径刷新并重装映射；大多数其他调用执行 512 项 guard。
+0x0015、0x02EE、0x0135 已有直接转发例外；不可声称所有 syscall 都扫描或都免扫描。
+timer 的 guard 也有成本；异常入口不能为测量新增文件操作。超限 Giac 的无缓存
+Flash 是另一种潜在成本，不能由普通 Loader 的改动推断其速度同比改善。
+当前用户反馈是启动慢、进入后似乎正常，原 G1A 秒开；未给出已测时长，不能改述为运行期
+帧率已经测得下降。现有日志含 syscalls、key_calls、refreshes/changed、timer_calls/skipped 等累计字段；
+不是各阶段耗时或完整每调用编号分布。先分别测启动等待和进入后的交互，固定输入 SHA、
+OS、频率、存储布局和操作；和原版直接运行对照，再用计数器/计时定位。
+优化必须同时跑文件移动/页表恢复、回调忙态、缺页、退出、尾页和 OOM 回归。
+不能把删掉映射保护或关闭哈希校验当作已证明安全的速度提升，也不承诺未测量倍数。
+[未来合约] 默认完整检查；另提供用户显式选择的快速模式，首次完整校验后允许不再做
+全文件校验。仍须查询真实页地址并检查元数据/范围/运行库契约；同大小、同地址的内容
+变化不能保证检出。输入可观测信息、profile 或运行库变化使缓存失效，并可强制完整检查。
+来源：probes/storage-loader/src/main.c；probes/storage-loader/src/resident.c；
+probes/storage-loader/VALIDATION.json；probes/extended-cas/src/resident.c；
+docs/loader/design/startup-analysis.json；docs/loader/design/requirements-20261118.zh-CN.txt。
+
+12. 版本沿革与踩坑 / pitfalls-and-migration
+源码和证据各自绑定 SHA：同名 Tetris、Mines、KhiCAS 不一定同构建。
+早期“calloc/位图 syscall 未实现”“映射未完成”是历史停点，不是今天的能力表。
+旧 RAM OOM 报告中的“未来 Flash”是当时建议；现有 Flash 候选并未因此获得实机认证。
+先读 PITFALLS.zh-CN.txt，再核对注册表、实际后端、验证文件的 hardwareValidated 与限制。
+工作区的完整原件以研究索引保留；SDK 仅收录结论、合约和复现线索。固件、第三方原程序
+和完整反编译数据库不因生成手册而加入公开仓库。
+来源：profiles/registry.json；docs/loader/HARDWARE-ram-20261117.md；
+probes/emulator/SYSCALL-COVERAGE.md；docs/loader/handbook/PITFALLS.zh-CN.txt。
+
+13. GIII 加载旧 SH3 程序 / sh3-on-giii
+[未来合约/待研究] 目标是 GIII 执行旧 SH3 Add-in，不是让本 Loader 在 SH3 实机运行。
+一手资料支持 SH-4A 对 SH-3 的指令/目标代码向上兼容，故优先保留 GIII 执行后端，
+在电脑侧识别已知旧例程并做精确适配；不必先构建完整 SH3 CPU 模拟器。
+CPU 指令可执行、syscall ABI 匹配、直接硬件访问正确、运行库启动/退出兼容需分别验证。
+不能仅凭官方 SDK 风格 CRT 或 SH3 标签宣称兼容；旧键盘/显示/计时/MMU 直访也可能
+绕过 syscall 网关。对每个构建先确定所用机制，再决定原样运行、明确补丁或拒绝。
+现有后端显式检查 SH7305 的寄存器/栈/OS 指纹，不是现成的通用 SH3 模拟层。
+分立适配后端可减少误用，但名称拆分本身不能解决底层差异。先收集可复现旧程序和
+GIII 直接运行对照，保留失败指令、调用和画面证据；在验证前不提升支持等级。
+来源：probes/storage-loader/src/main.c；probes/storage-loader/src/resident.c；
+probes/storage-loader/src/loader.h；probes/native-loader/tools/prepare.py；
+docs/loader/design/sh3-on-giii.zh-CN.txt；docs/loader/design/sources.json。

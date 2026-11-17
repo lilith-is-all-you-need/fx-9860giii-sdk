@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "researchDate": "2026-11-18",
+  "scope": "Legacy SH3 G1A running on fx-9860GIII only",
+  "codeChanged": false,
+  "newHardwareTests": false,
+  "externalSources": [
+    {
+      "url": "https://www.renesas.com/en/document/fly/sh-4a-cpu",
+      "kind": "manufacturer primary",
+      "claim": "SH4A object-code upward compatibility with SH3; separate instruction/data caches"
+    },
+    {
+      "url": "https://www.renesas.com/en/document/mas/sh-4a-software-manual",
+      "kind": "manufacturer primary",
+      "claim": "SYNCO/ICBI/OCBP and code coherency sequences"
+    },
+    {
+      "url": "https://www.renesas.com/en/document/mah/sh7705-group-hardware-manual",
+      "kind": "manufacturer reference MPU",
+      "claim": "SH7705 MMU/cache reference, not proof actual Casio part equals SH7705"
+    },
+    {
+      "url": "https://github.com/lephe/Fx-SDK/blob/dev/README.md",
+      "kind": "project author primary",
+      "claim": "Compatibility list contains SH3 and SH4 fx-9860G II variants"
+    },
+    {
+      "url": "https://github.com/Alabate/SH4compatibilityTool",
+      "kind": "author-linked repository mirror",
+      "claim": "Existing legacy binary adaptation project"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Alabate/SH4compatibilityTool/master/DOCUMENTATION.md",
+      "kind": "author technical documentation",
+      "claim": "Known keyboard and MonochromeLib trampoline adaptation; historical RAM execution claim needs qualification"
+    },
+    {
+      "url": "https://github.com/Alabate/SH4compatibilityTool/blob/master/LICENSE",
+      "kind": "repository license",
+      "claim": "MIT; retain copyright and license when incorporating source"
+    },
+    {
+      "url": "https://www.planet-casio.com/Fr/forums/topic12292-3-sh4-compatibility-tool.html",
+      "kind": "author project thread",
+      "claim": "Author links repository/mirror and documents bounded binary patch strategy"
+    },
+    {
+      "url": "https://www.planet-casio.com/Fr/forums/topic17589-1-syscalls-et-compatibilite-sh4.html",
+      "kind": "gint author technical explanation",
+      "claim": "Normal monochrome syscall numbering and arguments are generally shared; not proof all calls behave identically"
+    }
+  ],
+  "localEvidence": [
+    {
+      "path": "probes/storage-loader/CMakeLists.txt",
+      "line": 8,
+      "supports": "Current build explicitly uses -m4-nofpu",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/storage-loader/src/loader.h",
+      "line": 8,
+      "supports": "SH7305 synchronization/cache operations and fixed 512-page structures",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/storage-loader/src/resident.c",
+      "line": 9,
+      "supports": "SH7305 UTLB/ITLB; CPU checks at line 222",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/storage-loader/src/main.c",
+      "line": 66,
+      "supports": "GIII stack range and profile limits",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/storage-loader/src/os-map-profile.h",
+      "line": 27,
+      "supports": "OS instruction fingerprints and private structure validation",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/native-loader/tools/prepare.py",
+      "line": 16,
+      "supports": "Instruction-shaped syscall gate matching, not generic legacy hardware adaptation",
+      "root": "SDK source"
+    },
+    {
+      "path": "tooling/profile_job.py",
+      "line": 94,
+      "supports": "Headless language is SuperH4:BE:32:default",
+      "root": "SDK source"
+    },
+    {
+      "path": "tooling/ghidra/ExportG1aEvidence.java",
+      "line": 24,
+      "supports": "Hardware addresses classified as candidates",
+      "root": "SDK source"
+    },
+    {
+      "path": "sdk/native/sh3eb-elf/include/gint/hardware.h",
+      "line": 84,
+      "supports": "SH7337/SH7305/SH7355 and keyboard/filesystem distinctions",
+      "root": "Complete SDK package"
+    },
+    {
+      "path": "sdk/native/sh3eb-elf/include/gint/mpu/mmu.h",
+      "line": 20,
+      "supports": "Separate SH7705 and SH7305 MMU layouts",
+      "root": "Complete SDK package"
+    },
+    {
+      "path": "probes/extended-cas/payload-adapter/start.c",
+      "line": 137,
+      "supports": "Extended payload explicitly requires SH7305/G35PE2; later SH3 comments are not current support",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/extended-cas/payload-adapter/tlbh.S",
+      "line": 88,
+      "supports": "Different SH4 and SH3 TEA locations",
+      "root": "SDK source"
+    },
+    {
+      "path": "probes/emulator/README.md",
+      "line": 203,
+      "supports": "Current emulator targets GIII/SH7305",
+      "root": "SDK source"
+    },
+    {
+      "path": "Profile-Studio-win-x64/dependencies/ghidra_12.2_PUBLIC/Ghidra/Processors/SuperH4/data/languages/SuperH4.ldefs",
+      "line": 3,
+      "supports": "Installed SH4 language definitions",
+      "root": "Profile Studio portable package, sibling to SDK"
+    },
+    {
+      "path": "Profile-Studio-win-x64/dependencies/ghidra_12.2_PUBLIC/Ghidra/Processors/SuperH/data/languages/SuperH.ldefs",
+      "line": 3,
+      "supports": "Installed other variants: SH1/SH2/SH2A; no explicit SH3 ID",
+      "root": "Profile Studio portable package, sibling to SDK"
+    }
+  ],
+  "proposalsNotImplemented": [
+    "legacy routine adapter engine",
+    "versioned non-gate patch format",
+    "resident compatibility helpers",
+    "capability classification",
+    "hardware validation matrix"
+  ]
+}

@@ -1,0 +1,162 @@
+fx-9860GIII Loader Pitfalls and Diagnostics
+Reviewed: 2026-11-18. Chinese counterpart: PITFALLS.zh-CN.txt.
+Baseline and evidence labels: DEVELOPER-GUIDE.en.txt. Paths are relative to the SDK root.
+There is no finding that every G1A is compatible or stable.
+
+01. A number looks like an address, so add delta
+[Analysis] Pixels, wide filenames and numeric masks can overlap address ranges. Real
+pointers can also reside in read-only data or initializers. A range match is a candidate,
+not a relocation record. Preserve virtual layout; bind any patch to SHA, original bytes
+and reviewed instruction use.
+Sources: src/FxStudio.App/CalculatorKnowledge.json; tooling/ghidra/ExportG1aEvidence.java;
+probes/native-loader/tools/prepare.py.
+
+02. Delete the header/CRT and call main
+[Implementation/analysis] Offsets, PC-relative literals, constructors, arenas and exit
+registration may depend on the original image. Keep all bytes; replace only verified
+effects and compare CPU postconditions, not just BSS/data. Renaming does not relocate.
+Sources: src/FxStudio.App/CalculatorKnowledge.json; probes/hardware-loader/README.md;
+probes/storage-loader/src/main.c.
+
+03. A small G1A must fit in RAM
+[Hardware] Old full-image RAM allocations failed for Fruit and Mines. Image length excludes
+resident code, alignment and runtime memory. Record allocation sizes/returns and assess
+Flash shadows separately. The 40/48 KiB simulated heaps are budgets, not device measurements.
+Sources: docs/loader/HARDWARE-ram-20261117.md; probes/hardware-loader/VALIDATION.md;
+probes/storage-loader/VALIDATION.json.
+
+04. Correct memory bytes imply immediately updated execution
+[Implementation/bounded probes] Data visibility, I-cache and ITLB are separate states.
+Check writeback, invalidation, barriers and translations; derive shadow color from the
+actual allocation. A limited cache test cannot justify removing maintenance in other modes.
+Sources: probes/hardware-loader/README.md; probes/storage-loader/src/main.c;
+probes/storage-loader/src/resident.c; probes/emulator/test_hardware.py.
+
+05. Query BIN physical pages once and keep them forever
+[Hardware] Probe3 observed changing page addresses and non-contiguous physical pages.
+Query on-device and recheck after relevant operations, including logging. Restored page
+tables and moved physical pages are separate conditions. Neither every write always moves
+pages nor one unchanged write proves that protection is unnecessary.
+Sources: probes/file-map-probe/HARDWARE-RESULT-2026-11-16.json; probes/emulator/OS-MAPPING.md;
+probes/storage-loader/src/resident.c.
+
+06. Call Bfile from the fault handler to find a page
+[Contract] File-system recursion can cause another fault or replace required context.
+Prepare tables in normal execution; refill reads resident state only. Manage callback
+busy states and lifetime separately; do not free code still reachable by a callback.
+Sources: probes/extended-loader/README.md; probes/extended-cas/src/resident.c;
+probes/storage-loader/src/resident.c; probes/hardware-loader/README.md.
+
+07. Write entry 513 into the original table
+[Disassembly] Other OS state follows the table, and the inspected refill lacks complete
+upper-bound protection. Ordinary mode rejects oversized input; extended mode owns its
+table/exception path. Check entry, size, mapped range and partial tail pages. Test original
+512-page KhiCAS, the 698-page probe and 699-page Giac as distinct objects.
+Sources: probes/emulator/OS-MAPPING.md; probes/extended-loader/README.md;
+probes/extended-cas/README.md; probes/storage-loader/tools/prepare.py.
+
+08. A syscall name implies arbitrary BIN mapping
+[Disassembly] An old name for 0x03FA is not proof of a general mapping service. 0x0011
+selects G1A by OS application index; internal file-offset querying is a separate function.
+Resolve current tables/fingerprints and reject unknown cores rather than borrowing raw addresses.
+Sources: probes/emulator/OS-MAPPING.md; probes/os-map-profile.h.
+
+09. Implementing 0x02EE completes overclocking compatibility
+[Implementation] It queries version. Ten visible characters need an additional NUL byte.
+Overclocking may use direct hardware, with timer/wait/display effects beyond this call.
+Do not depend on an undocumented return value. Verify query, register effects and full exit separately.
+Sources: probes/emulator/SYSCALL-COVERAGE.md; probes/emulator/VALIDATION-02EE.json;
+src/FxStudio.App/CalculatorKnowledge.json.
+
+10. Any non-negative file handle is equivalent
+[Disassembly/regression] FX device bits matter; plain small handles once sent KhiCAS library
+operations into MCS. Preserve encoding and lifetime. Internal search/container slots are
+not ordinary Bfile handles.
+Sources: probes/emulator/OS-MAPPING.md; probes/emulator/SYSCALL-COVERAGE.md;
+probes/emulator/test_os_mapping.py.
+
+11. EXIT, MENU and fresh startup are one test
+[Hardware] Probe2's two logs cover different paths. CAS RC1 startup did not solve same-icon
+return. Record target exit, MENU, direct return, replacement and fresh startup separately.
+A missing returned key neither proves user error nor identifies exact callback timing.
+Preserve the failed log before another launch overwrites it.
+Sources: probes/hardware-loader/VALIDATION.md; profiles/hardware-results-20261117.json;
+docs/loader/HARDWARE-mapped-20261117.md; probes/storage-loader/src/resident.c.
+
+12. Returning to this Loader means returning to any caller A
+[Existing boundary] The independent Loader restores its known state, not an arbitrary
+host environment. [Future contract] Single A->B level; reject nesting. On direct same-icon
+return the host chooses Restore A or Continue B. Another OS app may end the old session.
+Cold-start business-state reconstruction does not preserve old stack/pointers. No crash
+recovery in the first contract. Define host save/restore and resource ownership; a raw
+RAM dump is not a universal snapshot.
+Sources: probes/storage-loader/src/main.c; probes/storage-loader/src/resident.c;
+docs/loader/handbook/DEVELOPER-GUIDE.en.txt section 7. Future behavior is not implementation evidence.
+
+13. Merge two fixed target packages and discovery will work
+[Existing format] v0.1 pairs names with an index; merging overwrites files, and its old
+format does not discover directories. [Future requirement] One directory per program,
+independent shared Loader with optional export, and separate identity/display name/hash/version.
+Normalize under the package root; reject .., absolute paths, separator injection, duplicate
+or case-colliding identities and escaping links. Define relative resource paths. Migrate
+explicitly, validate the whole package and preserve existing packages/foreign logs.
+Sources: probes/storage-loader/tools/prepare.py; probes/storage-loader/src/main.c;
+tooling/loader_suite.py; tests/test_profile_job.py.
+
+14. Ghidra completed, so every constant is classified
+[Implementation] Arrays, exported functions and decompilation samples are bounded.
+Uncovered paths and indirect targets remain possible. Keep unknown/truncation information,
+input SHA, versions and logs. No LLM is needed to run the process; that does not prove
+complete compatibility for arbitrary opaque G1As. Failed deep analysis is not success.
+Sources: tooling/ghidra/ExportG1aEvidence.java; tooling/profile_job.py;
+desktop/ProfileStudio/README.zh-CN.md; tests/test_profile_job.py.
+
+15. Speed up by removing guards/hashes or treating all calls as read-only
+[Implementation hotspots, not measured device timing] Whole-image SHA/FNV, queries, shadow
+copying and runtime guard/refresh may cost time. 0x0015/0x02EE/0x0135 already have fast paths;
+names alone cannot establish that other calls lack side effects. Measure startup separately
+from interaction, compare identical direct runs and retain file/callback/fault stress tests.
+Cumulative counters are not milliseconds; emulator cycles are not device performance.
+Do not promise an unmeasured speedup factor.
+The report has now been clarified as slow startup with apparently normal later execution.
+[Future contract] Keep full verification by default; explicit fast mode may skip later
+whole-file hashing after the initial full check, while retaining real-page/range/capability
+checks. Same-size changes at the same addresses may be missed. Cache invalidation and a
+forced full-check option remain required.
+Sources: probes/storage-loader/src/main.c; probes/storage-loader/src/resident.c;
+probes/storage-loader/VALIDATION.json; probes/extended-cas/src/resident.c;
+docs/loader/design/startup-analysis.json; docs/loader/design/requirements-20261118.en.txt.
+
+16. Identical GCC versions make frozen Giac objects portable
+[Build record] Linux LTO objects are not automatically consumable by Windows GCC with the
+same version number. Preserve toolchain identity, inputs and link flags. The small Loader
+can build separately; payload rebuilds follow their source contract. The integrated RAW
+wrapper is not an arbitrary G1A converter.
+Sources: probes/extended-cas/README.md; probes/extended-cas/tools/prepare_image.py.
+
+17. Emulator success is device success; unknown calls can return zero
+[Boundary] Partial/stub handlers, error policies and timing approximations remain. Fake
+success pollutes downstream evidence. Preserve faults and pause when useful; compare
+original direct behavior. A screen, RC1 startup, RC2 emulated reload or controlled probe
+does not establish full application lifecycle stability.
+Sources: probes/emulator/SYSCALL-COVERAGE.md; probes/emulator/OS-MAPPING.md;
+probes/storage-loader/VALIDATION.json; probes/extended-cas/VALIDATION-REENTRY-20261117.json.
+
+18. Legacy SH3 compatibility is just changing a CPU label
+[Future research] On GIII, check instructions, syscall ABI, direct hardware and runtime
+startup/exit independently. The current SH7305 backend is not SH3 hardware emulation and
+does not prove universal patching. Classify exact input hashes and compare direct GIII
+runs; report supported, adapter-required and rejected cases separately.
+Upward instruction compatibility supports retaining the GIII backend. Do not copy an old
+tool's broad claim that all SH4 RAM is non-executable: existing P1 execution probes require
+analysis of the actual mapping, permissions, cache and trampoline placement instead.
+Sources: probes/storage-loader/src/resident.c; probes/storage-loader/src/main.c;
+probes/native-loader/tools/prepare.py; docs/loader/handbook/DEVELOPER-GUIDE.en.txt section 13;
+docs/loader/design/sh3-on-giii.en.txt; docs/loader/design/sources.json.
+
+Minimum diagnostic return
+Input and Loader SHA, OS version, exact key sequence, final screen/error, automatic reboot
+or manual RESET, direct-run control, original log, PC analysis.json/job-result.json.
+Save the failure before restarting. Do not combine historical gaps with current limitations.
+Sources: profiles/hardware-results-20261117.json; desktop/ProfileStudio/README.zh-CN.md;
+probes/storage-loader/src/resident.c.

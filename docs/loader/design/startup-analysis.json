@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "static-call-count-not-latency-benchmark",
+  "scope": "successful launcher entry through handoff; excludes target initialization and hidden syscall work",
+  "sourceRoot": "public-projects/fx9860-loader/probes/storage-loader/src",
+  "normalPath": {
+    "open": 11,
+    "close": 11,
+    "read": "targetPages + 3",
+    "size": 8,
+    "write": 6,
+    "writeBytes": 5120,
+    "seek": 2,
+    "physicalPageQueries": "2 * (targetPages + loaderPages)"
+  },
+  "samples": [
+    {
+      "name": "FVMGIII",
+      "bytes": 101144,
+      "pages": 25,
+      "loaderPages": 5,
+      "physicalPageQueries": 60
+    },
+    {
+      "name": "WSCGIII",
+      "bytes": 108036,
+      "pages": 27,
+      "loaderPages": 5,
+      "physicalPageQueries": 64
+    }
+  ],
+  "duplicateWork": [
+    "Bfile image read computes SHA-256 and per-page FNV; first physical map refresh computes per-page FNV again",
+    "stage logging between mapping passes requires another refresh",
+    "preallocated 4 KiB log is fully cleared each launch"
+  ],
+  "timingPoints": [
+    "select done",
+    "profile done",
+    "image hash done",
+    "resident ready",
+    "EXE released",
+    "log initialized",
+    "OS profile verified",
+    "first mapping ready",
+    "shadow pages ready",
+    "final mapping ready",
+    "target entry",
+    "first target key wait"
+  ],
+  "rules": [
+    "collect counters in RAM; consolidate writes",
+    "do not infer page stability from read-only intent",
+    "do not store physical page addresses as permanent cache",
+    "measure EXE release wait separately",
+    "fix misleading ordinary-syscall guard comment when implementation changes"
+  ],
+  "proposedOptimizations": [
+    "versioned bounded log with run ID and valid record length instead of clearing old tail",
+    "consolidate pre-mapping logging without claiming success before validation",
+    "investigate verification in final physical pages with coherent map validation",
+    "opt-in skip-full-rehash mode after first complete validation"
+  ]
+}

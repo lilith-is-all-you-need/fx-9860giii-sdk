@@ -1,0 +1,145 @@
+fx-9860GIII Loader 踩坑与诊断手册
+审阅：2026-11-18；对应 PITFALLS.en.txt；版本基线见 DEVELOPER-GUIDE.zh-CN.txt。
+以下每项区分现有证据与工程要求。不存在“全部 G1A 稳定兼容”的结论。
+路径均相对于 SDK 根目录。
+
+01. “这个数看起来像地址，所以加 delta”
+[分析] 资源像素、宽文件名、数值位掩码可能落在地址范围；真正的指针也可能藏在
+只读数据或初始化镜像。范围匹配只产生候选，不是重定位记录。
+做法：保留原虚拟布局；需要改字节时绑定 SHA、原值和已核对的指令用途。
+来源：src/FxStudio.App/CalculatorKnowledge.json；tooling/ghidra/ExportG1aEvidence.java；
+probes/native-loader/tools/prepare.py。
+
+02. “删掉头和初始化，就能直接 main”
+[实现/分析] 文件偏移、PC 相对常量、构造器、arena 和退出注册都可能依赖原布局。
+做法：保留完整镜像；只有已验证的初始化效果才可由适配器替代。比较 CPU 后置条件，
+不能只比较 BSS 和 .data。文件改后缀本身不会改变执行地址。
+来源：src/FxStudio.App/CalculatorKnowledge.json；probes/hardware-loader/README.md；
+probes/storage-loader/src/main.c。
+
+03. “小 G1A 一定能 RAM 装载”
+[实机] Fruit/Mines 的旧整镜像 RAM 申请已失败。文件尺寸不包括常驻区、对齐、堆栈。
+做法：记录每次申请的大小和返回地址；分别计算 Flash 影子页方案，勿套用旧 RAM 失败。
+40/48 KiB 模拟堆是测试预算，不是实机最大可用内存的测量。
+来源：docs/loader/HARDWARE-ram-20261117.md；probes/hardware-loader/VALIDATION.md；
+probes/storage-loader/VALIDATION.json。
+
+04. “内存已写对，所以执行会立即更新”
+[实现/受控探测] 数据可见、I-cache 和 ITLB 是不同状态；颜色错误会导致难以解释的表现。
+做法：核对写回/失效/屏障及翻译失效顺序；影子页根据实际分配地址匹配 bit 12。
+不要依据一次缓存测试省掉完整模式下的维护。
+来源：probes/hardware-loader/README.md；probes/storage-loader/src/main.c；
+probes/storage-loader/src/resident.c；probes/emulator/test_hardware.py。
+
+05. “BIN 的物理页查一次就可以永久使用”
+[实机] Probe3 前后查询出现页地址变化，且虚拟相邻页物理不连续。
+做法：运行时查地址，相关操作后复核；日志写入也属于文件操作。表恢复与物理页移动
+是不同维度。既不能断言每次写文件都会搬页，也不能因一次未变就关闭保护。
+来源：probes/file-map-probe/HARDWARE-RESULT-2026-11-16.json；probes/emulator/OS-MAPPING.md；
+probes/storage-loader/src/resident.c。
+
+06. “缺页时再去 Bfile 找这一页”
+[实现合约] 异常里重新进入 OS 文件系统可能递归缺页，常驻栈/映射也可能被覆盖。
+做法：在正常上下文准备页表；refill 只读常驻数据。timer/quit 的 busy 状态和生命周期
+单独管理。回调未撤销前不释放它仍会使用的代码。
+来源：probes/extended-loader/README.md；probes/extended-cas/src/resident.c；
+probes/storage-loader/src/resident.c；probes/hardware-loader/README.md。
+
+07. “把第 513 项写进原表就能支持大文件”
+[反汇编] OS 表后还有其他状态；已检查 refill 不负责完整上界保护。
+做法：普通后端拒绝超限；超限运行库使用自己的表和异常路径。检查入口、长度、
+映射范围、部分尾页。512 页 KhiCAS、698 页探针、699 页 Giac 分别验收。
+来源：probes/emulator/OS-MAPPING.md；probes/extended-loader/README.md；
+probes/extended-cas/README.md；probes/storage-loader/tools/prepare.py。
+
+08. “有一个叫 0x03FA/0x0011 的调用，应该能映射任意 BIN”
+[反汇编] 名称不是语义证明。所检查固件中的 0x03FA 不能据旧名字推断通用映射能力；
+0x0011 按 OS 应用索引找 G1A，内部文件偏移查询是另一条入口。
+做法：从当前 OS 表/指纹推导，拒绝未知核心；不复用其他机型的裸地址。
+来源：probes/emulator/OS-MAPPING.md；probes/os-map-profile.h。
+
+09. “0x02EE 已实现，所以超频 Add-in 已兼容”
+[实现] 该调用只查询版本；10 字符另需 NUL，输出缓冲至少 11 字节。超频程序仍可能
+直接操作硬件，且计时器、等待循环与显示时序另有问题。
+做法：不依赖未定义返回值，分别验证版本查询、寄存器写入和完整退出。
+来源：probes/emulator/SYSCALL-COVERAGE.md；probes/emulator/VALIDATION-02EE.json；
+src/FxStudio.App/CalculatorKnowledge.json。
+
+10. “文件打开返回一个非负整数就够了”
+[反汇编/回归] FX 句柄高字节携带设备类型；简单小整数曾让 KhiCAS 库误走 MCS。
+做法：保持设备编码和句柄生命周期；不要将内部搜索槽/容器槽误认成 Bfile 句柄。
+来源：probes/emulator/OS-MAPPING.md；probes/emulator/SYSCALL-COVERAGE.md；
+probes/emulator/test_os_mapping.py。
+
+11. “EXIT、MENU、新启动都是同一个测试”
+[实机] Probe2 两份日志覆盖范围不同；CAS RC1 首次可用并未解决直接选回。
+做法：分别记录目标退出、按 MENU、直接选回、进入其他应用、重新启动。键未返回时
+不能推断用户没按键，也不能断言准确回调时点。失败后先备份日志，再重试。
+来源：probes/hardware-loader/VALIDATION.md；profiles/hardware-results-20261117.json；
+docs/loader/HARDWARE-mapped-20261117.md；probes/storage-loader/src/resident.c。
+
+12. “目标返回 Loader 就等于库能返回任意 A”
+[现有边界] 独立 Loader 的恢复对象是自己的已知状态，不是任意调用者的运行环境。
+[未来合约] 单层 A→B，嵌套拒绝；同图标选回由宿主选择恢复 A 或继续 B；切换其他 OS
+应用可结束旧会话。冷启动重建业务状态不保证原栈和指针；首版不提供崩溃恢复。
+做法：定义宿主保存/恢复接口、资源所有权和不支持条件；不能把裸 RAM 转储视作通用快照。
+来源：probes/storage-loader/src/main.c；probes/storage-loader/src/resident.c；
+docs/loader/handbook/DEVELOPER-GUIDE.zh-CN.txt 第 7 章。未来行为尚不是实现证据。
+
+13. “每个包都叫 target，放一起应该能自动识别”
+[现有格式] v0.1 的索引与固定名称相互绑定，合并会覆盖；旧格式不认识目录。
+[未来要求] 一程序一兼容目录，公共 Loader 独立，可选导出 Loader。身份、显示名、
+内容摘要和协议版本分开保存。路径规范化后仍须在包根以内；拒绝 ..、绝对路径、
+分隔符、重复/大小写冲突及转义链接。相对资源路径也要按合约处理。
+做法：新旧协议显式迁移，完整校验后发布，不静默覆盖已有包和外来日志。
+来源：probes/storage-loader/tools/prepare.py；probes/storage-loader/src/main.c；
+tooling/loader_suite.py；tests/test_profile_job.py。
+
+14. “Ghidra 没报错，所以所有常量都分清了”
+[实现] 导出有函数数/数组上限和反编译样本上限；未覆盖路径、间接目标可仍未知。
+做法：保留未知和截断标志、输入 SHA、工具版本与日志。没有 LLM 也可运行流程，但
+自动分析并不提供所有无源码 G1A 的完整兼容证明。深度分析失败不能包装成成功。
+来源：tooling/ghidra/ExportG1aEvidence.java；tooling/profile_job.py；
+desktop/ProfileStudio/README.zh-CN.md；tests/test_profile_job.py。
+
+15. “慢了就去掉 guard、哈希或把所有调用设成只读”
+[实现热点，未定量实测] 启动全文件 SHA/FNV、页查询、影子复制与运行期 guard/refresh
+都可能贡献延迟。0x0015/0x02EE/0x0135 已有快路，其他调用不能只凭名称判定无副作用。
+做法：先区分启动与交互，计数并与原版同输入对照；优化后保留文件/回调/异常压力验证。
+日志累计计数不是毫秒耗时，模拟器周期也不是实机性能。不得给未测量的加速倍数。
+本次反馈已澄清为启动慢、进入后似乎正常。[未来合约] 保留默认完整检查，提供显式
+快速模式：首次完整验证后可跳过后续全文件校验，但真实页查询/范围/能力检查保留。
+同大小同地址的内容改动不能保证发现；缓存失效和强制完整检查要可用。
+来源：probes/storage-loader/src/main.c；probes/storage-loader/src/resident.c；
+probes/storage-loader/VALIDATION.json；probes/extended-cas/src/resident.c；
+docs/loader/design/startup-analysis.json；docs/loader/design/requirements-20261118.zh-CN.txt。
+
+16. “同 GCC 版本的 Giac 对象能在 Windows 直接重链”
+[构建记录] 冻结的 Linux LTO 对象不能因版本号相同就视为 Windows 可消费。
+做法：保存工具链身份、源输入、链接选项；Loader 小项目可独立构建，payload 的
+重构建按其来源协议进行，不把已接入 RAW 包装器当作任意 G1A 转换器。
+来源：probes/extended-cas/README.md；probes/extended-cas/tools/prepare_image.py。
+
+17. “模拟器通过就是实机通过；未知调用返回 0 即可”
+[边界] 模型仍有 partial/stub、错误策略与周期近似。缺失调用伪成功会污染后续证据。
+做法：保留故障原因，必要时 pause 调试；区分原版与 Loader 同样失败。逐项记录测试范围，
+不把屏幕出现、RC1 首启、RC2 模拟重载或受控探针当成全生命周期稳定。
+来源：probes/emulator/SYSCALL-COVERAGE.md；probes/emulator/OS-MAPPING.md；
+probes/storage-loader/VALIDATION.json；probes/extended-cas/VALIDATION-REENTRY-20261117.json。
+
+18. “旧 SH3 程序就是换个 CPU 标签”
+[未来研究] GIII 上加载旧 SH3 程序需分别检查指令、syscall、直接硬件和启动/退出。
+当前 SH7305 后端不是 SH3 硬件模拟器，也未证明所有旧 G1A 可自动补丁。
+CPU 指令向上兼容支持保留 GIII 后端；不要据旧兼容工具的概括断言所有 SH4 RAM
+都不可执行，已有 P1 执行探测与此不符，必须看具体映射、权限、缓存和跳板位置。
+做法：按输入 SHA 分类机制，用 GIII 原版直接运行对照；支持、需适配、拒绝分别报告。
+来源：probes/storage-loader/src/resident.c；probes/storage-loader/src/main.c；
+probes/native-loader/tools/prepare.py；docs/loader/handbook/DEVELOPER-GUIDE.zh-CN.txt 第 13 章；
+docs/loader/design/sh3-on-giii.zh-CN.txt；docs/loader/design/sources.json。
+
+诊断最小回传
+输入与 Loader SHA、OS 版本、具体按键顺序、最后屏幕文字/错误码、是否自动重启或手动
+RESET、独立运行对照、日志原件、PC analysis.json/job-result.json。先保存失败证据，
+再进行新启动。不要把旧报告里的历史缺口和新报告中的当前限制混在一起。
+来源：profiles/hardware-results-20261117.json；desktop/ProfileStudio/README.zh-CN.md；
+probes/storage-loader/src/resident.c。

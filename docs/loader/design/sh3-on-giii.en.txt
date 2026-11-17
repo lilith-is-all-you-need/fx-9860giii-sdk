@@ -1,0 +1,56 @@
+Running legacy SH3 Add-ins on fx-9860GIII
+Research date: 2026-11-18
+Status: read-only investigation and design proposal. No runtime patches or new hardware tests.
+Confirmed scope: run legacy SH3 programs on GIII, not run the Loader on SH3 hardware.
+
+Recommendation
+Keep one GIII execution backend. Add PC-side legacy compatibility analysis and narrowly
+specified adapters for recognized routines. A separate SH3 hardware Loader or a full CPU
+emulator is not a prerequisite for the confirmed scope.
+
+What is known
+Renesas documents instruction/object-code upward compatibility from SH3 to SH4A. This
+does not establish compatibility of Casio hardware, private OS structures, timing or RAM.
+The fxSDK author's support list includes both SH3 and SH4 fx-9860G II variants; a model
+name alone is not sufficient identification. The installed gint header distinguishes
+SH7337/SH7355 from SH7305 and legacy I/O keyboard scanning from KEYSC.
+
+The current Loader deliberately targets GIII: -m4-nofpu, SH7305 MMU/cache operations,
+CPU checks, stack bounds and verified OS fingerprints. These should remain in the host
+backend. An input's legacy hardware assumptions must be handled separately.
+
+Existing precedent
+The author's MIT-licensed SH4 Compatibility Tool recognizes certain fxlib keyboard
+routines and a MonochromeLib syscall trampoline pattern. This supports a bounded,
+pattern-based adapter strategy without original sources. It does not validate arbitrary
+MMIO translation. Historical claims that RAM cannot execute on SH4 must not be restated
+as a CPU-wide limitation; this project already has P1 execution evidence. Mapping,
+permissions, cache coherency and trampoline placement must be treated specifically.
+
+Proposed classifications
+1. Candidate: no known blocker found; keep the image and CRT, then test on GIII.
+2. Recognized adaptation: bind exact input SHA and original bytes to a versioned patch
+   recipe and resident helper ABI. Record registers, delay slots, memory and cache needs.
+3. Unresolved: self-managed VBR/MMU, direct peripheral code, generated RAM stubs, computed
+   hardware pointers or private OS calls. Report uncertainty instead of guessing patches.
+
+Prefer patches in RAM shadow pages plus stable resident helpers to preserve the input
+BIN. The historical tool's appended-code technique changes file size/layout assumptions
+and should not be imported unchanged. The current FPF only supports syscall-gate literal
+patches; keyboard/function adaptation requires a new bounded and versioned patch format.
+
+Keep host identity separate from program requirements. Do not spoof GIII as SH3; doing
+so could send dual-platform programs into an incorrect hardware branch. Common opcodes
+and the sh3eb-elf toolchain directory name do not prove a binary is SH3-only. The supplied
+Ghidra 12.2 language definitions provide SH4 and SH1/SH2/SH2A, but no direct SH3 language
+selection. Its current SH4 analysis is evidence, not an architecture or compatibility proof.
+
+Validation order
+Use real requested legacy G1As and record native GIII behavior before Loader behavior.
+Separate startup, input, drawing, timing, file I/O, same-icon MENU resume and fresh launch.
+Start with one exact keyboard pattern and refusal tests for near matches, alignment,
+conflicting patches and helper mapping. Follow emulator tests with GIII hardware tests.
+Then investigate trampoline and grayscale/timer cases. Success of one adapter must not
+be advertised as compatibility with all legacy SH3 Add-ins.
+
+See sources.json for primary references and exact local evidence locations.

@@ -1,0 +1,18 @@
+Loader requirements and acceptance baseline — 2026-11-18
+Status: aligned requirements, not a claim that the new runtime is delivered.
+
+Identity and delivery: one portable directory per add-in, stable name plus short digest; full SHA-256 binds all executable metadata. Detect short-name collisions. Repeated export must not silently destroy logs. Use short calculator-safe IDs while retaining full titles in metadata. The OS editor's eight-character and three-level limits motivate conservative paths; they do not alone prove a Bfile API limit. A shared launcher discovers program folders. The PC app exports dependencies by default and offers both an include-launcher option and an independent Export Loader action.
+
+UI: English calculator interface with coherent monochrome icons and clear navigation. Chinese/English desktop language switch. Separate Chinese and English development/pitfall manuals.
+
+Library: one caller and one child in v1; reject nested invocations before mutation. Normal child termination restores the caller. Integration hooks may pause drivers/timers and save/restore state; temporary storage is allowed. Explicitly account for caller memory, heap, stack, mappings, caches, VBR, timers, callbacks and OS resources. Merely restoring one RAM word and mapping is insufficient.
+
+MENU: on direct re-selection of the caller icon, the caller chooses either terminate-child/restore-caller or resume-child. Starting another OS application may end the old session. No recovery is required after crashes or OS reboot. If the OS starts the caller anew, it may reinitialize and restore serialized business state through host hooks; old stack frames, pointers and handles are not guaranteed. This is a cooperative runtime contract, not arbitrary transparent process virtualization.
+
+Oversized library: primarily source integration for images beyond 2 MiB; expose build/link/entry integration, resident state, guest page table/refill and OS resource boundaries. Keep application-specific math/arena policy outside the generic library. Exercise page 512/513 boundaries, cross-page execution/data, partial tails, mapping updates and no Bfile calls from fault context. The 699-page Giac build is an example, not proof of universal conversion.
+
+Startup speed: user reports slow launch but no obvious runtime slowdown; exact latency is unknown. Measure phases and operation counts with in-memory counters and consolidated logging. Keep full verification as default; offer an explicit fast mode after first full verification. Fast mode may skip full rehash and cannot reliably detect same-size in-place content edits. Still query current physical pages and validate ranges/metadata/runtime contracts; invalidate visible input/profile/runtime changes and provide force-full-verification. No hardware speed claims from emulator timing alone.
+
+Legacy SH3: run old binaries on GIII using the existing GIII backend and evidence-bound known-routine adaptations. ISA compatibility does not establish peripheral, timer, keyboard, grayscale, OS-private or MMU/VBR compatibility. Preserve image layout. Distinguish candidate, precisely recognized adaptation and unresolved dependencies.
+
+Acceptance: simultaneous folders, stable repeated exports, conflicting names/digests, moved folders, return-to-caller with static/heap/business state, both physical-MENU policies, allocation/storage failures, corrupted metadata, invalid caches and interrupted state save. A compiled archive is not evidence that caller preservation works. Maintain current evidence limitations until new tests and device feedback support a stronger claim.

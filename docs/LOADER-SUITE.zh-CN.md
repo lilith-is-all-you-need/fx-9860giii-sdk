@@ -2,6 +2,14 @@
 
 本套件提供电脑端统一分析/打包、通用 Flash Loader、可选 RAM Loader、原版
 KhiCAS 适配器、源码接入的 699 页 Giac Loader，以及模拟器。
+
+2026-11-18 新增精选研究手册：[中文开发手册](loader/handbook/DEVELOPER-GUIDE.zh-CN.txt)、
+[English developer guide](loader/handbook/DEVELOPER-GUIDE.en.txt)、
+[中文踩坑手册](loader/handbook/PITFALLS.zh-CN.txt)、[English pitfalls](loader/handbook/PITFALLS.en.txt)。
+其中区分实机、模拟器、反汇编与推断，避免把旧阶段结论当成现行能力。
+[新版需求与验收基线](loader/design/requirements-20261118.zh-CN.txt)描述接下来的目录包、
+可返回调用者的库、MENU 策略、启动加速与旧 SH3 适配目标；这些新运行功能尚未交付。
+
 **普通 G1A 的自动打包不再依赖程序名单，但仍不能保证所有 G1A 兼容。**
 `FlashLd.g1a` 保留完整镜像、原始入口和初始化，只把需修改网关的页面放入 RAM。
 启动、交互、退出和实机稳定性分别记录，不能把静态检查通过当成全部通过。
