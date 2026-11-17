@@ -72,6 +72,37 @@ timeout alone does not. Do not replay key presses or memory writes with fresh
 keys after an ambiguous transport failure. If the host restarted, its IDs and
 deduplication history are gone; inspect/rebuild the session explicitly.
 
+## Legacy fxlib projects and resources
+
+Updated runtime packages also include `compat/fxlib`, `examples/legacy-fxlib`,
+`tooling/legacy_project.py` and `tooling/project_assets.py`. Check their presence;
+the original 0.2.0 ZIP does not have them. Read the compatibility module's README
+and generated migration report before claiming API or timing equivalence.
+
+Use the runtime's Python to run `tooling/legacy_project.py create --source OLD
+--output NEW --name NAME`; the destination must be new and outside OLD. This
+copies original source and adds CMake/entry support without changing OLD. Build
+and debug the resulting project through the normal Agent workflow.
+
+Use `tooling/project_assets.py import --project PROJECT --input FILE --kind
+bitmap|image|binary|font --symbol NAME` to generate managed declarations and
+build rules. Font import also requires `--font-grid WxH`; multiple executable
+targets require `--target`. Read the JSON result and include `project_assets.h`.
+Use `--dry-run` to inspect and `list --project PROJECT` to inspect existing
+resources. Do not overwrite hash-conflicted managed files or kill the importer
+during its file transaction. Import success is not a successful target build.
+
+## Optional engineering scaffolds
+
+For a bounded-memory starter, source-copy comparison, byte-budget reporting or
+hardware test records, read [engineering notes](references/engineering.zh-CN.md).
+Use `scripts/engineering.py`; it runs offline without starting the Agent. The
+bundled `guarded-c` template demonstrates temporary memory, injected allocation
+failure and explicit rollback with the current no-exceptions SDK. Use `new` to
+create a fresh directory and continue with the normal build/debug workflow above.
+For ordinary counter edits these helpers are optional. A budget report measures
+file bytes only; it does not replace ELF/G1A verification or certify hardware.
+
 ## Boundaries that matter
 
 - The runtime is Windows x64; an environment without local process execution

@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "source": "scaffolds/",
+  "files": [
+    {
+      "path": "evidence-session/README.md",
+      "bytes": 1264,
+      "sha256": "3b314a0bc19bbd8bb35a60549608dedd16c813e19527dfca95f5cee5fe3feb87"
+    },
+    {
+      "path": "evidence-session/hardware-results.template.json",
+      "bytes": 938,
+      "sha256": "a3f70f2a85ca6275384b2dc83a765e3d3ffd212c93fe07a3f4956931b1355730"
+    },
+    {
+      "path": "guarded-c/CMakeLists.txt",
+      "bytes": 558,
+      "sha256": "1fb2b467ba0bf8a8c472c01d0872735cd3d8de1498a19affa89331b341428ae3"
+    },
+    {
+      "path": "guarded-c/LICENSE",
+      "bytes": 1229,
+      "sha256": "c084c9c3330083790badcdecb1689d8923c86d4fe99fade1cb1192407e053f05"
+    },
+    {
+      "path": "guarded-c/README.md",
+      "bytes": 3812,
+      "sha256": "65c2056f3b3783d45274a781214de09b26964c202725e2c4313a7d71d20c78c5"
+    },
+    {
+      "path": "guarded-c/budget.json",
+      "bytes": 406,
+      "sha256": "1f103c7ededb4714a827eb2b9b45a191d25cf6287fc87e8cd0c898a585407d09"
+    },
+    {
+      "path": "guarded-c/src/contract.c",
+      "bytes": 1921,
+      "sha256": "4d85312fb3185b658bf19d1c6ddf9b113b6662ae9d367f4d095c11bbfb444e6a"
+    },
+    {
+      "path": "guarded-c/src/fx_arena.c",
+      "bytes": 1416,
+      "sha256": "60c2ac986b0ca5f4e33126058c30c6ad1c7dfc0ce8731e096eeee2a43bf66712"
+    },
+    {
+      "path": "guarded-c/src/fx_arena.h",
+      "bytes": 622,
+      "sha256": "468303d21b2421995d7e0fb55b01245d78f315b0dc4d1dc984c756c00a703aa6"
+    },
+    {
+      "path": "guarded-c/src/main.c",
+      "bytes": 1603,
+      "sha256": "70933fb3251b2b7414c2058d6e43926a72dc0fa004abdd7837a614873e3e6f86"
+    },
+    {
+      "path": "guarded-c/src/model.c",
+      "bytes": 1167,
+      "sha256": "f2cd0e17082a79b5baf9c173920f1575f89b10e4dbfaca80c2e1917b13ebb70f"
+    },
+    {
+      "path": "guarded-c/src/model.h",
+      "bytes": 323,
+      "sha256": "7b586b4f41862741a34d28693900af55ef995e69457775985aa3cbb719c5d27f"
+    },
+    {
+      "path": "guarded-c/tests/host_main.c",
+      "bytes": 115,
+      "sha256": "ad4b7db29ba80ffc4360523f889d227e9af9b964da4964ec6a29f67fca0d075f"
+    }
+  ]
+}

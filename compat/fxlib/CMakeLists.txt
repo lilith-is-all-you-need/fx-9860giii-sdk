@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+if(NOT TARGET Gint::Gint)
+    find_package(Gint 2.9 REQUIRED)
+endif()
+add_library(fxlib_compat STATIC fxlib.c fxlib_gint.c)
+add_library(Fxlib::Compat ALIAS fxlib_compat)
+target_include_directories(fxlib_compat PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(fxlib_compat PUBLIC Gint::Gint)
+target_compile_options(fxlib_compat PRIVATE -Wall -Wextra)
+target_compile_features(fxlib_compat PUBLIC c_std_99)

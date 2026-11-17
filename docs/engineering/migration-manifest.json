@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-15",
+  "kind": "knowledge-migration",
+  "scope": "Authored documentation only; no original CAS/runtime/third-party source copied",
+  "transformation": "Preserve prose; add dated boundary and convert original local evidence links to source paths. Link local casebook directly.",
+  "originalHandbookArchive": {
+    "name": "KHICAS-ENGINEERING-HANDBOOK-20261115.zip",
+    "sha256": "e934dcd54bb7d4ee808c8db6d258beb13f4f7b049cb514dd3e04db5bc85a1fdf"
+  },
+  "files": [
+    {
+      "source": "khicas-addin/docs/engineering-handbook/02-project-failures-and-lessons.md",
+      "sourceSha256": "b305ed943e0fb939260071f110441d2bbdf3cad0cc8248dea9d537291a276cd9",
+      "destination": "KHICAS-CASEBOOK.zh-CN.md",
+      "destinationSha256": "c4825e529ae93ef03414a79f14911afeb7a8092125765c40b6fa45194684bec6",
+      "sourceBytes": 84364,
+      "destinationBytes": 87994
+    },
+    {
+      "source": "khicas-addin/docs/engineering-handbook/07-cross-project-engineering-guide.md",
+      "sourceSha256": "6076e28847b166311cddd2bbc35d9c5bee6403a92275ba278d692bc0700a8db4",
+      "destination": "CROSS-PROJECT.zh-CN.md",
+      "destinationSha256": "363aeab89e2709c148343fc6f85544fc439d738b34cca8e4b5f53d20b22a6941",
+      "sourceBytes": 16685,
+      "destinationBytes": 16952
+    }
+  ]
+}

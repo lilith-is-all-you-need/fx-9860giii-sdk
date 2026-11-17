@@ -9,5 +9,10 @@
 *.md text eol=lf
 *.yml text eol=lf
 *.patch text eol=lf -whitespace
+# Source mirrors have byte-level manifests; checkout must keep stable endings.
+/compat/** text eol=lf
+/examples/legacy-fxlib/compat/** text eol=lf
+/scaffolds/** text eol=lf
+/skills/fxstudio/assets/** text eol=lf
 *.png binary
 *.ico binary

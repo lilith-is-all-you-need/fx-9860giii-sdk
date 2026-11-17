@@ -121,6 +121,13 @@ $session = $operation.result.sessionId
 | helper 启动失败 | 查看本任务 state 中的 `bridge.log`；不要删除仍被使用的锁文件。 |
 | GUI 提示 WindowsBase 或双击闪退 | 使用 r1 修正版，并运行包内校验脚本；skill 不能代替运行库修复。 |
 
+## 可选工程模板与经验
+
+需要有界临时内存、失败恢复、源码副本核对或实机记录时，阅读
+[工程经验与脚手架](engineering.zh-CN.md)。新增的 scripts/engineering.py 可创建
+guarded-c 与 evidence-session 模板，并做快照、差异和字节预算检查；普通调试流程不变。
+模板随源码版/新版独立 skill 提供，旧 1.0.0 发布附件不包含这些新增文件。
+
 ## 设计边界
 
 Skill 负责工程工作流、发现参数和解释结果；Python helper 只管理连接、生命周期与

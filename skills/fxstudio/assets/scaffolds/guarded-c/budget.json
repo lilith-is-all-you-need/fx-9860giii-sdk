@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "project-policy",
+  "maxG1aBytes": 2000000,
+  "reserveBytes": 16384,
+  "basis": "Example policy under Fx Studio 0.2.0's existing 2000000-byte build verifier; neither value is a measured OS limit.",
+  "scratchExampleBytes": 512,
+  "note": "Scratch is a static application buffer, not a machine-wide heap limit. Budget report does not validate G1A structure or hardware."
+}

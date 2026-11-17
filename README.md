@@ -26,7 +26,27 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 见 [中文快速入门](skills/fxstudio/references/quickstart.zh-CN.md)：自动定位 SDK、持续调试会话、
 编译/按键/截图、退出清理及并发隔离。单独安装 skill 不包含编译器或赋予本地执行权限。
 
+### 工程经验与脚手架
+
+[工程手册](docs/engineering/README.md) 已迁入 KhiCAS 的 63 个故障案例和跨项目方法，
+并区分历史实机证据与本 SDK 的验证范围。[scaffolds](scaffolds/README.md) 提供有界临时
+内存/失败回滚 C 工程、实机记录模板；`tooling/engineering.py` 提供工程创建、源码
+快照/差异和产物字节预算。相同工具与模板已接入源码版 fxstudio skill。
+这些新增内容不在旧 1.0.0 skill 附件中；旧的完整离线发行包未被本次修改。
+
 ## 功能 / Features
+
+### 当前源码新增 / Unreleased source updates
+
+当前源码包含公共 **fxlib → gint 兼容子集**、旧工程迁移工具和资源导入工具。
+IDE 的“工具 → 迁移旧 fxlib 工程”会创建独立的新工程；“工具 → 导入资源”
+自动生成资源声明与构建配置，支持旧单色位图、gint 图片和二进制数组。
+命令行还支持位图字体。详见 [迁移与资源指南](docs/MIGRATION-AND-RESOURCES.zh-CN.md)
+及 [API 支持矩阵](compat/fxlib/README.md)。这是源码更新，**旧 0.2.0 ZIP 不会自动获得这些功能**。
+
+Loader 准备工具、计算器资料和后续实机反馈见 [Loader 套件](docs/LOADER-SUITE.zh-CN.md)。
+下面的 0.2.0 表格及历史验证报告描述当时的发行版；当前源码能力、重新构建的程序、
+本机热更新目录与原发行 ZIP 必须分别识别，不能用同名目录推定二进制相同。
 
 | Area | Included in 0.2.0 |
 | --- | --- |
@@ -42,7 +62,7 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 ## 边界 / Limits
 
 - The emulator implements a subset of Casio OS calls and hardware behavior; it is not a complete OS or cycle-accurate hardware replacement. No Casio ROM or proprietary SDK is distributed.
-- Physical fx-9860GIII verification has not been performed. Emulator success alone does not guarantee hardware compatibility.
+- The original 0.2.0 IDE/examples were not comprehensively verified on hardware. Later Loader components have limited device reports, including successful first launches and failed re-entry/allocation; see the Loader guide. The new fxlib compatibility layer still requires device testing. Emulator success alone does not guarantee hardware compatibility.
 - Source debugging requires a matching ELF with symbols. Optimized SDK library internals have more limited source visibility.
 - C++ exceptions/threads, full USB/serial behavior, reverse debugging, automatic resource compression and a complete converted-resource preview are not included.
 - The native release uses no WSL. Historical WSL provisioning scripts remain optional development material and do not constitute a finished offline rootfs.
@@ -55,9 +75,11 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 | `src/FxStudio.Core` | Build service, GDB/MI, emulator and artifact verification |
 | `src/FxStudio.Automation`, `src/FxStudio.Agent` | Versioned domain API and MCP stdio host |
 | `examples`, `sdk/examples` | C/C++ calculator source examples |
+| `compat/fxlib`, `examples/legacy-fxlib` | Public source compatibility subset and a portable legacy-entry example |
 | `tests`, `probes/emulator` | Contract tests, machine-code integration probes and emulator bridge |
 | `third_party/emuCasioCalc` | Pinned upstream Git submodule; local debugger changes live in the bridge directory |
 | `tooling` | Build, validation and packaging scripts |
+| `scaffolds` | Bounded-memory C starter and hardware evidence templates, mirrored into the skill |
 | `docs`, `source-notices` | User/developer documentation and source/license inventories |
 
 Clone with `git clone --recurse-submodules https://github.com/lilith-is-all-you-need/fx-9860giii-sdk.git`. Read [BUILDING.md](docs/BUILDING.md) before rebuilding; the Git checkout does not contain large compiler binaries or dependency source archives.

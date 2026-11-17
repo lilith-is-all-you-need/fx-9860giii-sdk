@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "kind": "manual-hardware-observation",
+  "createdUtc": null,
+  "artifact": null,
+  "device": {"model": null, "osVersion": null, "freeStorageBytes": null},
+  "observer": null,
+  "observedAt": null,
+  "checks": {
+    "menuRecognizesAddin": {"status": "not_run", "notes": ""},
+    "startupAndScreen": {"status": "not_run", "notes": ""},
+    "normalOperation": {"status": "not_run", "notes": ""},
+    "failureRecovery": {"status": "not_run", "notes": ""},
+    "cancelThenRetry": {"status": "not_run", "notes": ""},
+    "exitThenDirectReentry": {"status": "not_run", "completedRounds": 0, "notes": ""},
+    "repeatSession": {"status": "not_run", "completedRounds": 0, "notes": ""}
+  },
+  "allowedStatus": ["not_run", "pass", "fail", "skip"],
+  "note": "Fill from actual device observations only. If a prerequisite failed, dependent checks are skip, not fail. Preserve mixed/failed results and exact artifact hash."
+}

@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.15)
+project(FxGuarded C)
+include(GenerateG1A)
+find_package(Gint 2.9 REQUIRED)
+add_executable(guarded src/main.c src/fx_arena.c src/model.c src/contract.c)
+target_compile_features(guarded PRIVATE c_std_11)
+target_compile_options(guarded PRIVATE -Wall -Wextra -fstack-usage)
+target_link_options(guarded PRIVATE "-Wl,-Map=guarded.map")
+target_link_libraries(guarded Gint::Gint)
+# SDK chooses Debug/Release flags. Default G1A output stays in the build directory.
+generate_g1a(TARGET guarded NAME "Guarded C" INTERNAL "@FXGUARD")
