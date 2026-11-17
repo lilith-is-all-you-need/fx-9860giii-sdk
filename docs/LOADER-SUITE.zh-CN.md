@@ -1,4 +1,6 @@
-# Loader 两端套件与项目拆分
+# FX Universal Loader 与 FxStudio 集成
+
+FxProfile 和计算器端启动器共用一个版本。可从[统一项目的 Releases 页](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases)下载。
 
 ## 2026-11-18 目录版与动态页表
 
@@ -114,16 +116,16 @@ auto 为普通 G1A 选择 flash；精确原版 KhiCAS 保留原内存池适配�
 返回 0 为可测试候选、2 为报告/profile 尚需适配或补充启动器、1 为输入错误。
 完整包还核对启动器文件的 build manifest；扩展 Giac 再检查审核过的启动器 SHA。
 
-## 独立公开项目
+## 下载与源码同步
 
 * [fx9860-emulator](https://github.com/lilith-is-all-you-need/fx9860-emulator)：模拟器、CPU/系统调用/MMU 回归、故障留档与协议。
-* [fx9860-loader](https://github.com/lilith-is-all-you-need/fx9860-loader)：统一电脑端工具、通用 Flash Loader、版本注册表和 RAM Loader。
-* [fx9860-large-loader](https://github.com/lilith-is-all-you-need/fx9860-large-loader)：原版 KhiCAS 映射、698 页探测、699 页 Giac 启动器和运行库接口。
+* FxProfile 桌面包内含配套启动器。只需要拷贝启动器时，可选择计算器包，其中包含 FlashLd、ExtLoad 和原版 KhiCAS 专用的 KLoad。[FX Universal Loader 下载](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases)
 
-FxStudio 保留离线源码快照，`loader-components.lock.json` 绑定各仓库提交及文件
-哈希；`python tooling/check_loader_components.py` 检查一致性。共享编码器和
-OS 识别头按版本保留，禁止把不同版本副本混写。后续组件维护在对应仓库进行，
-同步快照后更新锁文件并运行回归。固件、第三方原始 G1A、数学归档不上传这些仓库。
+FxStudio 的 `loader-components.lock.json` 用同一个提交锁定 FxProfile 和计算器端源码，
+模拟器单独锁定。维护者在统一仓库检出对应版本后，可从 SDK 运行
+`python tooling/sync_loader_components.py --universal-loader 统一仓库路径` 同步快照，
+再用 `python tooling/check_loader_components.py` 校验。现有工程继续通过
+`sdk/caller-session` 和 `sdk/fxlarge` 引入两个运行库。
 
 最初证据汇总在 `loader-suite-validation.json`；最新 MENU/内存结果见
 `probes/extended-cas/VALIDATION-REENTRY-20261117.json` 和 `profiles/hardware-results-20261117.json`。

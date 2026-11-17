@@ -6,6 +6,9 @@ A Windows C/C++ IDE and offline SDK for the Casio fx-9860GIII, with SuperH machi
 
 **[Download / 下载完整离线包](https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/releases/latest)** · [中文说明](docs/USER-GUIDE.zh-CN.html) · [English guide](docs/USER-GUIDE.en.html) · [Automation / MCP](docs/AUTOMATION.md) · [Build from source](docs/BUILDING.md)
 
+只需要准备或运行计算器程序时，可下载独立的 FxProfile 桌面工具或计算器启动器。
+FxProfile and the calculator launchers share a release in [FX Universal Loader](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases).
+
 ![Fx Studio debugger](docs/images/ide-debug-0.2.0.png)
 
 ## 使用 / Getting started

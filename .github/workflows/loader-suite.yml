@@ -10,6 +10,7 @@ jobs:
         with:
           persist-credentials: false
       - run: python tooling/check_loader_components.py
+      - run: python tests/test_universal_loader_sync.py
       - run: python tests/test_loader_suite.py
       - run: python probes/native-loader/tools/test_prepare.py
       - run: python probes/extended-loader/tools/test_payload.py

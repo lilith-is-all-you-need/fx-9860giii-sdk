@@ -1,7 +1,8 @@
-"""Import clean, pinned component source manifests into the offline SDK.
+"""Sync pinned component sources into the offline SDK.
 
-LargeRuntime remains a self-contained CMake/source project under sdk/fxlarge;
-its probe projects are also mirrored at the historical SDK probe locations.
+The unified Loader repository owns two source manifests. Its large/ subtree is
+installed at sdk/fxlarge, with probes mirrored at their established SDK paths.
+Historical three-component locks can still be refreshed from split checkouts.
 """
 import argparse
 import hashlib
@@ -9,73 +10,127 @@ import json
 import subprocess
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parents[1]
+from package_components import source_file
+
+ROOT = Path(__file__).resolve().parents[1]
+UNIFIED = 'fx_universal_loader'
+UNIFIED_URL = 'https://github.com/lilith-is-all-you-need/fx_universal_loader'
+SPLIT = ('fx9860-loader', 'fx9860-large-loader')
+
 
 def normalized(path):
-    data=path.read_bytes()
-    return data if path.suffix=='.png' else data.replace(b'\r\n',b'\n')
+    data = path.read_bytes()
+    return data if path.suffix == '.png' else data.replace(b'\r\n', b'\n')
 
-def git(repo,*args):
-    return subprocess.check_output(['git','-C',str(repo),*args],text=True,encoding='utf-8').strip()
 
-def sync(repositories):
-    old=json.loads((ROOT/'loader-components.lock.json').read_text('utf-8'))
-    changes={};components=[]
-    for component in old['components']:
-        name=component['name'];repo=repositories.get(name)
-        if repo is None:
-            components.append(component)
-            for rel,sha in component['files'].items():
-                if hashlib.sha256(normalized(ROOT/rel)).hexdigest()!=sha:raise ValueError('Existing snapshot changed: '+rel)
-            continue
-        repo=Path(repo).resolve()
-        if git(repo,'status','--porcelain'):raise ValueError('Commit component changes before syncing: '+name)
-        manifest=json.loads((repo/'source-manifest.json').read_text('utf-8'))
-        files={};source_paths={}
-        for rel,expected in manifest['files'].items():
-            source=(repo/rel).resolve()
-            if not source.is_relative_to(repo):raise ValueError('Source path escapes repository')
-            data=normalized(source)
-            if hashlib.sha256(data).hexdigest()!=expected:raise ValueError('Component manifest differs: '+rel)
-            targets=[rel]
-            if name=='fx9860-large-loader':
-                targets=['sdk/fxlarge/'+rel]
-                if rel.startswith(('probes/','profiles/')):targets.append(rel)
+def git(repo, *args):
+    return subprocess.check_output(['git', '-C', str(repo), *args]).decode('utf-8')
+
+
+def load_component(repo, name, repository):
+    repo = Path(repo).resolve()
+    if git(repo, 'status', '--porcelain'):
+        raise ValueError('Commit component changes before syncing: ' + name)
+    commit = git(repo, 'rev-parse', 'HEAD').strip()
+    tracked = set(git(repo, 'ls-tree', '-r', '--name-only', '-z', commit).split('\0'))
+    roots = [('', name == SPLIT[1])]
+    if name == UNIFIED:
+        roots = [('', False), ('large/', True)]
+
+    files, paths, contents = {}, {}, {}
+    for prefix, large_runtime in roots:
+        manifest_name = prefix + 'source-manifest.json'
+        if manifest_name not in tracked:
+            raise ValueError('Missing tracked manifest: ' + manifest_name)
+        manifest_path = source_file(repo, manifest_name)
+        manifest = json.loads(manifest_path.read_text('utf-8'))
+        entries = dict(manifest['files'])
+        if large_runtime:
+            entries['source-manifest.json'] = hashlib.sha256(normalized(manifest_path)).hexdigest()
+        for relative, expected in entries.items():
+            source = prefix + relative
+            if source not in tracked:
+                raise ValueError('File is absent from the pinned commit: ' + source)
+            data = normalized(source_file(repo, source))
+            if hashlib.sha256(data).hexdigest() != expected:
+                raise ValueError('Component manifest differs: ' + source)
+            targets = [relative]
+            if large_runtime:
+                targets = ['sdk/fxlarge/' + relative]
+                if relative.startswith(('probes/', 'profiles/')):
+                    targets.append(relative)
             for target in targets:
-                path=(ROOT/target).resolve()
-                if not path.is_relative_to(ROOT):raise ValueError('Snapshot escapes SDK')
-                if target in changes and changes[target]!=data:raise ValueError('Conflicting shared source: '+target)
-                changes[target]=data;files[target]=expected;source_paths[target]=rel
-        if name=='fx9860-large-loader':
-            target='sdk/fxlarge/source-manifest.json';data=normalized(repo/'source-manifest.json')
-            changes[target]=data;files[target]=hashlib.sha256(data).hexdigest();source_paths[target]='source-manifest.json'
-        components.append({'name':name,'repository':component['repository'],'commit':git(repo,'rev-parse','HEAD'),
-                           'files':dict(sorted(files.items())),'sourcePaths':source_paths})
-    # Check every overlap before modifying any files.
-    expected_all={}
-    for c in components:
-        for rel,sha in c['files'].items():
-            if rel in expected_all and expected_all[rel]!=sha:raise ValueError('Conflicting snapshots: '+rel)
-            expected_all[rel]=sha
-    old_all={rel:sha for c in old['components'] for rel,sha in c['files'].items()}
-    for rel,sha in old_all.items():
-        path=(ROOT/rel).resolve()
-        if not path.is_relative_to(ROOT):raise ValueError('Old snapshot path escapes SDK')
-        if path.exists() and hashlib.sha256(normalized(path)).hexdigest()!=sha:
-            raise ValueError('Local snapshot edit would be overwritten: '+rel)
-    for rel,data in changes.items():
-        target=ROOT/rel;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
-    for rel in old_all.keys()-expected_all.keys():
-        target=(ROOT/rel).resolve()
-        if not target.is_relative_to(ROOT):raise ValueError('Removal escapes SDK')
-        if target.is_file():target.unlink()
-    old['components']=components
-    (ROOT/'loader-components.lock.json').write_text(json.dumps(old,indent=2)+'\n',encoding='utf-8')
-    return {'components':len(components),'files':len(expected_all)}
+                if target in files and files[target] != expected:
+                    raise ValueError('Conflicting shared source: ' + target)
+                files[target] = expected
+                paths.setdefault(target, source)
+                contents[target] = data
+    return {'name': name, 'repository': repository, 'commit': commit,
+            'files': dict(sorted(files.items())), 'sourcePaths': dict(sorted(paths.items()))}, contents
 
-if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--loader',type=Path);p.add_argument('--large-loader',type=Path);p.add_argument('--emulator',type=Path)
-    a=p.parse_args();args={k:v for k,v in [('fx9860-loader',a.loader),('fx9860-large-loader',a.large_loader),('fx9860-emulator',a.emulator)] if v}
-    if not args:p.error('Provide at least one component checkout')
-    print(json.dumps(sync(args)))
+
+def sync(repositories, root=ROOT):
+    lock_path = root / 'loader-components.lock.json'
+    lock = json.loads(lock_path.read_text('utf-8'))
+    old_components = lock['components']
+    components = old_components.copy()
+    if UNIFIED in repositories:
+        if any(name in repositories for name in SPLIT):
+            raise ValueError('Supply either a unified checkout or historical split checkouts.')
+        components = [c for c in components if c['name'] not in (*SPLIT, UNIFIED)]
+        components.append({'name': UNIFIED, 'repository': UNIFIED_URL})
+    unknown = repositories.keys() - {c['name'] for c in components}
+    if unknown:
+        raise ValueError('Component absent from this lock: ' + ', '.join(sorted(unknown)))
+
+    updates, next_components, expected_all = {}, [], {}
+    for component in components:
+        name = component['name']
+        if name in repositories:
+            component, contents = load_component(repositories[name], name, component['repository'])
+            updates.update(contents)
+        else:
+            for relative, expected in component['files'].items():
+                if hashlib.sha256(normalized(source_file(root, relative))).hexdigest() != expected:
+                    raise ValueError('Existing snapshot changed: ' + relative)
+        for relative, expected in component['files'].items():
+            if relative in expected_all and expected_all[relative] != expected:
+                raise ValueError('Conflicting snapshots: ' + relative)
+            expected_all[relative] = expected
+        next_components.append(component)
+
+    previous = {rel: sha for component in old_components for rel, sha in component['files'].items()}
+    for relative in previous.keys() | updates.keys():
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root):
+            raise ValueError('Snapshot escapes the SDK: ' + relative)
+        if path.exists():
+            current = hashlib.sha256(normalized(source_file(root, relative))).hexdigest()
+            if current != previous.get(relative, expected_all.get(relative)):
+                raise ValueError('Local snapshot edit would be overwritten: ' + relative)
+    for relative, data in updates.items():
+        target = root / relative
+        if target.exists() and normalized(target) == data:
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    for relative in previous.keys() - expected_all.keys():
+        (root / relative).unlink(missing_ok=True)
+
+    lock['components'] = next_components
+    lock_path.write_text(json.dumps(lock, indent=2) + '\n', encoding='utf-8')
+    return {'components': len(next_components), 'files': len(expected_all)}
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--universal-loader', type=Path, help='Checkout containing both root and large/ manifests')
+    parser.add_argument('--emulator', type=Path)
+    parser.add_argument('--loader', type=Path, help='For historical split locks')
+    parser.add_argument('--large-loader', type=Path, help='For historical split locks')
+    args = parser.parse_args()
+    repos = {k: v for k, v in ((UNIFIED, args.universal_loader), ('fx9860-emulator', args.emulator),
+                                (SPLIT[0], args.loader), (SPLIT[1], args.large_loader)) if v}
+    if not repos:
+        parser.error('Provide at least one component checkout')
+    print(json.dumps(sync(repos)))

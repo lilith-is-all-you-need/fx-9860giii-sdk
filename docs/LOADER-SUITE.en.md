@@ -1,5 +1,9 @@
 # Loader Suite: folder packages and dynamic pages
 
+The standalone desktop download includes FxProfile and its matching launchers.
+The calculator-only download contains FlashLd, ExtLoad and the KhiCAS-specific KLoad.
+Both packages are available from [FX Universal Loader releases](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases).
+
 FX Profile Studio 0.2 is a native WinUI desktop application with English and
 Chinese switching. It prepares stable name-plus-short-SHA result directories.
 The default output contains program dependencies. Including a launcher is optional;
@@ -31,6 +35,13 @@ that all nominal device storage is available. Profile/image/ABI mismatches, stor
 reserve failures and resident allocation failures prevent launch.
 
 ## Offline commands
+
+The SDK pins FxProfile and the calculator runtimes to the same upstream commit in
+`loader-components.lock.json`. The emulator retains its own revision. To refresh
+the Loader snapshot, check out the desired release and run
+`python tooling/sync_loader_components.py --universal-loader PATH_TO_CHECKOUT` from
+the SDK. Run `python tooling/check_loader_components.py` to verify the offline copy.
+Existing projects can still use `sdk/caller-session` and `sdk/fxlarge`.
 
 ```powershell
 python tooling/profile_job.py generate --input program.g1a --output-root results

@@ -1,4 +1,6 @@
-"""Export explicit source sets into NEW independent Git project directories.
+"""Reproduce the historical split-project source exports.
+
+For current updates, import fx_universal_loader via sync_loader_components.py.
 
 Never copies firmware, third-party G1As, build output, trace files, or user settings.
 FxStudio keeps verified source snapshots so offline use requires no Git/network.
