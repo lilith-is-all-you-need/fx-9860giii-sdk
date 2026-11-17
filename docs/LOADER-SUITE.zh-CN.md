@@ -4,6 +4,11 @@
 Loader、源码接入的 699 页 Giac Loader，以及修正后的模拟器。
 **自动适配只覆盖审核过的精确版本，不保证大多数未知 G1A 无人干预运行。**
 
+2026-11-17 实机反馈：两种 CAS 首次运行可用，MENU 后直接选回同一个 Loader
+停在疑似 Loading。Giac RC2 已补结束页和 EXE 重新加载，模拟器复测通过、实机
+仍待复测；原版 KhiCAS 的这个实机问题尚未复现。Fruit/Minesweeper 的 RAM
+镜像申请失败，当前转换器已阻止继续生成这两个 RAM 安装包。
+
 FxStudio 的“工具 → 为 Loader 准备 G1A”选择输入和新的输出目录。
 “帮助 → 计算器资料”提供可搜索的软硬件事实、证据级别和 syscall 覆盖。
 内容嵌入程序，不需要联网。输出中的 `calculator` 才是安装文件；其余
@@ -13,9 +18,9 @@ FxStudio 的“工具 → 为 Loader 准备 G1A”选择输入和新的输出目
 
 | 后端 | 输入/入口 | 状态 |
 | --- | --- | --- |
-| RAM | ≤160 KiB 镜像，Loader.g1a | 还受实际连续堆、常驻开销和目标私有内存限制 |
-| 原 OS 映射 | 原版 2,094,444 B KhiCAS，KLoad.g1a | 512 页，原镜像不变；4 影子页和精确补丁，实机待验收 |
-| 扩展映射 | 已源码接入的 2,859,236 B Giac，KhiMap.g1a | 699 页、自有缺页处理，完整计算/绘图/清理通过模拟器，实机待验收 |
+| RAM | ≤160 KiB 镜像，Loader.g1a | 这是实现上限；Fruit 的 77,823 B 和 Mines 的 135,167 B 连续申请已在实机失败 |
+| 原 OS 映射 | 原版 2,094,444 B KhiCAS，KLoad.g1a | 首次运行实机可用；直接选回未通过，启动时明确提示 |
+| 扩展映射 | 已源码接入的 2,859,236 B Giac，KhiMap.g1a | RC1 首次运行实机可用；RC2 加结束提示和明确重新加载，实机复测待完成 |
 | 未知程序 | 未审核 SHA、未分类网关、内存/回调关系不明 | 生成报告并列出缺项，不生成可执行成功结论 |
 
 原版 KLoad 的目标计算 arena 缩为 106 KiB。新 KhiMap 使用 32 KiB arena，
@@ -51,7 +56,9 @@ FxStudio 保留离线源码快照，`loader-components.lock.json` 绑定各仓�
 OS 识别头按版本保留，禁止把不同版本副本混写。后续组件维护在对应仓库进行，
 同步快照后更新锁文件并运行回归。固件、第三方原始 G1A、数学归档不上传这些仓库。
 
-本轮证据汇总在 `loader-suite-validation.json`。模拟器新增 guest VBR 缺页转交、
+最初证据汇总在 `loader-suite-validation.json`；最新 MENU/内存结果见
+`probes/extended-cas/VALIDATION-REENTRY-20261117.json` 和 `profiles/hardware-results-20261117.json`。
+模拟器新增 guest VBR 缺页转交、
 故障前寄存器恢复、1024 页文件碎片记录；OS 自身仍保持 512 页。
 模拟器仍是 HLE，无完整 copy-back D-cache、外设时序及真实 OS 菜单生命周期。
 断言、截图和实机记录分别说明其能证明的范围。

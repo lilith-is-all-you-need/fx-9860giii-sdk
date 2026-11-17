@@ -24,10 +24,10 @@ def sources(kind):
         return sorted(set(files('probes/emulator'))|{'probes/os-map-profile.h','probes/os-map-hashes.h',
             'probes/file-map-probe/src/os-map-profile.h','probes/file-map-probe/src/os-map-hashes.h'})
     if kind=='loader':
-        return sorted(set(files('probes/native-loader'))|{'tooling/loader_suite.py','tests/test_loader_suite.py','profiles/registry.json',
+        return sorted(set(files('probes/native-loader'))|set(files('profiles'))|{'tooling/loader_suite.py','tests/test_loader_suite.py','profiles/registry.json',
             'probes/mapped-loader/tools/prepare.py'})
     return sorted(set(files('probes/mapped-loader'))|set(files('probes/extended-loader'))|set(files('probes/extended-cas'))|{
-        'probes/native-loader/tools/prepare.py','probes/os-map-profile.h','probes/os-map-hashes.h'})
+        'probes/native-loader/tools/prepare.py','probes/os-map-profile.h','probes/os-map-hashes.h','profiles/hardware-results-20261117.json'})
 
 def export(kind, destination):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=False)
@@ -38,6 +38,9 @@ def export(kind, destination):
         else:p.write_text((ROOT/rel).read_text(encoding='utf-8'),encoding='utf-8',newline='\n')
         copied[rel]=hashlib.sha256(p.read_bytes()).hexdigest()
     shutil.copyfile(ROOT/'LICENSE',destination/'LICENSE')
+    if kind!='emulator':
+        hardware=ROOT/'docs/loader'/('HARDWARE-'+('ram' if kind=='loader' else 'mapped')+'-20261117.md')
+        shutil.copyfile(hardware,destination/'HARDWARE-20261117.md')
     (destination/'.gitignore').write_text('**/__pycache__/\n**/.fxstudio/\n**/build/\n**/evidence/\nloader-artifacts/\n*.zip\n*.elf\n*.g1a\n*.bin\n*.log\n',encoding='utf-8')
     (destination/'source-manifest.json').write_text(json.dumps({'schemaVersion':1,'component':kind,'files':copied},indent=2)+'\n',encoding='utf-8')
     (destination/'.gitattributes').write_text('* text=auto eol=lf\n*.png binary\n',encoding='utf-8')
@@ -90,6 +93,8 @@ The calculator reads the generated index and profiles and uses EXE to launch.
 
 RAM images are limited to 160 KiB *and* available contiguous heap, which may be
 much smaller on hardware. The mapped KhiCAS adapter is exact-version only.
+Hardware rejected Fruit and Minesweeper image allocations; their RAM profiles
+are blocked. See HARDWARE-20261117.md for the returned evidence and limits.
 For >2 MiB, [fx9860-large-loader](https://github.com/lilith-is-all-you-need/fx9860-large-loader)
 owns the experimental guest-refill backend. Arbitrary oversized G1As are not
 automatically made compatible by changing their filename.
@@ -111,13 +116,17 @@ component. Integration checksums are recorded in source-manifest.json.
 External Flash execution backends for fx-9860GIII, including the experimental
 path beyond the OS's 512-page / 2 MiB mapping window.
 
+First launch worked on the user's calculator; same-icon MENU return did not.
+The Giac RC2 launcher adds an explicit reload page. Original KhiCAS hardware
+resume remains unresolved. See HARDWARE-20261117.md.
+
 * `probes/mapped-loader`: exact-version original KhiCAS adapter; 512-page OS
   mapping, four shadow pages, resident syscall/callback maintenance. Full
   calculator candidate exists; complete hardware acceptance is pending.
 * `probes/extended-loader`: independent 698-page guest-refill execution probe.
   Synthetic code/data passed simulation; full CAS integration and hardware
   acceptance are separate. This is not a universal oversized-G1A converter.
-* `probes/extended-cas`: source-integrated Giac RC1 loader, 699-page payload,
+* `probes/extended-cas`: source-integrated Giac RC2 loader, 699-page payload,
   39,680-byte combined resident/arena allocation. The full CAS candidate passed
   simulation, including calculation, plotting and cleanup; hardware acceptance
   is pending. Payload source adapters are included; the math archive is external.
