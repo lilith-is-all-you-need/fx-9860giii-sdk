@@ -36,33 +36,51 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 
 ## 功能 / Features
 
-### 当前源码新增 / Unreleased source updates
-
-当前源码包含公共 **fxlib → gint 兼容子集**、旧工程迁移工具和资源导入工具。
+当前源码包含公共 **fxlib → gint 兼容子集**、旧工程迁移工具和资源导入工具，
+以及 Loader Suite 0.2 的目录式程序包、FX Profile Studio、动态扩展页表和研究资料。
 IDE 的“工具 → 迁移旧 fxlib 工程”会创建独立的新工程；“工具 → 导入资源”
 自动生成资源声明与构建配置，支持旧单色位图、gint 图片和二进制数组。
 命令行还支持位图字体。详见 [迁移与资源指南](docs/MIGRATION-AND-RESOURCES.zh-CN.md)
-及 [API 支持矩阵](compat/fxlib/README.md)。这是源码更新，**旧 0.2.0 ZIP 不会自动获得这些功能**。
+及 [API 支持矩阵](compat/fxlib/README.md)。
 
-Loader 准备工具、计算器资料和后续实机反馈见 [Loader 套件](docs/LOADER-SUITE.zh-CN.md)。
-下面的 0.2.0 表格及历史验证报告描述当时的发行版；当前源码能力、重新构建的程序、
-本机热更新目录与原发行 ZIP 必须分别识别，不能用同名目录推定二进制相同。
+下表描述当前源码能力；**旧 0.2.0 ZIP 不会自动获得这些功能**。源码、各次构建的
+本地集成包和历史 Release 附件需按版本及哈希识别，独立组件通过不等于合并后的包已验收。
+The table describes current source capabilities. Older release archives retain
+their original feature set; separate component tests do not certify a combined package.
 
-| Area | Included in 0.2.0 |
+| Area | Capabilities and scope |
 | --- | --- |
 | IDE | WPF/AvalonEdit editor, Chinese/English UI, CMake projects, Debug/Release builds, diagnostics |
 | Toolchain | Native Windows GCC 14.1, binutils 2.42, fxSDK/gint 2.11, fxlibc, OpenLibm, C++ runtime |
 | Debugging | GDB 16.3, source breakpoints, conditions, watchpoints, stepping, stack, variables, registers, memory, disassembly |
 | Preview | Execution of actual SuperH G1A instructions, 128×64 calculator screen, keys, integer zoom and PNG capture |
-| Resources | fxconv conversion through CMake, source-image preview with dimensions/transparency |
+| Legacy sources | Public fxlib-to-gint subset, portable project migration, AddIn_main adapter and explicit unsupported-API report; no SHC binary-library mixing |
+| Resources | Managed bitmap/image/binary import, CLI bitmap fonts, generated declarations and CMake rules; source-image preview with dimensions/transparency |
 | Automation | `FxStudio.Agent.exe --stdio`: four stable MCP entry points, versioned domain commands, operations, events and snapshots |
+| Profile Studio | Native WinUI 3, Chinese/English switching, batch input, stable name + short SHA folders, dependencies-only default, optional or independent Loader export |
+| Ordinary Loader | Shared `FlashLd.g1a` scans `FXAPPS` folders; monochrome icon list; complete immutable images; full verification or explicit cached Fast mode |
+| Large-program runtime | Source C/C++ integration and `ExtLoad.g1a`; profile-sized resident table, unused entries invalid, runtime storage/RAM bounds; no fixed 699-page requirement |
+| Binary analysis | Offline Ghidra, references, original instruction bytes, exception/VBR ownership sites and review obligations; analysis does not automatically authorize patches |
+| Calculator knowledge | Searchable embedded syscall coverage and evidence levels; separate Chinese/English developer and pitfalls manuals |
+| Caller-session library | Cooperative business-state transactions and two MENU policies; current Flash launcher has no general caller-return backend and is rejected by capability checks |
 
-详细支持范围见 [SDK 能力说明](docs/SDK-CAPABILITIES.zh-CN.html) 和 [验证报告](docs/VALIDATION.html)。另外已用原始 `Wolfenst.g1a` 和 `Fruitnin.g1a` 验证基本游戏交互，见 [兼容性记录](docs/COMPATIBILITY.md)。
+详见 [Loader 套件中文手册](docs/LOADER-SUITE.zh-CN.md)、
+[English Loader guide](docs/LOADER-SUITE.en.md) 和
+[SDK 研究手册（历史基线）](docs/loader/handbook/DEVELOPER-GUIDE.zh-CN.txt)；
+手册中的“未来合约”以其标注的旧基线理解，当前交付状态以 Loader 0.2 指南为准。
+普通 G1A 不需要程序名单，但不能保证所有程序；未知超限二进制仍需运行库适配。
+The ordinary backend has no program whitelist. Arbitrary binary compatibility,
+universal SH3 adaptation and full caller-state restoration are not guaranteed.
+
+详细范围见 [SDK 能力说明](docs/SDK-CAPABILITIES.zh-CN.html)。验证证据分别记录在
+[fxlib/资源验证](docs/VALIDATION-COMPAT-20261118.md)、[Loader 0.2 验证](docs/loader/VALIDATION-0.2.md)
+和[历史 0.2.0 发行报告](docs/VALIDATION.html)，各自保留来源与边界。
+原始 `Wolfenst.g1a` 和 `Fruitnin.g1a` 的基本游戏交互见[历史兼容性记录](docs/COMPATIBILITY.md)。
 
 ## 边界 / Limits
 
 - The emulator implements a subset of Casio OS calls and hardware behavior; it is not a complete OS or cycle-accurate hardware replacement. No Casio ROM or proprietary SDK is distributed.
-- The original 0.2.0 IDE/examples were not comprehensively verified on hardware. Later Loader components have limited device reports, including successful first launches and failed re-entry/allocation; see the Loader guide. The new fxlib compatibility layer still requires device testing. Emulator success alone does not guarantee hardware compatibility.
+- Selected Loader probes and the two CAS first-launch paths have user-returned fx-9860GIII evidence, including failed MENU re-entry and RAM allocations. The complete SDK, new folder/dynamic-runtime builds and fxlib compatibility layer still require device testing. Emulator success does not establish hardware stability.
 - Source debugging requires a matching ELF with symbols. Optimized SDK library internals have more limited source visibility.
 - C++ exceptions/threads, full USB/serial behavior, reverse debugging, automatic resource compression and a complete converted-resource preview are not included.
 - The native release uses no WSL. Historical WSL provisioning scripts remain optional development material and do not constitute a finished offline rootfs.
@@ -80,6 +98,7 @@ Loader 准备工具、计算器资料和后续实机反馈见 [Loader 套件](do
 | `third_party/emuCasioCalc` | Pinned upstream Git submodule; local debugger changes live in the bridge directory |
 | `tooling` | Build, validation and packaging scripts |
 | `scaffolds` | Bounded-memory C starter and hardware evidence templates, mirrored into the skill |
+| `desktop/ProfileStudio`, `sdk/caller-session`, `sdk/fxlarge` | Desktop preparation, cooperative caller contracts and source-integrated large runtime |
 | `docs`, `source-notices` | User/developer documentation and source/license inventories |
 
 Clone with `git clone --recurse-submodules https://github.com/lilith-is-all-you-need/fx-9860giii-sdk.git`. Read [BUILDING.md](docs/BUILDING.md) before rebuilding; the Git checkout does not contain large compiler binaries or dependency source archives.

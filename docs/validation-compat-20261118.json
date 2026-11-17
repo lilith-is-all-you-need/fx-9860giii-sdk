@@ -1,6 +1,8 @@
 {
   "date": "2026-11-18",
-  "scope": "Current development source, not a replacement of the historical 0.2.0 release report",
+  "scope": "Pre-merge fxlib/resource branch e71a460; predates integration of Loader Suite 0.2 at 6e8afb1. Not a combined-package validation or a replacement of the historical 0.2.0 release report.",
+  "sourceCommit": "e71a46017f2d74a25aef849f6399a89a55916cdf",
+  "recordRevision": "pre-merge",
   "hardwareTested": false,
   "sourceSha256": {
     "compat/fxlib/fxlib.h": "1b100b0c91cacd333604d2aefe55155f606a5d5c8d8d26372b1f927a54dfcae0",
@@ -80,5 +82,17 @@
     "Fonts use ASCII/substitute glyphs; timers are cooperative",
     "Full release integration evidence must be regenerated before replacing versioned release assets"
   ],
-  "sourceHashNormalization": "CRLF to LF for text source files"
+  "sourceHashNormalization": "CRLF to LF for text source files",
+  "loaderIntegrationBoundary": {
+    "incomingCommit": "6e8afb1cd11b21d0d2080103eedb045d65f7c138",
+    "independentEvidence": "loader/VALIDATION-0.2.md",
+    "previousLockFileChecks": 191,
+    "newLockInventory": {
+      "components": 3,
+      "fileChecks": 345,
+      "uniquePaths": 340,
+      "meaning": "Inventory only, not a new verification result"
+    },
+    "scope": "Tests, screenshots and binary hashes above remain pre-merge evidence. Post-merge verification must identify its own source and artifacts and be recorded separately."
+  }
 }

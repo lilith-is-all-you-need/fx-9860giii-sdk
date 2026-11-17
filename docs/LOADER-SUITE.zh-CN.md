@@ -1,5 +1,54 @@
 # Loader 两端套件与项目拆分
 
+## 2026-11-18 目录版与动态页表
+
+本节为当前接口，下文旧版记录仅说明历史证据，不能用于安装新版目录包。
+英文说明见 [LOADER-SUITE.en.md](LOADER-SUITE.en.md)。
+
+- FX Profile Studio 0.2 支持中文/English 切换。默认生成“原名＋短 SHA”目录，
+  只含程序依赖；可以勾选附带 Loader，也可以不选输入文件而单独导出 Loader。
+- 安装时合并 `calculator` 内容到计算器存储根目录，保留 `FXAPPS/<程序ID>/`
+  层级。计算器目录 ID 是名称前缀＋短 hash，受系统八字符限制；电脑目录保留较长名称。
+  每个程序有自己的 `IMAGE.BIN`、profile、`APP.MET`、图标及适用的日志。
+- 公共 `FlashLd.g1a` 提供英文图标列表。默认 Full；可显式启用 Fast。
+  只有本机完整校验成功写出的缓存才能加速。每次仍查询真实页地址；本次运行后续发现
+  地址变化才重新校验。Fast 不保证发现两次启动之间同大小的内容改动；修改 BIN 后使用 Full。
+- `ExtLoad.g1a` 从 `EXT.PRF` 读取真实镜像长度和页数，不再按 699 页编译。
+  `pageCount=ceil(imageBytes/4096)`；`pageCapacity` 可留表项余量，未用项保持无效。
+  原 OS 的 512 项表不扩写。另检查存储剩余量及常驻内存申请，失败时拒绝执行。
+  当前 768 项和 3,000,000 B 包预算是实现策略，不是对机器可用容量的保证。
+- 原版 KhiCAS 继续使用单独的 `KLoad.g1a` 内存池适配器；不能把它改用通用
+  Flash 后端就视为具有相同的内存共存保障。源码接入的 Giac 使用扩展 ABI。
+
+命令行与 WinUI 使用同一引擎，无需 LLM：
+
+```powershell
+python tooling/profile_job.py generate --input program.g1a --output-root results
+python tooling/profile_job.py generate --input program.g1a --output-root with-loader --include-loader --artifacts loader-artifacts
+python tooling/profile_job.py export-loader --output launchers --artifacts loader-artifacts
+```
+
+`program-ready` 表示依赖就绪，配合公共启动器使用；`candidate` 表示还附带匹配的
+启动器，二者均未认证实机稳定性。`needs-adapter` 表示缺运行库适配，`analysis-incomplete`
+表示所请求的 Ghidra 分析未完成。旧 `loader_suite.py` CLI 保留历史平铺格式，
+新项目使用 `profile_job.py`。
+
+异常 Hook 可以用于让源码运行库把缺页异常转交常驻补页函数，其他异常仍按明确
+的原处理器约定分发。Ghidra 导出原始指令字节、VBR/控制寄存器相关位置、延迟槽、
+函数和已恢复的跳转目标；`hook-review.json` 再核对这些位置与 BIN 的字节。
+这些证据不自动生成可执行二进制补丁。未知运行库的所有 VBR 写入、异常栈、
+寄存器保存、回调及退出恢复仍须完成适配；EXT v2 拒绝非零未知 Hook 记录。
+
+源码可链接 `FxStudio::LargeRuntime`；调用方业务会话库位于 `sdk/caller-session`。
+后者实现事务快照和两种 MENU 策略，但目前没有替任意 A 保留栈/堆并恢复的通用
+Flash 后端。缺能力时在暂停 A、写快照之前返回不支持。嵌套 A→B→C 也拒绝。
+旧 SH3 Add-in 在 GIII 上的兼容性仍按 MMIO、OS 调用、运行库分别分析，不能仅靠
+共享 SuperH 指令集保证运行；研究记录见 `loader/design/`。
+
+新构建仍须实机回传验收；历史“CAS 首次可用、MENU 选回失败”不等于新目录版已验证。
+
+## 旧版实现及实机证据（归档）
+
 本套件提供电脑端统一分析/打包、通用 Flash Loader、可选 RAM Loader、原版
 KhiCAS 适配器、源码接入的 699 页 Giac Loader，以及模拟器。
 
@@ -7,8 +56,8 @@ KhiCAS 适配器、源码接入的 699 页 Giac Loader，以及模拟器。
 [English developer guide](loader/handbook/DEVELOPER-GUIDE.en.txt)、
 [中文踩坑手册](loader/handbook/PITFALLS.zh-CN.txt)、[English pitfalls](loader/handbook/PITFALLS.en.txt)。
 其中区分实机、模拟器、反汇编与推断，避免把旧阶段结论当成现行能力。
-[新版需求与验收基线](loader/design/requirements-20261118.zh-CN.txt)描述接下来的目录包、
-可返回调用者的库、MENU 策略、启动加速与旧 SH3 适配目标；这些新运行功能尚未交付。
+[新版需求与验收基线](loader/design/requirements-20261118.zh-CN.txt)描述目录包、
+可返回调用者的库、MENU 策略、启动加速与旧 SH3 适配目标；交付状态以上方当前接口为准。
 
 **普通 G1A 的自动打包不再依赖程序名单，但仍不能保证所有 G1A 兼容。**
 `FlashLd.g1a` 保留完整镜像、原始入口和初始化，只把需修改网关的页面放入 RAM。

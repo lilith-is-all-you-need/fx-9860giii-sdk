@@ -18,6 +18,9 @@
 !/scaffolds/
 !/compat/
 !/docs/
+!/desktop/
+!/profiles/
+!/loader-components.lock.json
 !/examples/
 !/source-notices/
 !/probes/
@@ -28,8 +31,16 @@
 !/sdk/BUILD-SERVICE.md
 !/sdk/PROVISIONING-STATUS.md
 !/sdk/examples/
+!/sdk/caller-session/
+!/sdk/fxlarge/
 /probes/*
 !/probes/emulator/
+!/probes/native-loader/
+!/probes/storage-loader/
+!/probes/mapped-loader/
+!/probes/extended-loader/
+!/probes/extended-cas/
+!/probes/source-guest/
 /third_party/*
 !/third_party/emuCasioCalc/
 
@@ -45,6 +56,7 @@
 **/integration-work/
 **/node_modules/
 **/results/
+**/evidence/
 /tests/.build-project-tests/
 /tooling/native-gdb/prefix/
 /tooling/native-gdb/tmp/

@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FxStudio 0.2.0：支持范围与设计</title>
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fx Studio：当前源码支持范围与设计</title>
 <style>body{max-width:1040px;margin:40px auto;padding:0 24px;font:16px/1.8 system-ui;color:#20333d;background:#f7f9fa}h1,h2{line-height:1.3}table{border-collapse:collapse;width:100%;background:white}th,td{border:1px solid #ccd7dc;padding:12px;text-align:left;vertical-align:top}code{background:#e5edf0;padding:2px 4px}a{color:#13645c}.note{border-left:4px solid #74968c;padding:8px 16px;background:white}</style>
 <h1>Fx Studio：当前源码的 SDK、资源与调试支持范围</h1>
 <p>更新于 2026-11-18。本页描述当前源码；原 0.2.0 ZIP 的历史验收见 <a href="VALIDATION.html">发行验证报告</a>。后来增加的 Loader、系统调用、fxlib 兼容层和资源导入需要重新构建并组装，旧 ZIP 不自动升级。本页区分源代码实现、已构建产物和真实设备证据。</p>
@@ -21,6 +21,10 @@
 <h2>6. 人类使用的调试界面</h2>
 <p>0.2.0 补充双语暂停原因与当前栈帧、运行时旧变量提示、操作状态禁用、指令单步、断点启用/禁用及持久保存；刷新保留检查器页。屏幕可单独整数倍放大并保存原分辨率 PNG。源码缺失或一个读取项失败时，其余检查项仍能继续显示。</p>
 <p>现有断点、监视点、源码/指令单步、调用栈、变量、寄存器、内存和反汇编可用。体验仍不是成熟 Visual Studio 的全部能力：没有反向调试、完整执行历史、性能分析和完整容器可视化；预优化 SDK 库内部源码/变量也可能不完整。</p>
+<h2>7. Loader Suite 0.2 与源码迁移的区别</h2>
+<p>Profile Studio 0.2 与 <code>profile_job.py</code> 生成 <code>FXAPPS/&lt;程序ID&gt;/</code> 目录包，默认只导出程序依赖，可选或独立导出公共启动器。普通 Flash 后端由 <code>FlashLd.g1a</code> 扫描目录；Full 为默认，Fast 依赖此前成功的完整校验，可能漏检两次启动之间同大小的内容变化。旧 <code>loader_suite.py</code> 保留历史平铺格式。目录和安装约定见 <a href="LOADER-SUITE.zh-CN.md">Loader 中文手册</a>及<a href="LOADER-SUITE.en.md">English guide</a>。</p>
+<p>源码接入的大程序使用 <code>FxStudio::LargeRuntime</code> 与 <code>ExtLoad.g1a</code> 的动态页表；原版 KhiCAS 仍有专用适配器。未知超限二进制、任意旧 SH3 程序与通用调用者栈/堆恢复均不保证；Ghidra 的位置和指令证据不自动授权可执行补丁。调用者业务会话库有事务及 MENU 策略，当前通用 Flash 后端缺少返回能力时明确拒绝。这些二进制部署机制不替代前述 fxlib 源码兼容层。</p>
+<p>验证范围分别见 <a href="VALIDATION-COMPAT-20261118.md">fxlib/资源合并前验证</a>和<a href="loader/VALIDATION-0.2.md">Loader 0.2 独立验证</a>。历史实机首次启动反馈不等于新目录版、动态运行库或兼容库已通过实机验收，独立测试也不等于合并安装包已验收。</p>
 <h2>稳定的 LLM 调用设计</h2>
 <p>新增自包含 <code>FxStudio.Agent.exe --stdio</code>，使用标准 MCP。固定四个外层工具分别负责发现、提交、操作查询/取消、事件读取；具体功能放在有独立版本与参数 schema 的命令目录中。构建/调试业务位于独立 Automation 层，底层继续使用 Core，协议不侵入 GDB 实现。</p>
 <p>包含会话、幂等请求键、异步操作、稳定错误码、事件游标/丢失提示、暂停状态快照及实际 PNG 画面。运行态不伪造同步变量；任意表达式求值显式标记为可能修改目标。新增兼容功能扩展目录与可选字段，破坏性变化必须升版本。完整约定及调用示例见 <a href="AUTOMATION.md">AUTOMATION.md</a>。</p>

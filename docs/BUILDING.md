@@ -79,6 +79,7 @@ public compatibility subset and IDE commands. The original 0.2.0 ZIP remains a
 historical release; updating sources does not update an extracted installation.
 
 ```powershell
+$env:PYTHONUTF8 = '1'
 python tooling/sync_fxlib_compat.py --check
 python -m unittest discover -s tests -p test_fxlib_compat.py
 python -m unittest discover -s tests -p test_legacy_project.py
@@ -106,12 +107,19 @@ sources; a stale ignored `build/patched` directory is not evidence that the
 checked-in source coverage table is wrong.
 
 `package_components.py` supplies the shared Loader/development inventory. Both
-full and Loader-suite assemblers include the Flash converter, all four verified
-launchers, registry, public fxlib module, portable example and import tools.
+full and Loader-suite assemblers include the version-2 folder engine, the three
+verified launchers (`FlashLd.g1a`, `KLoad.g1a`, `ExtLoad.g1a`), registry, public
+component snapshots, public fxlib module, portable example and import tools.
+The launcher manifest must declare `schemaVersion: 2` and `bundleFormat: 2`;
+legacy `Loader.g1a`/`KhiMap.g1a` sets cannot substitute for these artifacts.
 Pass `--emulator-build` for the new build directory and the relevant artifact
 argument for a complete, hash-verified Loader set. `assemble_loader_suite.py`
 requires the merged output of `Publish-App.ps1`, including Core and Agent, so
-updating the GUI cannot silently keep old backend assemblies.
+updating the GUI cannot silently keep old backend assemblies. Its optional
+`--profile-studio` accepts a complete portable Profile Studio 0.2 directory and
+verifies its own manifest before copying it. Otherwise the IDE uses the bundled
+`profile_job.py` folder workflow. Additional files in an artifact directory are
+not redistributed by the FxStudio assemblers.
 
 The corresponding-source collector also includes the public component-lock
 inventory, including Loader sources and profiles. It excludes private game

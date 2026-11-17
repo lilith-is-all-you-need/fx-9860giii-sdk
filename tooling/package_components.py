@@ -8,13 +8,20 @@ import shutil
 
 LOADER_FILES = (
     'tooling/loader_suite.py',
+    'tooling/profile_job.py',
+    'tooling/bundle_v2.py',
+    'tooling/ext_profile.py',
+    'tooling/hook_review.py',
+    'tooling/ghidra/ExportG1aEvidence.java',
+    'tooling/ghidra/PrepareG1a.java',
+    'tooling/ghidra/log4j.xml',
     'profiles/registry.json',
     'probes/native-loader/tools/prepare.py',
     'probes/storage-loader/tools/prepare.py',
     'probes/mapped-loader/tools/prepare.py',
     'loader-components.lock.json',
 )
-LOADER_BINARIES = ('FlashLd.g1a', 'Loader.g1a', 'KLoad.g1a', 'KhiMap.g1a')
+LOADER_BINARIES = ('FlashLd.g1a', 'KLoad.g1a', 'ExtLoad.g1a')
 DEVELOPMENT_FILES = ('tooling/legacy_project.py', 'tooling/project_assets.py')
 DEVELOPMENT_TREES = ('compat/fxlib', 'examples/legacy-fxlib')
 IGNORED = {'.git', '.fxstudio', '__pycache__', 'bin', 'obj'}
@@ -43,6 +50,8 @@ def copy_file(root, output, relative):
 def loader_artifact_hashes(artifacts):
     artifacts = Path(artifacts)
     record = json.loads(source_file(artifacts, 'manifest.json').read_text(encoding='utf-8-sig'))
+    if record.get('schemaVersion') != 2 or record.get('bundleFormat') != 2:
+        raise ValueError('Loader Suite 0.2 requires schemaVersion 2 / bundleFormat 2 artifacts')
     expected = record.get('files', {})
     checked = {}
     for name in LOADER_BINARIES:
@@ -54,20 +63,23 @@ def loader_artifact_hashes(artifacts):
 
 
 def copy_loader_runtime(root, artifacts, output):
-    """Copy the complete default Flash path and all supported Loader backends."""
+    """Copy the V2 runtime and its hash-pinned public component sources."""
     root, output = Path(root), Path(output)
     # Validate all inputs before creating any output.
     for relative in LOADER_FILES:
         source_file(root, relative)
+    public_sources = public_component_sources(root, verify=True)
+    if not set(LOADER_FILES) <= set(public_sources):
+        raise ValueError('Loader runtime dependencies are absent from the public component lock')
     hashes = loader_artifact_hashes(artifacts)
-    for relative in LOADER_FILES:
+    for relative in public_sources:
         copy_file(root, output, relative)
     target = output / 'loader-artifacts'
     target.mkdir(parents=True, exist_ok=True)
     for name in LOADER_BINARIES:
         shutil.copy2(Path(artifacts) / name, target / name)
     # Rebuild the inventory from the allowlist. Extra files/records may be private.
-    (target / 'manifest.json').write_text(json.dumps({'files': hashes}, indent=2) + '\n', encoding='utf-8')
+    (target / 'manifest.json').write_text(json.dumps({'schemaVersion': 2, 'bundleFormat': 2, 'files': hashes}, indent=2) + '\n', encoding='utf-8')
 
 
 def development_inventory(root):
@@ -93,15 +105,25 @@ def copy_development_runtime(root, output):
         copy_file(root, output, relative)
 
 
-def public_component_sources(root):
+def public_component_sources(root, verify=False):
     """Use the reviewed source snapshot inventory, never a recursive probes copy."""
     root = Path(root)
     lock = json.loads(source_file(root, 'loader-components.lock.json').read_text(encoding='utf-8-sig'))
     paths = {'loader-components.lock.json'}
+    seen = {}
     for component in lock['components']:
-        for relative in component['files']:
+        for relative, expected in component['files'].items():
             if Path(relative).suffix.lower() in {'.g1a', '.g3a', '.bin', '.rom', '.elf', '.exe', '.dll', '.zip'}:
                 raise ValueError('Compiled/private input is not public source: ' + relative)
-            source_file(root, relative)
+            source = source_file(root, relative)
+            if relative in seen and seen[relative] != expected:
+                raise ValueError('Conflicting public component source: ' + relative)
+            seen[relative] = expected
+            if verify:
+                data = source.read_bytes()
+                if source.suffix != '.png':
+                    data = data.replace(b'\r\n', b'\n')
+                if hashlib.sha256(data).hexdigest() != expected:
+                    raise ValueError('Component differs from its public source lock: ' + relative)
             paths.add(relative)
     return sorted(paths)

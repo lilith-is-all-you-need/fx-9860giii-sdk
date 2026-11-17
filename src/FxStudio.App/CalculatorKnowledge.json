@@ -1,5 +1,23 @@
 [
   {
+    "Title": "目录包与 Full / Fast 校验 · Folder packages",
+    "Evidence": "2026-11-18 实现与模拟器；新构建待实机",
+    "Text": "Profile Studio 0.2 默认只导出名称+短hash程序目录，支持单独导出公共Loader。保留FXAPPS层级。APP.MET区分普通Flash(kind1)、源码扩展(kind2)、精确KhiCAS(kind3)。Full完整校验产生Fast缓存；Fast每次查物理地址，但可能漏检两次启动间同大小的内容变化，本次运行后续地址变化才重新核对。\nEnglish: stable per-program folders, optional shared launchers, Full by default. Fast trusts prior content verification and is not a content-change detector between launches.",
+    "Source": "docs/LOADER-SUITE.zh-CN.md / docs/LOADER-SUITE.en.md"
+  },
+  {
+    "Title": "动态扩展页表与异常 Hook · Dynamic pages",
+    "Evidence": "源码ABI、profile边界检查；任意二进制适配未完成",
+    "Text": "ExtLoad从EXT.PRF读取实际镜像长度、ceil(bytes/4096)有效页数和独立capacity。预留项无效，OS512项表不扩写。运行前校验存储余量、内存、SHA与ABI。源码可接入FxStudio::LargeRuntime，把TLB miss交常驻补页入口。Ghidra导出精确指令字节、VBR位置及控制流证据，但不会自动解决所有异常分发、栈和回调恢复。\nEnglish: page count is not fixed at 699. Spare table entries are invalid. The source runtime owns refill routing; Ghidra evidence alone cannot authorize arbitrary hooks.",
+    "Source": "sdk/fxlarge/include/fxlarge/runtime.h"
+  },
+  {
+    "Title": "调用者恢复库的边界 · Caller-session limits",
+    "Evidence": "C生命周期测试；计算器通用返回后端尚缺",
+    "Text": "FxStudio::CallerSession提供合作暂停、业务快照、原子提交、恢复和MENU策略。当前独立FlashLd会复用目标RAM和OS堆，不能保存任意调用者栈/堆。库必须先检查后端能力，缺少能力或嵌套调用时在副作用前拒绝。不能把接口已经存在当成A→B→A实机已通。\nEnglish: business-state coordination is implemented; a general resident return/resume backend is not. Missing capabilities are rejected before pausing or saving the caller.",
+    "Source": "sdk/caller-session/README.en.md"
+  },
+  {
     "Title": "证据分级与适用范围",
     "Evidence": "范围说明",
     "Text": "实机回传、固件反汇编、模拟器回归和待验证推论分别记录。当前资料针对 fx-9860GIII / SH7305；实机为 OS 03.70.0200，固件比较覆盖 3.40、3.60、3.71 的本地三个型号分支。模拟器是 HLE，不是完整 OS。",

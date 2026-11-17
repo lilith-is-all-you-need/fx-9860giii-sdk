@@ -57,12 +57,18 @@ public partial class MainWindow
 
     private void PrepareAddin_Click(object sender, RoutedEventArgs e)
     {
+        var studio = Path.Combine(App.RootDirectory,"ProfileStudio","ProfileStudio.exe");
+        if(File.Exists(studio)) {
+            try { Process.Start(new ProcessStartInfo(studio){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(studio)!}); }
+            catch(Exception ex) { MessageBox.Show(this,ex.Message,"FX Profile Studio"); }
+            return;
+        }
         var source = new OpenFileDialog { Filter="G1A / BIN|*.g1a;*.bin", Multiselect=false };
         if(source.ShowDialog(this)!=true)return;
         var parent = new OpenFolderDialog { Title=T("Choose output parent folder", "选择输出目录的父文件夹") };
         if(parent.ShowDialog(this)!=true)return;
-        var output = Path.Combine(parent.FolderName, Path.GetFileNameWithoutExtension(source.FileName)+"-loader-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));
-        var script = Path.Combine(App.RootDirectory,"tooling","loader_suite.py");
+        var output = parent.FolderName;
+        var script = Path.Combine(App.RootDirectory,"tooling","profile_job.py");
         var python = Path.Combine(App.RootDirectory,"sdk","native","host","python","python.exe");
         if(!File.Exists(script)||!File.Exists(python)) { MessageBox.Show(this,T("The Loader suite is missing from this package.","此安装包缺少 Loader 工具，请安装完整套件。"),"Fx Studio"); return; }
         var panel=new StackPanel { Margin=new Thickness(20) };
@@ -70,9 +76,7 @@ public partial class MainWindow
         panel.Children.Add(new TextBlock { Text=T("Loading method", "加载方式") });
         var mode=new ComboBox { ItemsSource=new[]{"auto","flash","ram","mapped","extended"},SelectedIndex=0,Margin=new Thickness(0,5,0,12) };panel.Children.Add(mode);
         var hint=new TextBlock { Text=T("Auto prepares ordinary G1As with the generic Flash loader. Unsupported structures receive a report; generated bundles still need device testing.","自动模式为普通 G1A 准备通用 Flash 加载包，不依赖程序名单。不支持的结构会列出原因；生成测试包仍需实机验证。"),TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12) };panel.Children.Add(hint);
-        var review=new TextBox { IsReadOnly=true,Margin=new Thickness(0,0,0,6) };panel.Children.Add(review);
-        var pick=new Button { Content=T("Optional: select reviewed profile…","可选：选择已审核 profile…"),HorizontalAlignment=HorizontalAlignment.Left };panel.Children.Add(pick);
-        pick.Click+=(_,_)=>{var dialog=new OpenFileDialog{Filter="JSON profile|*.json"};if(dialog.ShowDialog(this)==true)review.Text=dialog.FileName;};
+        var attach=new CheckBox { Content=T("Include the shared Loader", "同时导出公共 Loader"),IsChecked=false,Margin=new Thickness(0,0,0,6) };panel.Children.Add(attach);
         var result=new TextBox { IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Height=210,Margin=new Thickness(0,12,0,10) };panel.Children.Add(result);
         var run=new Button { Content=T("Prepare files","分析并准备文件"),HorizontalAlignment=HorizontalAlignment.Left };panel.Children.Add(run);
         var reveal=new Button { Content=T("Open result folder","打开结果目录"),HorizontalAlignment=HorizontalAlignment.Left,IsEnabled=false };panel.Children.Add(reveal);
@@ -81,16 +85,21 @@ public partial class MainWindow
         window.Closed+=(_,_)=>cancel.Cancel();
         reveal.Click+=(_,_)=>Process.Start(new ProcessStartInfo(output){UseShellExecute=true});
         run.Click+=async(_,_)=>{
-            run.IsEnabled=false;mode.IsEnabled=false;pick.IsEnabled=false;result.Text=T("Analyzing…","正在分析…");
+            run.IsEnabled=false;mode.IsEnabled=false;attach.IsEnabled=false;result.Text=T("Analyzing…","正在分析…");
             try {
                 var start=new ProcessStartInfo(python){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
-                foreach(var arg in new[]{"-X","utf8",script,source.FileName,"--output",output,"--profile",(string)mode.SelectedItem})start.ArgumentList.Add(arg);
-                if(review.Text.Length>0){start.ArgumentList.Add("--review-profile");start.ArgumentList.Add(review.Text);}
+                foreach(var arg in new[]{"-X","utf8",script,"generate","--input",source.FileName,"--output-root",parent.FolderName,"--backend",(string)mode.SelectedItem})start.ArgumentList.Add(arg);
+                if(attach.IsChecked==true)start.ArgumentList.Add("--include-loader");
                 using var process=Process.Start(start) ?? throw new IOException("Unable to start offline analyzer");
                 using var registration=cancel.Token.Register(()=>{try{if(!process.HasExited)process.Kill(true);}catch(InvalidOperationException){} });
                 var stdout=process.StandardOutput.ReadToEndAsync(cancel.Token);var stderr=process.StandardError.ReadToEndAsync(cancel.Token);
                 await process.WaitForExitAsync(cancel.Token);
-                result.Text=(process.ExitCode==0?T("Test bundle prepared. Hardware verification remains necessary.","测试包已生成，仍需实机验证。") : process.ExitCode==2?T("Analysis completed; some preparation is still required.","分析完成；仍有适配或构建事项需要处理。") : T("Preparation failed.","准备失败。"))+"\n\n"+await stdout+"\n"+await stderr;
+                var text=await stdout;
+                foreach(var line in text.Split('\n',StringSplitOptions.RemoveEmptyEntries)) {
+                    try { using var doc=JsonDocument.Parse(line); if(doc.RootElement.TryGetProperty("result",out var r) && r.TryGetProperty("output",out var path))output=path.GetString()??output; }
+                    catch(JsonException) { }
+                }
+                result.Text=(process.ExitCode==0?T("Program folder prepared. Use it with the shared Loader; hardware validation remains necessary.","程序目录已生成，配合公共 Loader 使用；仍需实机验证。") : process.ExitCode==2?T("Analysis completed; runtime adaptation is required.","分析完成；仍需运行时适配。") : T("Preparation failed.","准备失败。"))+"\n\n"+text+"\n"+await stderr;
                 reveal.IsEnabled=Directory.Exists(output);
             } catch(OperationCanceledException) { } catch(Exception ex) { result.Text=ex.Message; }
         };

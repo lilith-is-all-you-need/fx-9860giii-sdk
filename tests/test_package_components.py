@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tooling'))
@@ -29,7 +30,14 @@ class PackageTests(unittest.TestCase):
             hashes[name] = hashlib.sha256(data).hexdigest()
         (self.artifacts / 'private-game.g1a').write_bytes(b'never redistribute')
         hashes['private-game.g1a'] = hashlib.sha256(b'never redistribute').hexdigest()
-        (self.artifacts / 'manifest.json').write_text(json.dumps({'files': hashes}))
+        (self.artifacts / 'manifest.json').write_text(json.dumps({'schemaVersion': 2, 'bundleFormat': 2, 'files': hashes}))
+
+    def packaged_job(self, package, *arguments):
+        result = subprocess.run([sys.executable, '-I', '-B', '-X', 'utf8',
+                                 str(package / 'tooling/profile_job.py'), *map(str, arguments)],
+                                cwd=self.root, capture_output=True, text=True, encoding='utf-8', timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return json.loads(result.stdout.splitlines()[-1])['result']
 
     def test_packaged_default_flash_path_is_complete_and_allowlisted(self):
         package = self.root / 'portable'
@@ -40,19 +48,62 @@ class PackageTests(unittest.TestCase):
         struct.pack_into('>II', data, 0x210, 0x80010070, 0x90f)
         source = self.root / 'synthetic.g1a'
         source.write_bytes(data)
-        output = self.root / 'result'
-        result = subprocess.run([sys.executable, '-I', '-B',
-                                 str(package / 'tooling/loader_suite.py'), str(source),
-                                 '--output', str(output)], cwd=self.root,
-                                capture_output=True, text=True, encoding='utf-8', timeout=20)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual((output / 'calculator/target.bin').read_bytes(), data)
-        self.assertEqual((output / 'calculator/target.fpf').read_bytes()[:8], b'FXLDF001')
-        self.assertEqual((output / 'calculator/FlashLd.g1a').read_bytes(),
+        job = self.packaged_job(package, 'generate', '--input', source, '--output-root', self.root / 'result')
+        output = Path(job['output'])
+        app = output / 'calculator/FXAPPS' / job['identity']['calculatorId']
+        self.assertEqual(job['status'], 'program-ready')
+        self.assertFalse(job['includesLoader'])
+        self.assertEqual((app / 'IMAGE.BIN').read_bytes(), data)
+        self.assertEqual((app / 'APP.FPF').read_bytes()[:8], b'FXLDF001')
+        self.assertTrue((app / 'APP.MET').is_file())
+        self.assertFalse((output / 'calculator/FlashLd.g1a').exists())
+        attached = self.packaged_job(package, 'generate', '--input', source,
+                                    '--output', self.root / 'attached', '--include-loader')
+        self.assertEqual(attached['status'], 'candidate')
+        self.assertEqual((Path(attached['output']) / 'calculator/FlashLd.g1a').read_bytes(),
                          (self.artifacts / 'FlashLd.g1a').read_bytes())
         self.assertFalse((package / 'loader-artifacts/private-game.g1a').exists())
         manifest = json.loads((package / 'loader-artifacts/manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(set(manifest['files']), set(packages.LOADER_BINARIES))
+        self.assertEqual((manifest['schemaVersion'], manifest['bundleFormat']), (2, 2))
+
+    def test_packaged_extended_profile_and_loader_export_are_complete(self):
+        package = self.root / 'portable'
+        packages.copy_loader_runtime(ROOT, self.artifacts, package)
+        data = bytearray(1024)
+        data[:16] = b'FXLARGE-PAYLOAD1'
+        struct.pack_into('>5I', data, 16, 1, 0x300200, len(data) - 512, 1, 1)
+        source = self.root / 'source-guest.bin'
+        source.write_bytes(data)
+        job = self.packaged_job(package, 'generate', '--input', source,
+                                '--output', self.root / 'extended', '--include-loader')
+        app = Path(job['output']) / 'calculator/FXAPPS' / job['identity']['calculatorId']
+        self.assertEqual(job['backend'], 'extended')
+        self.assertEqual((app / 'IMAGE.BIN').read_bytes(), data)
+        self.assertEqual((app / 'EXT.PRF').read_bytes()[:8], b'FXEXT002')
+        self.assertEqual((Path(job['output']) / 'calculator/ExtLoad.g1a').read_bytes(),
+                         (self.artifacts / 'ExtLoad.g1a').read_bytes())
+        exported = self.root / 'launchers'
+        result = self.packaged_job(package, 'export-loader', '--output', exported)
+        self.assertEqual(set(result['loaders']), set(packages.LOADER_BINARIES))
+        self.assertFalse((exported / 'private-game.g1a').exists())
+
+    def test_old_artifact_format_and_modified_public_component_are_rejected(self):
+        record = json.loads((self.artifacts / 'manifest.json').read_text(encoding='utf-8'))
+        (self.artifacts / 'manifest.json').write_text(json.dumps({'files': record['files']}))
+        with self.assertRaisesRegex(ValueError, 'bundleFormat 2'):
+            packages.copy_loader_runtime(ROOT, self.artifacts, self.root / 'old')
+        self.assertFalse((self.root / 'old').exists())
+        (self.artifacts / 'manifest.json').write_text(json.dumps(record))
+        source = self.root / 'source'
+        for relative in packages.public_component_sources(ROOT):
+            target = source / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / relative, target)
+        (source / 'tooling/profile_job.py').write_text('# modified after component publication\n')
+        with self.assertRaisesRegex(ValueError, 'public source lock'):
+            packages.copy_loader_runtime(source, self.artifacts, self.root / 'changed-components')
+        self.assertFalse((self.root / 'changed-components').exists())
 
     def test_missing_or_changed_launcher_rejected_before_output(self):
         (self.artifacts / 'FlashLd.g1a').unlink()
@@ -70,7 +121,9 @@ class PackageTests(unittest.TestCase):
                      'probes/storage-loader/src/start.S',
                      'probes/storage-loader/src/probe.ld',
                      'probes/storage-loader/tools/prepare.py',
-                     'probes/os-map-profile.h', 'probes/extended-cas/payload-api.h'):
+                     'probes/os-map-profile.h', 'probes/extended-cas/payload-api.h',
+                     'sdk/caller-session/include/fx_caller_session.h',
+                     'sdk/fxlarge/include/fxlarge/runtime.h'):
             self.assertIn(name, paths)
         self.assertFalse(any(Path(p).suffix.lower() in ('.bin', '.rom', '.g1a') for p in paths))
 

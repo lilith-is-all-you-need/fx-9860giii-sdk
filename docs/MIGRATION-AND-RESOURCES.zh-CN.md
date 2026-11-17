@@ -14,6 +14,12 @@
 `fxlibc` 是 C 运行库，不是 fxlib。模拟器的系统调用处理也不会给编译器提供 fxlib 源码接口。
 公共兼容库采用独立实现，不分发专有 Casio SDK 头文件、库或历史游戏资源。
 
+合并的 Loader Suite 0.2 提供另一条二进制部署路径：新目录包通过 Profile Studio
+或 `tooling/profile_job.py` 生成，保留 `FXAPPS/<程序ID>/` 层级并配合公共启动器。
+旧 `loader_suite.py` 命令仍是历史平铺格式。目录打包不会转换 fxlib 源码 API，
+也不会让未知超限二进制自动获得源码运行库适配。两条路径的支持范围见
+[Loader 当前接口](LOADER-SUITE.zh-CN.md)与上表。
+
 ## 在 IDE 中使用
 
 1. 选择“工具 → 迁移旧 fxlib 工程”，选原工程目录，再选新工程父目录和名称。
@@ -115,8 +121,10 @@ fxconv 输出对象与上述原始位图数组结构不同，不能把 `bopti_im
 文字、按键模式、定时器回调上下文、OS 菜单与文件系统存在设备相关语义，需参考支持矩阵。
 即使编译和模拟器通过，仍要分别测试真机启动、绘图、输入、保存、MENU/EXIT 和再次进入。
 
-本次验证记录见 [当前开发验证](VALIDATION-COMPAT-20261118.md)。历史 0.2.0 报告、
-后续 Loader 实机反馈以及新兼容库测试是不同证据，不能合并为“全部实机通过”。
+兼容库与导入工具的实测见 [fxlib/资源验证](VALIDATION-COMPAT-20261118.md)；该记录保留
+合并前 `e71a460` 的源码、产物哈希与结果，不自动证明合并 Loader 0.2 后的完整安装包。
+Loader 的独立证据见 [Loader 0.2 验证](loader/VALIDATION-0.2.md)。历史发行报告、
+后续 Loader 实机反馈以及新兼容库测试不能合并为“全部实机通过”。
 
 ## English quick reference
 
