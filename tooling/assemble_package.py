@@ -6,6 +6,10 @@ import json
 from pathlib import Path
 import shutil
 import zipfile
+from sync_engineering_skill import sync
+from package_components import copy_loader_runtime, copy_development_runtime, loader_artifact_hashes
+from check_emulator_build import verify_emulator_build, copy_verified_emulator
+from collect_public_sources import collect as collect_source_entries
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,8 +29,14 @@ def main():
     parser.add_argument('--app', type=Path, required=True)
     parser.add_argument('--sdk', type=Path, required=True)
     parser.add_argument('--dotnet-sdk', type=Path, required=True)
+    parser.add_argument('--loader-artifacts', type=Path, default=ROOT / 'loader-artifacts')
+    parser.add_argument('--emulator-build', type=Path, default=ROOT / 'probes/emulator/build')
+    parser.add_argument('--source-archive', type=Path, default=ROOT / 'dist-windows/FxStudio-0.2.0-sources.zip')
     parser.add_argument('--name', default='FxStudio-0.2.0-win-x64')
     args = parser.parse_args()
+    sync(check=True)
+    verify_emulator_build(ROOT, args.emulator_build)
+    loader_artifact_hashes(args.loader_artifacts)
     if Path(args.name).name != args.name or args.name in ('.', '..'):
         raise RuntimeError('Package name must be a folder name')
     validation = ROOT / 'sdk/native-validation.json'
@@ -46,10 +56,17 @@ def main():
         for name, expected in record['binarySha256'].items():
             if digest(args.app/name) != expected:
                 raise RuntimeError('Automation binary changed after validation: ' + name)
-    source_archive = ROOT / 'dist-windows/FxStudio-0.2.0-sources.zip'
+    source_archive = args.source_archive
     source_record = json.loads(source_archive.with_suffix('.manifest.json').read_text(encoding='utf8'))
     if digest(source_archive) != source_record['sha256']:
         raise RuntimeError('Corresponding-source archive does not match its manifest')
+    recorded_sources = {row['path']: row['sha256'] for row in source_record['manifest']['files']}
+    current_sources = {entry.name: hashlib.sha256(entry.read()).hexdigest() for entry in collect_source_entries()}
+    changed_sources = sorted(name for name in set(recorded_sources) | set(current_sources)
+                             if recorded_sources.get(name) != current_sources.get(name))
+    if changed_sources:
+        raise RuntimeError('Corresponding-source archive is stale; regenerate it from the final sources: '
+                           + ', '.join(changed_sources[:12]))
     gdb_root = ROOT / 'dist-toolchain/native-gdb'
     gdb_manifest = json.loads((gdb_root / 'native-gdb-manifest.json').read_text(encoding='utf-8-sig'))
     gdb = gdb_root / gdb_manifest['executable']
@@ -61,13 +78,15 @@ def main():
     copy_tree(args.sdk, target / 'sdk/native')
     copy_tree(gdb_root / 'runtime', target / 'runtime')
     emu_target = target / 'runtime/emulator'
-    emu_target.mkdir(parents=True)
-    shutil.copy2(ROOT / 'probes/emulator/build/FxEmulator.exe', emu_target)
-    shutil.copy2(ROOT / 'probes/emulator/build/BUILD-MANIFEST.json', emu_target)
+    copy_verified_emulator(ROOT, args.emulator_build, emu_target)
+    copy_loader_runtime(ROOT, args.loader_artifacts, target)
+    copy_development_runtime(ROOT, target)
     copy_tree(ROOT / 'docs', target / 'docs')
     copy_tree(ROOT / 'skills', target / 'skills')
+    copy_tree(ROOT / 'scaffolds', target / 'scaffolds')
     (target / 'automation').mkdir()
     shutil.copy2(ROOT / 'tooling/fxstudio_client.py', target / 'automation/fxstudio_client.py')
+    shutil.copy2(ROOT / 'tooling/engineering.py', target / 'automation/engineering.py')
     for example in ('counter-c', 'counter-cpp'):
         source = ROOT / 'examples' / example
         shutil.copytree(source, target / 'examples' / example,
@@ -84,7 +103,7 @@ def main():
                       'sourceDirectory': '../../' + example, 'elfSha256': manifest['sha256']['elf'], 'g1aSha256': manifest['sha256']['g1a'],
                       'sourceMappings': [{'from': m['from'], 'to': '../../' + example} for m in manifest['sourceMappings']]}
         (prebuilt / 'demo.fxdebug.json').write_text(json.dumps(descriptor, indent=2), encoding='utf8')
-    for file in ('LICENSE', 'THIRD-PARTY-NOTICES.txt'):
+    for file in ('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'README.md', 'README.txt'):
         shutil.copy2(ROOT / file, target)
     licenses = target / 'licenses'
     (licenses / 'dotnet').mkdir(parents=True)
@@ -114,9 +133,11 @@ def main():
     for name in ('Verify-Package.ps1',):
         shutil.copy2(ROOT / 'tooling' / name, target / name)
     (target / 'START-HERE.txt').write_text(
-        'Fx Studio 0.2.0 - Windows x64\n\nRun FxStudio.exe. Native SDK, GDB and emulator are bundled.\n'
+        f'{args.name} - Windows x64\n\nRun FxStudio.exe. Native SDK, GDB and emulator are bundled.\n'
         'Open docs/USER-GUIDE.zh-CN.html or docs/USER-GUIDE.en.html.\n'
-        'See docs/VALIDATION.html for tested capabilities and remaining limits.\n'
+        'Current capabilities: README.md; migration/resources: docs/MIGRATION-AND-RESOURCES.zh-CN.md.\n'
+        'Current compatibility evidence: docs/VALIDATION-COMPAT-20261118.md; Loader: docs/loader/VALIDATION-0.2.md.\n'
+        'docs/VALIDATION.html is the historical 0.2.0 report; use validation/ for this package acceptance.\n'
         'Automation: FxStudio.Agent.exe --stdio (MCP); see docs/AUTOMATION.md.\n'
         'Skill (no client MCP setup): skills/fxstudio; see its references/quickstart.zh-CN.md.\n'
         'Matching corresponding sources and notices are included under sources/.\n', encoding='utf8')

@@ -1,0 +1,231 @@
+{
+  "date": "2026-11-15",
+  "passed": true,
+  "hardwareTested": false,
+  "hostContractTests": "passed",
+  "pythonContractTests": 6,
+  "nativeSdk": "existing complete Fx Studio 0.2.0 native SDK; no rebuild/download",
+  "debug": {
+    "configuration": "Debug",
+    "elfSha256": "c201c490c8e8276cf5e738287e4bded26b89e76a6b3ff3cf402b4233865a59e2",
+    "g1ASha256": "1713becbed1727177532d0fafb276644da7814cb60be15f8dc4475d2a339a78e",
+    "g1ABytes": 26924
+  },
+  "release": {
+    "configuration": "Release",
+    "elfSha256": "a43806a6235b20e8d7110a587e47c2bfaa837a2c94ca7586f35fddbea7e26901",
+    "g1ASha256": "14c28643c8f0af205ca0d7edcc5df73e4a8bf470b204d8a761bac5f6b7f8b6c0",
+    "g1ABytes": 26636
+  },
+  "sourceInputs": [
+    {
+      "path": "CMakeLists.txt",
+      "bytes": 558,
+      "sha256": "1fb2b467ba0bf8a8c472c01d0872735cd3d8de1498a19affa89331b341428ae3"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1229,
+      "sha256": "c084c9c3330083790badcdecb1689d8923c86d4fe99fade1cb1192407e053f05"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3728,
+      "sha256": "278ceee8a54297bb90988120409e665e1ef2f6b1489a5d2d2908108c83407fca"
+    },
+    {
+      "path": "budget.json",
+      "bytes": 406,
+      "sha256": "1f103c7ededb4714a827eb2b9b45a191d25cf6287fc87e8cd0c898a585407d09"
+    },
+    {
+      "path": "src/contract.c",
+      "bytes": 1921,
+      "sha256": "4d85312fb3185b658bf19d1c6ddf9b113b6662ae9d367f4d095c11bbfb444e6a"
+    },
+    {
+      "path": "src/fx_arena.c",
+      "bytes": 1416,
+      "sha256": "60c2ac986b0ca5f4e33126058c30c6ad1c7dfc0ce8731e096eeee2a43bf66712"
+    },
+    {
+      "path": "src/fx_arena.h",
+      "bytes": 622,
+      "sha256": "468303d21b2421995d7e0fb55b01245d78f315b0dc4d1dc984c756c00a703aa6"
+    },
+    {
+      "path": "src/main.c",
+      "bytes": 1603,
+      "sha256": "70933fb3251b2b7414c2058d6e43926a72dc0fa004abdd7837a614873e3e6f86"
+    },
+    {
+      "path": "src/model.c",
+      "bytes": 1167,
+      "sha256": "f2cd0e17082a79b5baf9c173920f1575f89b10e4dbfaca80c2e1917b13ebb70f"
+    },
+    {
+      "path": "src/model.h",
+      "bytes": 323,
+      "sha256": "7b586b4f41862741a34d28693900af55ef995e69457775985aa3cbb719c5d27f"
+    },
+    {
+      "path": "tests/host_main.c",
+      "bytes": 115,
+      "sha256": "ad4b7db29ba80ffc4360523f889d227e9af9b964da4964ec6a29f67fca0d075f"
+    }
+  ],
+  "scenarios": [
+    {
+      "label": "startup",
+      "expected": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "actual": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "consistent": true,
+      "screen": "screens/startup.png",
+      "screenSha256": "c8a239a3ba9aeed59865bba7c7ee2a85250d095872d83d4d3675945244e46cd7"
+    },
+    {
+      "label": "success",
+      "expected": [
+        0,
+        120,
+        1,
+        0,
+        0
+      ],
+      "actual": [
+        "0",
+        "120",
+        "1",
+        "0",
+        "0"
+      ],
+      "consistent": true,
+      "screen": "screens/success.png",
+      "screenSha256": "1237553880e01f584967c980b0297e9e4300d67026c31a8090c29bdd5eb96c6a"
+    },
+    {
+      "label": "allocation-failure",
+      "expected": [
+        0,
+        120,
+        1,
+        0,
+        1
+      ],
+      "actual": [
+        "0",
+        "120",
+        "1",
+        "0",
+        "1"
+      ],
+      "consistent": true,
+      "screen": "screens/allocation-failure.png",
+      "screenSha256": "7e6dfecd526f397cfd97db9b0eebc7eb29da5aee3fe8942dc3dbb87f472f928d"
+    },
+    {
+      "label": "after-failure",
+      "expected": [
+        0,
+        120,
+        2,
+        0,
+        0
+      ],
+      "actual": [
+        "0",
+        "120",
+        "2",
+        "0",
+        "0"
+      ],
+      "consistent": true,
+      "screen": "screens/after-failure.png",
+      "screenSha256": "3e74e5e92d3600b671c90a57457e477118afa9f13dd341eed654eaceb8c5ffca"
+    },
+    {
+      "label": "cancellation",
+      "expected": [
+        0,
+        120,
+        2,
+        0,
+        2
+      ],
+      "actual": [
+        "0",
+        "120",
+        "2",
+        "0",
+        "2"
+      ],
+      "consistent": true,
+      "screen": "screens/cancellation.png",
+      "screenSha256": "f09faeb3f9b0818e52a2e4e79de6055dd5bae5c5e15712f80746b641bb091ca6"
+    },
+    {
+      "label": "after-cancellation",
+      "expected": [
+        0,
+        120,
+        3,
+        0,
+        0
+      ],
+      "actual": [
+        "0",
+        "120",
+        "3",
+        "0",
+        "0"
+      ],
+      "consistent": true,
+      "screen": "screens/after-cancellation.png",
+      "screenSha256": "8d0344b2db5f39ec34a1cf793e4a5dc7e63c8c147b6b9d8c91fcffd757be53b1"
+    },
+    {
+      "label": "emulator-restart",
+      "expected": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "actual": [
+        "0",
+        "0",
+        "0",
+        "0",
+        "0"
+      ],
+      "consistent": true,
+      "screen": "screens/emulator-restart.png",
+      "screenSha256": "c8a239a3ba9aeed59865bba7c7ee2a85250d095872d83d4d3675945244e46cd7"
+    }
+  ],
+  "skillArchive": {
+    "name": "FxStudio-skill-1.1.0.zip",
+    "sha256": "9b2ba4c854f987a56acc5acf1ee1d538813e5535cb150a45f62c862283e0885d",
+    "members": 21,
+    "templateFilesVerified": 13
+  },
+  "limitations": [
+    "No physical-device checks",
+    "No arbitrary object graph rollback",
+    "No global heap replacement",
+    "No whole SDK republish"
+  ]
+}

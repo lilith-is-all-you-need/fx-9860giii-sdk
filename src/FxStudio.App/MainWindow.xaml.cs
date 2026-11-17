@@ -118,6 +118,8 @@ public partial class MainWindow : Window
         var available = !_busy && !_refreshing && !_stopping && !_stopRequested && !_closing;
         var inspect = available && IsStopped;
         BuildButton.IsEnabled = _project != null && !_importedBuild && !_busy && _gdb == null;
+        ImportLegacyMenu.IsEnabled = available && _gdb == null;
+        ImportResourceMenu.IsEnabled = available && _project != null && !_importedBuild && _gdb == null;
         BuildProfile.IsEnabled = !_importedBuild && !_busy && _gdb == null;
         StartButton.IsEnabled = _project != null && available && (_gdb == null || IsStopped);
         PauseButton.IsEnabled = available && running;

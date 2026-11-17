@@ -58,7 +58,77 @@ Read [source-notices/README.md](../source-notices/README.md), [native compiler](
 
 `tooling/assemble_package.py` requires real validation records and matching hashes before packaging. Do not replace missing evidence with fabricated pass records. `tooling/collect_public_sources.py` builds the corresponding-source archive; `tooling/Verify-Package.ps1` checks the assembled runtime's inventory.
 
+## Engineering scaffolds and knowledge migration
+
+Read [the engineering handbook](engineering/README.md) for the migrated 63-case
+KhiCAS record and the scope of reusable lessons. Maintain templates in
+`scaffolds/`; run `python tooling/sync_engineering_skill.py` to refresh the skill's
+portable copy. Run its `--check` mode and
+`python -m unittest discover -s tests -p test_engineering.py` before packaging.
+`python tooling/test_guarded_host.py --cc gcc` additionally checks temporary-memory
+and rollback contracts with an existing host C compiler. Real target build/debug
+validation remains a separate step. Existing released runtime ZIPs are not updated
+by these commands.
+
 ## Repository and release policy
+
+### Current source: fxlib, resources and package consistency
+
+See [the migration/resource guide](MIGRATION-AND-RESOURCES.zh-CN.md) for the new
+public compatibility subset and IDE commands. The original 0.2.0 ZIP remains a
+historical release; updating sources does not update an extracted installation.
+
+```powershell
+$env:PYTHONUTF8 = '1'
+python tooling/sync_fxlib_compat.py --check
+python -m unittest discover -s tests -p test_fxlib_compat.py
+python -m unittest discover -s tests -p test_legacy_project.py
+python -m unittest discover -s tests -p test_project_assets.py
+python -m unittest discover -s tests -p test_package_components.py
+python tooling/check_loader_components.py
+```
+
+Resource conversion tests need Pillow (already included in the native SDK).
+Native legacy builds and emulator/device tests are separate from host contracts.
+Do not copy proprietary fxlib headers/libraries or historical game sources into
+the public compatibility example.
+
+To rebuild the emulator without changing existing installations or cached builds:
+
+```powershell
+python tooling/build_emulator_isolated.py --output C:/fxstudio-build/emulator-new
+python tooling/check_emulator_build.py --build-dir C:/fxstudio-build/emulator-new/probes/emulator/build
+```
+
+The isolated builder needs MinGW GCC and runs the runtime regression suite by
+default. Packaging validates current source hashes, not only the executable's
+old manifest. The syscall coverage audit must run against freshly prepared
+sources; a stale ignored `build/patched` directory is not evidence that the
+checked-in source coverage table is wrong.
+
+`package_components.py` supplies the shared Loader/development inventory. Both
+full and Loader-suite assemblers include the version-2 folder engine, the three
+verified launchers (`FlashLd.g1a`, `KLoad.g1a`, `ExtLoad.g1a`), registry, public
+component snapshots, public fxlib module, portable example and import tools.
+The launcher manifest must declare `schemaVersion: 2` and `bundleFormat: 2`;
+legacy `Loader.g1a`/`KhiMap.g1a` sets cannot substitute for these artifacts.
+Pass `--emulator-build` for the new build directory and the relevant artifact
+argument for a complete, hash-verified Loader set. `assemble_loader_suite.py`
+requires the merged output of `Publish-App.ps1`, including Core and Agent, so
+updating the GUI cannot silently keep old backend assemblies. Its optional
+`--profile-studio` accepts a complete portable Profile Studio 0.2 directory and
+verifies its own manifest before copying it. Otherwise the IDE uses the bundled
+`profile_job.py` folder workflow. Additional files in an artifact directory are
+not redistributed by the FxStudio assemblers.
+
+The corresponding-source collector also includes the public component-lock
+inventory, including Loader sources and profiles. It excludes private game
+images, firmware and generated build trees. Existing validation gates still
+require actual current test evidence; do not reuse old UI/automation pass records
+after changing their binaries. The latest development checks are recorded in
+[VALIDATION-COMPAT-20261118.md](VALIDATION-COMPAT-20261118.md).
+
+### Source and release policy
 
 - Commit original source, examples, documentation, tests and the pinned upstream submodule. Local research, imported third-party games, ROMs, proprietary SDKs, credentials, compiled output and caches stay outside Git.
 - Put the full offline runtime and its matching dependency source companion together in a versioned GitHub Release. Keep license notices and checksums with them.

@@ -13,13 +13,14 @@ public partial class MainWindow
 {
     // Renders the actual WPF visual tree for repeatable layout review on hosts
     // where desktop capture is unavailable. It never supplies synthetic state.
-    public async Task RenderForVerificationAsync(string path, string? stopLocation = null, bool verifyInteractions = false, bool verifyLoaderUi = false)
+    public async Task RenderForVerificationAsync(string path, string? stopLocation = null, bool verifyInteractions = false, bool verifyLoaderUi = false, bool verifyMigrationUi = false)
     {
         async Task WaitFor(Func<bool> ready) {
             for (var attempt = 0; !ready() && attempt < 600; attempt++) await Task.Delay(50);
             if (!ready()) throw new TimeoutException("UI verification did not reach the required state.");
         }
         await WaitFor(() => !_busy);
+        if (verifyMigrationUi) await VerifyMigrationInteractionsAsync(path);
         if (stopLocation != null) {
             if (_gdb == null) throw new InvalidOperationException("Debug startup failed.\n" + OutputText.Text);
             await WaitFor(() => IsStopped && !_refreshing);
@@ -57,6 +58,38 @@ public partial class MainWindow
             File.WriteAllText(fullPath+".loader-ui.json",JsonSerializer.Serialize(new {passed=true,embeddedEntries=LoadCalculatorKnowledge().Count,search="0x042C",method="Actual WPF window and filtering"}));
         }
         await CloseForVerificationAsync();
+    }
+    private async Task VerifyMigrationInteractionsAsync(string renderPath)
+    {
+        var root = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(renderPath))!, "migration");
+        if (Directory.Exists(root)) throw new IOException("Choose a new migration verification directory.");
+        Directory.CreateDirectory(root);
+        var original = Path.Combine(root, "旧工程"); Directory.CreateDirectory(original);
+        var source = "#include <fxlib.h>\nint AddIn_main(int isAppli,unsigned short OptionNum) { unsigned int key; Bdisp_AllClr_DDVRAM(); PrintXY(1,1,(const unsigned char*)\"Legacy\",0); GetKey(&key); return 1; }\n";
+        File.WriteAllText(Path.Combine(original, "main.c"), source);
+        var project = Path.Combine(root, "迁移工程");
+        await CreateLegacyProjectAsync(original, project, "Legacy Check"); UpdateButtons();
+        if (_project?.SourceDirectory != project || !ImportResourceMenu.IsEnabled) throw new InvalidOperationException("Migrated project was not opened for resource import.");
+        if (File.ReadAllText(Path.Combine(original, "main.c")) != source) throw new InvalidOperationException("Original source changed.");
+        var png = Path.Combine(root, "测试图.png");
+        var pixels = new byte[9 * 2 * 4];
+        for (var i = 0; i < pixels.Length; i += 4) pixels[i + 3] = 255;
+        var bitmap = BitmapSource.Create(9, 2, 96, 96, PixelFormats.Bgra32, null, pixels, 9 * 4);
+        var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using (var stream = File.Create(png)) encoder.Save(stream);
+        OpenDocument(Path.Combine(project, "CMakeLists.txt"));
+        await ImportProjectResourceAsync(["import", "--project", project, "--input", png, "--kind", "bitmap", "--symbol", "sprite"]);
+        if (ActiveDocument == null || Path.GetFileName(ActiveDocument.Path) != "project_assets.h") throw new InvalidOperationException("Generated resource declarations were not opened.");
+        if (_documents.Values.Any(x => x.Dirty)) throw new InvalidOperationException("Resource import left stale or dirty editor contents.");
+        var blob = Path.Combine(root, "blob.bin"); File.WriteAllBytes(blob, [1, 2, 3]);
+        var import = ImportProjectResourceAsync(["import", "--project", project, "--input", blob, "--kind", "binary", "--symbol", "sample_blob"]);
+        _operationCancellation?.Cancel(); await import;
+        var inventory = await RunProjectToolAsync("project_assets.py", ["list", "--project", project]);
+        if (inventory.GetProperty("assets").GetArrayLength() != 2) throw new InvalidOperationException("Stop interrupted the resource transaction.");
+        _importedBuild = true; UpdateButtons();
+        if (ImportResourceMenu.IsEnabled) throw new InvalidOperationException("Resource import enabled for read-only binaries.");
+        _importedBuild = false; UpdateButtons();
+        File.WriteAllText(renderPath + ".migration-ui.json", JsonSerializer.Serialize(new { passed = true, project, checks = new[] { "Original source preserved", "Migrated project opened", "PNG resource imported", "Declarations opened", "Saved editors refreshed", "Stop waits for a consistent file transaction", "Read-only session protected" }, method = "Actual WPF project workflows and Python tools; native picker dialogs not automated" }, new JsonSerializerOptions { WriteIndented = true }));
     }
     private async Task VerifyDebugInteractionsAsync(string renderPath)
     {

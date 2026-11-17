@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0",
+  "license": "MIT",
+  "target": "fx-9860GIII / gint 2.9+",
+  "functions": {
+    "Bdisp_AllClr_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_AllClr_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_AllClr_DDVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_AreaClr_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_AreaClr_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_AreaClr_DDVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_AreaReverseVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_GetDisp_DD": {
+      "status": "partial",
+      "notes": "Reads compat-maintained DD mirror; synchronize after native gint display updates."
+    },
+    "Bdisp_GetDisp_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_PutDisp_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_PutDispArea_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_SetPoint_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_SetPoint_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_SetPoint_DDVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_GetPoint_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_WriteGraph_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_WriteGraph_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_WriteGraph_DDVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_ReadArea_DD": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_ReadArea_VRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_DrawLineVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bdisp_ClearLineVRAM": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "GetVRAMAddress": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "locate": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "Print": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintRev": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintC": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintRevC": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintLine": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintRLine": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintXY": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "PrintMini": {
+      "status": "partial",
+      "notes": "ASCII only; open font, not pixel-identical Casio glyphs; Mini uses sampled glyphs."
+    },
+    "GetKey": {
+      "status": "partial",
+      "notes": "Legacy logical/matrix mapping; limited modifiers and own repeat queue; no OS injected keycodes."
+    },
+    "GetKeyWait": {
+      "status": "partial",
+      "notes": "Legacy logical/matrix mapping; limited modifiers and own repeat queue; no OS injected keycodes."
+    },
+    "Bkey_GetKeyWait": {
+      "status": "partial",
+      "notes": "Legacy logical/matrix mapping; limited modifiers and own repeat queue; no OS injected keycodes."
+    },
+    "IsKeyDown": {
+      "status": "partial",
+      "notes": "Accepts base/unmodified legacy logical keycodes only, such as KEY_CHAR_0 and KEY_CTRL_EXE. SHIFT/ALPHA result codes and gint matrix codes are unsupported and return a negative error."
+    },
+    "IsKeyUp": {
+      "status": "partial",
+      "notes": "Accepts base/unmodified legacy logical keycodes only, such as KEY_CHAR_0 and KEY_CTRL_EXE. SHIFT/ALPHA result codes and gint matrix codes are unsupported and return a negative error."
+    },
+    "Bkey_Set_RepeatTime": {
+      "status": "partial",
+      "notes": "Legacy logical/matrix mapping; limited modifiers and own repeat queue; no OS injected keycodes."
+    },
+    "Bkey_Get_RepeatTime": {
+      "status": "partial",
+      "notes": "Legacy logical/matrix mapping; limited modifiers and own repeat queue; no OS injected keycodes."
+    },
+    "Bkey_Set_RepeatTime_Default": {
+      "status": "partial",
+      "notes": "Legacy logical/matrix mapping; limited modifiers and own repeat queue; no OS injected keycodes."
+    },
+    "SetTimer": {
+      "status": "partial",
+      "notes": "Five cooperative slots, not asynchronous interrupt-compatible; see scheduling contract."
+    },
+    "KillTimer": {
+      "status": "partial",
+      "notes": "Five cooperative slots, not asynchronous interrupt-compatible; see scheduling contract."
+    },
+    "Sleep": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "RTC_GetTicks": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "RTC_Elapsed_ms": {
+      "status": "supported",
+      "notes": "See README.md for parameter bounds and error reporting."
+    },
+    "Bfile_OpenFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_CloseFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_ReadFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_WriteFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_SeekFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_GetFileSize": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_CreateFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_DeleteFile": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_CreateDirectory": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_DeleteDirectory": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_StrToName_ncpy": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    },
+    "Bfile_NameToStr_ncpy": {
+      "status": "partial",
+      "notes": "GIII/Fugue only; world-switched native BFile semantics; path conversion ASCII only."
+    }
+  },
+  "unsupported": [
+    "SaveDisp",
+    "RestoreDisp",
+    "PopUpWin",
+    "SetQuitHandler",
+    "Bfile_OpenMainMemory",
+    "Bfile_CreateMainMemory",
+    "Bfile_DeleteMainMemory",
+    "Bfile_FindFirst",
+    "Bfile_FindNext",
+    "Bfile_FindClose",
+    "Bfile_GetMediaFree"
+  ]
+}

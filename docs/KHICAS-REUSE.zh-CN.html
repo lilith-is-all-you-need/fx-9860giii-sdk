@@ -1,6 +1,7 @@
 <!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>KhiCAS 可复用组件与开发经验</title><link rel="stylesheet" href="style.css">
 <header><small>Fx Studio 0.1.1 · 2026-11-14</small><h1>KhiCAS 目录里值得复用的东西</h1><p>本轮重新读取 khicas-addin 的当前源码、测试、构建文件和审计记录。下面的文件路径均相对于该目录；行号对应本次读取版本。原目录未修改。</p></header>
 <div class="note"><strong>结论：</strong>它已经包含不少计算器应用开发基础设施，尤其是输入界面、按键回放、绘图视口和老 fxlib 接口适配。应优先抽取这些有明确边界的组件。完整 Giac、异常运行库和动态模块加载还不能直接当成通用 SDK 模板。</div>
+<div class="note"><strong>2026-11-15 后续迁移与更正：</strong>完整63案例、适用边界及可执行脚手架已迁入<a href="engineering/README.md">工程手册</a>。KhiCAS后来报告2,094,444 B原版可打开，因此下文2,000,000 B只能解释为历史保守预算，不能解释为OS硬上限。本SDK现有2,000,000 B策略仍保留，未因迁移文档而改变。下文为原调研记录；本轮新增有界C模板、来源快照和证据工具，未引入CAS、异常运行库或动态加载器。</div>
 <h2>优先考虑的八项</h2>
 <table><tr><th>组件与位置</th><th>能省下什么工作</th><th>迁移判断与证据边界</th></tr>
 <tr><td><strong>生命周期与取消</strong><br><code>src/main.c:23,86,91,128</code></td><td>启动、计算中取消、按键队列、返回菜单与退出清理。<code>gint_setrestart(1)</code> 解决退出后不能直接再进入同一个插件的问题。</td><td>低成本，优先采用。LIB34 的设备记录确认有限诊断程序退出/重入有效。Fx Studio 的两个示例已调用此标准 gint API；没有移植整个 CAS 主循环。</td></tr>

@@ -1,0 +1,313 @@
+{
+  "date": "2026-11-18",
+  "scope": "Top-level tests, screenshots and artifact hashes preserve pre-merge fxlib/resource branch e71a460. postMergeValidation records the separate c61d1c8 combined local-package checks. Neither replaces the historical 0.2.0 release report.",
+  "sourceCommit": "e71a46017f2d74a25aef849f6399a89a55916cdf",
+  "recordRevision": "pre-merge-preserved-with-post-merge-addendum",
+  "hardwareTested": false,
+  "sourceSha256": {
+    "compat/fxlib/fxlib.h": "1b100b0c91cacd333604d2aefe55155f606a5d5c8d8d26372b1f927a54dfcae0",
+    "compat/fxlib/fxlib.c": "54aacf2c65075f9e1fd1a0381d9747884caa69ad677e65970dac3311f5faea87",
+    "compat/fxlib/fxlib_gint.c": "7398108f1787c2307ac9fc1056b73390ed45d99c7270997d5fc680ba627ff995",
+    "compat/fxlib/fxlib_entry.c": "5257495f8ddcda62edb5603ed97b05c093a665efad366117d25e6d97505e88bf",
+    "tooling/legacy_project.py": "6d33613eff626e77f45b76ee8dd46468e4f69f9ab2bc38f0a30ef01539e4993a",
+    "tooling/project_assets.py": "c77f0bc7bcff8b97eae6e018426fd38bdd16227f69cb648463705043eb64e521",
+    "tooling/test_fxlib_target.py": "170e9dc55e0fb4cafb82be43e8edc951a2e60700172c9ca6595e33e84a37e6dc",
+    "src/FxStudio.App/MainWindow.Migration.cs": "e1c928056c81943e6ea05a3bfee224c3548204ff252abbe0e632a558cc43ee9e"
+  },
+  "dotnet": {
+    "buildErrors": 0,
+    "buildWarnings": 0,
+    "coreChecks": 65,
+    "automationContractChecks": 129,
+    "publishedDesktopAndAgentStartup": true
+  },
+  "tests": {
+    "engineering": 6,
+    "fxlibHost": 4,
+    "migrationIncludingNativeCAndCpp": 8,
+    "resourcesIncludingNativeCAndCpp": 15,
+    "packageComponents": 8
+  },
+  "emulator": {
+    "sha256": "9554cac0b14027f815ef5b56600810b2abcb25bae9633f0bbff1af7dc49daf6e",
+    "pythonPassed": 66,
+    "privateFirmwareSkipped": 9,
+    "upstreamCpuPassed": true,
+    "syscallEntries": 164,
+    "sourceManifestChecked": true
+  },
+  "target": {
+    "before": [
+      31,
+      5,
+      3,
+      0,
+      0
+    ],
+    "after": [
+      31,
+      5,
+      3,
+      30004,
+      1
+    ],
+    "ownedHostStopped": true,
+    "scope": "Actual SuperH drawing, two cooperative timers, file roundtrip, four resources, old EXE code; no physical OS lifecycle claim",
+    "artifacts": {
+      "debug": {
+        "configuration": "Debug",
+        "elfSha256": "bf41f53afa43a4fd15f261dfb9d63dd9279d66dd75e70c6284788ec2f7e59d53",
+        "g1ASha256": "f6b66ab0bbfc92a64ff0ef5f2b3d28b282f062d31ab72f0c470b94ca170ef1ed",
+        "g1ABytes": 37980
+      },
+      "release": {
+        "configuration": "Release",
+        "elfSha256": "555bfad684e14a1b3f63355dac1eb60e599a0228f622a67a249c2c7cd1064ba4",
+        "g1ASha256": "c4e2e746003eb924b799cc54744dd3356988a6a7da9690c4fdeb098c6bf0c3cc",
+        "g1ABytes": 44044
+      }
+    }
+  },
+  "ui": {
+    "languages": [
+      "zh-CN",
+      "en"
+    ],
+    "checksPerLanguage": 7,
+    "method": "Actual WPF project workflows and Python tools; native picker dialogs not automated"
+  },
+  "limits": [
+    "No physical calculator test of the new compatibility library",
+    "No complete Casio OS or official SDK equivalence",
+    "Fonts use ASCII/substitute glyphs; timers are cooperative",
+    "Full release integration evidence must be regenerated before replacing versioned release assets"
+  ],
+  "sourceHashNormalization": "CRLF to LF for text source files",
+  "loaderIntegrationBoundary": {
+    "incomingCommit": "6e8afb1cd11b21d0d2080103eedb045d65f7c138",
+    "independentEvidence": "loader/VALIDATION-0.2.md",
+    "previousLockFileChecks": 191,
+    "newLockInventory": {
+      "components": 3,
+      "fileChecks": 345,
+      "uniquePaths": 340,
+      "meaning": "Inventory only, not a new verification result"
+    },
+    "scope": "Tests, screenshots and binary hashes above remain pre-merge evidence. The independent postMergeValidation object records new verification against its own source and artifacts."
+  },
+  "postMergeValidation": {
+    "date": "2026-11-18",
+    "sourceCommit": "c61d1c88a2ef88dad5f20f0f04ec436ce67da664",
+    "scope": "Fresh merged desktop publish and complete local package: startup/discovery, bilingual migration/resource and knowledge workflows, Agent SuperH Debug/Release target, packaging closure and component contracts. Does not rerun every independent Loader binary probe or constitute physical-device certification.",
+    "hardwareTested": false,
+    "sourceSha256": {
+      "compat/fxlib/fxlib.h": "1b100b0c91cacd333604d2aefe55155f606a5d5c8d8d26372b1f927a54dfcae0",
+      "compat/fxlib/fxlib.c": "54aacf2c65075f9e1fd1a0381d9747884caa69ad677e65970dac3311f5faea87",
+      "compat/fxlib/fxlib_gint.c": "7398108f1787c2307ac9fc1056b73390ed45d99c7270997d5fc680ba627ff995",
+      "compat/fxlib/fxlib_entry.c": "5257495f8ddcda62edb5603ed97b05c093a665efad366117d25e6d97505e88bf",
+      "tooling/legacy_project.py": "6d33613eff626e77f45b76ee8dd46468e4f69f9ab2bc38f0a30ef01539e4993a",
+      "tooling/project_assets.py": "c77f0bc7bcff8b97eae6e018426fd38bdd16227f69cb648463705043eb64e521",
+      "tooling/test_fxlib_target.py": "170e9dc55e0fb4cafb82be43e8edc951a2e60700172c9ca6595e33e84a37e6dc",
+      "src/FxStudio.App/MainWindow.Migration.cs": "e1c928056c81943e6ea05a3bfee224c3548204ff252abbe0e632a558cc43ee9e"
+    },
+    "sourceHashNormalization": "CRLF to LF for text source files",
+    "dotnet": {
+      "buildErrors": 0,
+      "buildWarnings": 0,
+      "coreChecks": 65,
+      "automationContractChecks": 129,
+      "publishedDesktopAndAgentStartup": true
+    },
+    "tests": {
+      "engineering": 6,
+      "fxlibHost": 4,
+      "fxlargeProfile": 10,
+      "loaderSuite": 10,
+      "profileJob": 19,
+      "loaderHook": 2,
+      "callerSession": 1,
+      "packageComponents": 10,
+      "utf8Note": "Loader/Profile/Hook/Caller checks ran with PYTHONUTF8=1",
+      "nativeSuiteBoundary": "The full 8 migration and 15 resource test counts above are preserved pre-merge runs, not claimed rerun here. The post-merge Agent target separately compiles and runs all four resource kinds."
+    },
+    "loaderLock": {
+      "passed": true,
+      "components": 3,
+      "fileChecks": 345,
+      "uniquePaths": 340
+    },
+    "package": {
+      "localPath": "C:/fxstudio-build/FxStudio-fxlib-20261118",
+      "manifestVerificationPassed": true,
+      "testedManifestFileCount": 12782,
+      "documentationRefresh": "Documentation and package-entry text are refreshed after these checks, followed by manifest regeneration; tested applications, converters and compatibility library are unchanged. No package-manifest SHA is recorded for the subsequently refreshed directory.",
+      "versionedReleaseAssetsReplaced": false,
+      "files": {
+        "FxStudio.exe": {
+          "sha256": "5e532d1bd73471a21ebc5490bf5d293bbfd9b50ab630208ce684c07111a9a917",
+          "bytes": 162816,
+          "matchesFreshPublish": true
+        },
+        "FxStudio.dll": {
+          "sha256": "2cf750bdcc2561c280e4b9c9e6016a74b12d42b6b080e17424333813816c335d",
+          "bytes": 598016,
+          "matchesFreshPublish": true
+        },
+        "FxStudio.Agent.exe": {
+          "sha256": "3be6a1ac413228f747ff76e1f45fdff2c3d93c121c33fc2ddcc053291dad785f",
+          "bytes": 162304,
+          "matchesFreshPublish": true
+        },
+        "FxStudio.Agent.dll": {
+          "sha256": "14f8d411cffb62ca6cc26dbcd5c81cee4e68a1556b7e635ea0e91b676457b611",
+          "bytes": 96768,
+          "matchesFreshPublish": true
+        },
+        "FxStudio.Core.dll": {
+          "sha256": "6ffdadf73661e8173d797855d1a93fd45d731827a2fed83cc0374909218a219a",
+          "bytes": 151040,
+          "matchesFreshPublish": true
+        },
+        "FxStudio.Automation.dll": {
+          "sha256": "d8792296f66c02ee4d37d24a0d9e9c502b49cf92c4a5c9c081d7c29cc36a409c",
+          "bytes": 133632,
+          "matchesFreshPublish": true
+        },
+        "WindowsBase.dll": {
+          "sha256": "d0d5387034e8d0625a2fa9830dcd52cf1f591d9aff5f8689fe2cc00db7a49ec8",
+          "bytes": 2176848,
+          "matchesFreshPublish": true
+        },
+        "ProfileStudio/ProfileStudio.exe": {
+          "sha256": "a0989aed22a62fd583e37d432c3abbff4b9dc9d713679931bb162e3deb9b6ed0",
+          "bytes": 302592
+        },
+        "loader-artifacts/FlashLd.g1a": {
+          "sha256": "30478e2852179458820171ce1a2e4fea204daf2cc7e70b083fa7c4277fb71466",
+          "bytes": 19324
+        },
+        "loader-artifacts/KLoad.g1a": {
+          "sha256": "a184d966fb422cc9c07be82f6d7c4560857ff242394b1e301c3fd742cf2a5bb0",
+          "bytes": 16024
+        },
+        "loader-artifacts/ExtLoad.g1a": {
+          "sha256": "2a53cc82ecb628f30fc7500637b6dc78f743028aac778a1dbaff7440f11f944e",
+          "bytes": 12212
+        }
+      }
+    },
+    "emulator": {
+      "sha256": "9554cac0b14027f815ef5b56600810b2abcb25bae9633f0bbff1af7dc49daf6e",
+      "sourceManifestChecked": true,
+      "scope": "Freshness checked and used by the post-merge target; the 66 Python/CPU regression counts above remain the pre-merge rebuild record."
+    },
+    "target": {
+      "passed": true,
+      "before": [
+        31,
+        5,
+        3,
+        0,
+        0
+      ],
+      "after": [
+        31,
+        5,
+        3,
+        30004,
+        1
+      ],
+      "ownedHostStopped": true,
+      "scope": "Actual SuperH drawing, two cooperative timers, file roundtrip, four resources, old EXE code; no physical OS lifecycle claim",
+      "originalSha256": "39f9974f9880865de28e41e5db40ce6cd51d74f84b4ee980dfbf3f75ebaa63a6",
+      "artifacts": {
+        "debug": {
+          "configuration": "Debug",
+          "elfSha256": "c1b2051d8be5a70a16e1a0ed07f897f59c1edf32780cdcc5c3572fa2db22c3f3",
+          "g1ASha256": "1183819e6cd622c273332f7f737bbd8c482fa8b1fe35e825c5ae291b96708178",
+          "g1ABytes": 37980
+        },
+        "release": {
+          "configuration": "Release",
+          "elfSha256": "8b24cb8147ebff98a9e7251b0dc998f251558ca17dffcc925fa721a40d000340",
+          "g1ASha256": "f39a60159e5524e06c0edac9e034727b78716ababda4af55ca2800b879300472",
+          "g1ABytes": 44044
+        }
+      }
+    },
+    "ui": {
+      "zh-CN": {
+        "migrationPassed": true,
+        "migrationChecks": [
+          "Original source preserved",
+          "Migrated project opened",
+          "PNG resource imported",
+          "Declarations opened",
+          "Saved editors refreshed",
+          "Stop waits for a consistent file transaction",
+          "Read-only session protected"
+        ],
+        "migrationMethod": "Actual WPF project workflows and Python tools; native picker dialogs not automated",
+        "knowledgePassed": true,
+        "knowledgeEntries": 4165,
+        "knowledgeSearch": "0x042C",
+        "knowledgeMethod": "Actual WPF window and filtering"
+      },
+      "en": {
+        "migrationPassed": true,
+        "migrationChecks": [
+          "Original source preserved",
+          "Migrated project opened",
+          "PNG resource imported",
+          "Declarations opened",
+          "Saved editors refreshed",
+          "Stop waits for a consistent file transaction",
+          "Read-only session protected"
+        ],
+        "migrationMethod": "Actual WPF project workflows and Python tools; native picker dialogs not automated",
+        "knowledgePassed": true,
+        "knowledgeEntries": 4165,
+        "knowledgeSearch": "0x042C",
+        "knowledgeMethod": "Actual WPF window and filtering"
+      }
+    },
+    "sourceCollectorPlan": {
+      "files": 860,
+      "bytes": 516221412,
+      "mode": "plan-only",
+      "newPublicSourceArchiveCreated": false
+    },
+    "rawReports": {
+      "baseDirectory": "C:/fxstudio-build",
+      "files": {
+        "fxlib-ui-merged-zh-CN/main.png.migration-ui.json": {
+          "sha256": "3e8270fd230f960ba06254551286c9eb6c9fad17c7d1d4ec7169ef5683241859",
+          "bytes": 482
+        },
+        "fxlib-ui-merged-zh-CN/main.png.loader-ui.json": {
+          "sha256": "e9ca422f3420ac9da09c14784f58a17da97e66fc412b4585a3ceb334712a4011",
+          "bytes": 99
+        },
+        "fxlib-ui-merged-en/main.png.migration-ui.json": {
+          "sha256": "7b627497351bac3459a5c03855b196c645d6663f1d22e6fc0e6e73baadf5e127",
+          "bytes": 479
+        },
+        "fxlib-ui-merged-en/main.png.loader-ui.json": {
+          "sha256": "e9ca422f3420ac9da09c14784f58a17da97e66fc412b4585a3ceb334712a4011",
+          "bytes": 99
+        },
+        "fxlib-target-merged/validation.json": {
+          "sha256": "a6db46d97522bc551e28b5d2f88c1acc4ff7cf2722ff2ea45666dc33a317dc66",
+          "bytes": 6166
+        }
+      }
+    },
+    "ci": {
+      "sourceCommit": "c61d1c88a2ef88dad5f20f0f04ec436ce67da664",
+      "conclusion": "success",
+      "runUrl": "https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/actions/runs/44151307619",
+      "scope": "Windows build/contracts/Python/published-startup and both Loader offline jobs; follow-up documentation and package-entry text commits have their own CI runs."
+    },
+    "screenshots": "Existing screenshots in the Markdown report remain the pre-merge images; no relabeling or replacement."
+  }
+}

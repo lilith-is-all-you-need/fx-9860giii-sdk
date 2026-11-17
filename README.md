@@ -26,12 +26,27 @@ Download the complete Windows archive from Releases, extract it, and run `FxStud
 见 [中文快速入门](skills/fxstudio/references/quickstart.zh-CN.md)：自动定位 SDK、持续调试会话、
 编译/按键/截图、退出清理及并发隔离。单独安装 skill 不包含编译器或赋予本地执行权限。
 
+### 工程经验与脚手架
+
+[工程手册](docs/engineering/README.md) 已迁入 KhiCAS 的 63 个故障案例和跨项目方法，
+并区分历史实机证据与本 SDK 的验证范围。[scaffolds](scaffolds/README.md) 提供有界临时
+内存/失败回滚 C 工程、实机记录模板；`tooling/engineering.py` 提供工程创建、源码
+快照/差异和产物字节预算。相同工具与模板已接入源码版 fxstudio skill。
+这些新增内容不在旧 1.0.0 skill 附件中；旧的完整离线发行包未被本次修改。
+
 ## 功能 / Features
 
-Loader Suite 的当前源码和本地集成包增加了目录式程序包、FX Profile Studio 0.2、
-动态扩展页表及研究资料。旧版 Release 附件不会因为本页更新而自动获得这些功能。
-Current Loader Suite sources and integration builds add the following features;
-older release archives retain their original feature set.
+当前源码包含公共 **fxlib → gint 兼容子集**、旧工程迁移工具和资源导入工具，
+以及 Loader Suite 0.2 的目录式程序包、FX Profile Studio、动态扩展页表和研究资料。
+IDE 的“工具 → 迁移旧 fxlib 工程”会创建独立的新工程；“工具 → 导入资源”
+自动生成资源声明与构建配置，支持旧单色位图、gint 图片和二进制数组。
+命令行还支持位图字体。详见 [迁移与资源指南](docs/MIGRATION-AND-RESOURCES.zh-CN.md)
+及 [API 支持矩阵](compat/fxlib/README.md)。
+
+下表描述当前源码能力；**旧 0.2.0 ZIP 不会自动获得这些功能**。源码、各次构建的
+本地集成包和历史 Release 附件需按版本及哈希识别，独立组件通过不等于合并后的包已验收。
+The table describes current source capabilities. Older release archives retain
+their original feature set; separate component tests do not certify a combined package.
 
 | Area | Capabilities and scope |
 | --- | --- |
@@ -39,7 +54,8 @@ older release archives retain their original feature set.
 | Toolchain | Native Windows GCC 14.1, binutils 2.42, fxSDK/gint 2.11, fxlibc, OpenLibm, C++ runtime |
 | Debugging | GDB 16.3, source breakpoints, conditions, watchpoints, stepping, stack, variables, registers, memory, disassembly |
 | Preview | Execution of actual SuperH G1A instructions, 128×64 calculator screen, keys, integer zoom and PNG capture |
-| Resources | fxconv conversion through CMake, source-image preview with dimensions/transparency |
+| Legacy sources | Public fxlib-to-gint subset, portable project migration, AddIn_main adapter and explicit unsupported-API report; no SHC binary-library mixing |
+| Resources | Managed bitmap/image/binary import, CLI bitmap fonts, generated declarations and CMake rules; source-image preview with dimensions/transparency |
 | Automation | `FxStudio.Agent.exe --stdio`: four stable MCP entry points, versioned domain commands, operations, events and snapshots |
 | Profile Studio | Native WinUI 3, Chinese/English switching, batch input, stable name + short SHA folders, dependencies-only default, optional or independent Loader export |
 | Ordinary Loader | Shared `FlashLd.g1a` scans `FXAPPS` folders; monochrome icon list; complete immutable images; full verification or explicit cached Fast mode |
@@ -50,17 +66,21 @@ older release archives retain their original feature set.
 
 详见 [Loader 套件中文手册](docs/LOADER-SUITE.zh-CN.md)、
 [English Loader guide](docs/LOADER-SUITE.en.md) 和
-[SDK 开发/踩坑手册](docs/loader/handbook/DEVELOPER-GUIDE.zh-CN.txt)。
+[SDK 研究手册（历史基线）](docs/loader/handbook/DEVELOPER-GUIDE.zh-CN.txt)；
+手册中的“未来合约”以其标注的旧基线理解，当前交付状态以 Loader 0.2 指南为准。
 普通 G1A 不需要程序名单，但不能保证所有程序；未知超限二进制仍需运行库适配。
 The ordinary backend has no program whitelist. Arbitrary binary compatibility,
 universal SH3 adaptation and full caller-state restoration are not guaranteed.
 
-详细支持范围见 [SDK 能力说明](docs/SDK-CAPABILITIES.zh-CN.html) 和 [验证报告](docs/VALIDATION.html)。另外已用原始 `Wolfenst.g1a` 和 `Fruitnin.g1a` 验证基本游戏交互，见 [兼容性记录](docs/COMPATIBILITY.md)。
+详细范围见 [SDK 能力说明](docs/SDK-CAPABILITIES.zh-CN.html)。验证证据分别记录在
+[fxlib/资源验证](docs/VALIDATION-COMPAT-20261118.md)、[Loader 0.2 验证](docs/loader/VALIDATION-0.2.md)
+和[历史 0.2.0 发行报告](docs/VALIDATION.html)，各自保留来源与边界。
+原始 `Wolfenst.g1a` 和 `Fruitnin.g1a` 的基本游戏交互见[历史兼容性记录](docs/COMPATIBILITY.md)。
 
 ## 边界 / Limits
 
 - The emulator implements a subset of Casio OS calls and hardware behavior; it is not a complete OS or cycle-accurate hardware replacement. No Casio ROM or proprietary SDK is distributed.
-- Selected Loader probes and the two CAS first-launch paths have user-returned fx-9860GIII evidence. The complete SDK and the new folder/dynamic-runtime builds are not hardware-certified; prior CAS MENU re-entry failed. Emulator success does not establish stability.
+- Selected Loader probes and the two CAS first-launch paths have user-returned fx-9860GIII evidence, including failed MENU re-entry and RAM allocations. The complete SDK, new folder/dynamic-runtime builds and fxlib compatibility layer still require device testing. Emulator success does not establish hardware stability.
 - Source debugging requires a matching ELF with symbols. Optimized SDK library internals have more limited source visibility.
 - C++ exceptions/threads, full USB/serial behavior, reverse debugging, automatic resource compression and a complete converted-resource preview are not included.
 - The native release uses no WSL. Historical WSL provisioning scripts remain optional development material and do not constitute a finished offline rootfs.
@@ -73,9 +93,11 @@ universal SH3 adaptation and full caller-state restoration are not guaranteed.
 | `src/FxStudio.Core` | Build service, GDB/MI, emulator and artifact verification |
 | `src/FxStudio.Automation`, `src/FxStudio.Agent` | Versioned domain API and MCP stdio host |
 | `examples`, `sdk/examples` | C/C++ calculator source examples |
+| `compat/fxlib`, `examples/legacy-fxlib` | Public source compatibility subset and a portable legacy-entry example |
 | `tests`, `probes/emulator` | Contract tests, machine-code integration probes and emulator bridge |
 | `third_party/emuCasioCalc` | Pinned upstream Git submodule; local debugger changes live in the bridge directory |
 | `tooling` | Build, validation and packaging scripts |
+| `scaffolds` | Bounded-memory C starter and hardware evidence templates, mirrored into the skill |
 | `desktop/ProfileStudio`, `sdk/caller-session`, `sdk/fxlarge` | Desktop preparation, cooperative caller contracts and source-integrated large runtime |
 | `docs`, `source-notices` | User/developer documentation and source/license inventories |
 

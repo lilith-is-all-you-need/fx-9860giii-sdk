@@ -20,6 +20,7 @@ import subprocess
 import tarfile
 import urllib.request
 import zipfile
+from package_components import public_component_sources
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = '0.2.0'
@@ -29,6 +30,7 @@ CODE_SUFFIXES = {'.cs', '.csproj', '.sln', '.slnx', '.xaml', '.json', '.xml', '.
                  '.props', '.targets', '.py', '.ps1', '.sh', '.c', '.h', '.cpp', '.hpp',
                  '.cmake', '.in', '.txt', '.md', '.html', '.css', '.manifest', '.patch',
                  '.png', '.svg', '.ico', '.resx', '.editorconfig', '.yaml', '.yml'}
+CODE_SUFFIXES.update({'.s', '.ld', '.java'})
 OMIT_DIRS = {'bin', 'obj', 'build', 'source', '__pycache__', '.git', '.vs', '.fxstudio',
              '.fxide-source', 'integration-work', 'node_modules'}
 COMPRESSED = {'.xz', '.gz', '.bz2', '.zst', '.zip', '.nupkg', '.png', '.ico'}
@@ -164,8 +166,10 @@ def collect():
     for name in ('LICENSE', 'THIRD-PARTY-NOTICES.txt', '.gitignore', '.gitattributes',
                  'README.txt', 'README.md', 'FxStudio.slnx', 'global.json'):
         add(ROOT / name)
-    for folder in ('src', 'tests', 'tooling', 'docs', 'examples', 'skills'):
+    for folder in ('src', 'tests', 'tooling', 'docs', 'examples', 'skills', 'scaffolds', 'compat'):
         tree(folder, 'Fx Studio source', code_only=True)
+    for relative in public_component_sources(ROOT):
+        add(ROOT / relative, origin='Public Loader/emulator component snapshot')
     tree('sdk/examples', 'Fx Studio calculator examples', code_only=True)
     for name in ('BUILD-SERVICE.md', 'PROVISIONING-STATUS.md'):
         add(ROOT / 'sdk' / name)
@@ -241,6 +245,8 @@ def main():
     parser.add_argument('--plan', action='store_true', help='Verify and report inputs without freezing a release archive')
     parser.add_argument('--output', type=Path, default=ROOT / f'dist-windows/FxStudio-{VERSION}-sources.zip')
     args = parser.parse_args()
+    if not args.plan and args.output.exists():
+        raise FileExistsError('Choose a new source archive path; existing release archives are preserved: ' + str(args.output))
     if args.prepare:
         prepare()
     entries = collect()
