@@ -1,6 +1,11 @@
 fx-9860GIII Loader 开发手册
 审阅日期：2026-11-18；语言配对：DEVELOPER-GUIDE.en.txt
 
+历史基线说明：本文保留下述旧提交的研究结论。当前 Loader Suite 0.2 已实现
+FXAPPS 目录发现及源码接入的动态扩展运行库；本文把它们称为“未来”的段落
+不再代表当前交付状态。现行用法与限制见 docs/LOADER-SUITE.zh-CN.md，
+旧基线的组件摘要请查看 SDK 提交 1a145961 中的 loader-components.lock.json。
+
 范围与版本
 本文整理已存在的实现与实验，不是新增功能的交付声明。审阅基线为 SDK
 1a145961、普通 Loader fcaa21d、超限 Loader 7cd3257、模拟器 00e3fb1。

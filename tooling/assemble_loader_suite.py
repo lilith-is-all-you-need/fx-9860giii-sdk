@@ -55,6 +55,13 @@ def main():
                         ignore=shutil.ignore_patterns('__pycache__','*.pyc','.fxstudio','build*'))
     replace(ROOT/'tooling/engineering.py',out/'automation/engineering.py')
     replace(ROOT/'README.md',out/'README.md')
+    replace(ROOT/'README.txt',out/'README.txt')
+    (out/'START-HERE.txt').write_text(
+        'Fx Studio current development assembly - Windows x64\n\nRun FxStudio.exe.\n'
+        'Tools: migrate an fxlib project, import resources, or prepare Loader folders.\n'
+        'Read README.md and docs/MIGRATION-AND-RESOURCES.zh-CN.md for current features.\n'
+        'Validation scope: docs/VALIDATION-COMPAT-20261118.md and docs/loader/VALIDATION-0.2.md.\n'
+        'Read CURRENT-SOURCE-NOTICE.txt before using inherited sources/ or validation/ records.\n', encoding='utf-8')
     copy_verified_emulator(ROOT,a.emulator_build,out/'runtime/emulator')
     if a.profile_studio:
         for relative in (*profile_files,'package-manifest.json'):

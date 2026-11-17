@@ -1,7 +1,8 @@
 # fxlib 兼容层、资源导入与一致性验证
 
-2026-11-18，Windows x64。本页保留兼容库分支 `e71a460` 在合并 Loader Suite 0.2
-（`6e8afb1`）之前的实测结果，不改写历史 0.2.0 的验收，也不把旧测试算作合并后复验。
+2026-11-18，Windows x64。本页分别记录兼容库分支 `e71a460` 的原始结果，以及合并
+Loader Suite 0.2（`6e8afb1`）后的 `c61d1c8` 复验。不改写历史 0.2.0 的验收，
+也不把旧测试算作合并后复验。
 机器可读的结果、源文件与二进制 SHA-256 见 [validation-compat-20261118.json](validation-compat-20261118.json)。
 
 ## 合并前实际完成
@@ -67,14 +68,42 @@ python tooling/test_fxlib_target.py --package C:/FxStudioUpdated --output C:/fxs
 `dist-toolchain/native-sdk`，也可设置 `FXSTUDIO_TEST_SDK`。主机 C 测试需要 gcc 或 clang。
 输出目录必须新建。模拟器独立重建和完整发布前置条件见 [BUILDING](BUILDING.md)。
 
-## 合并 Loader Suite 0.2 后的证据范围
+## 合并 Loader Suite 0.2 后的复验
 
-合入 `6e8afb1` 增加目录包、动态运行库、调用者会话库和 Profile Studio 更新。
-新锁清单为 3 个组件、345 次文件哈希检查（340 个不同路径）；这个数值只描述清单，
-不表示本页已经复跑新锁、组装闭包、桌面入口或完整包验收。
-Loader 分支自己的结果见 [Loader Suite 0.2 独立验证](loader/VALIDATION-0.2.md)。
-本页上方的 WPF、Agent、二进制哈希、截图与测试计数继续归属于合并前运行；
-合并后的检查应以新的产物身份另行记录，不能覆盖原证据或仅更改其标签。
+受测源码为 `c61d1c88a2ef88dad5f20f0f04ec436ce67da664`；合入 `6e8afb1` 的
+目录包、动态运行库、调用者会话库和 Profile Studio 更新后，重新构建桌面程序，
+并组装本地完整目录 `C:/fxstudio-build/FxStudio-fxlib-20261118`。
+后续同步更新说明文档及其打包入口，未修改下列受测应用、转换工具和兼容库。
+
+| 合并后检查 | 本次结果与范围 |
+| --- | --- |
+| .NET 构建与合约 | 0 错误、0 警告；Core 65 项、Automation 129 项通过 |
+| 发布目录启动 | 实际 WPF 启动、Agent 发现通过；完整包内应用与 Agent 等 7 个关键文件和新 publish 目录逐项哈希相同 |
+| Python/C 检查 | 工程脚手架 6 项、fxlib 主机 4 项、fxlarge profile 10 项；Loader 10 项、Profile 19 项、Hook 2 项、Caller 1 项通过；后四组使用 `PYTHONUTF8=1` |
+| 组装闭包与来源 | 10 项通过，包含新 V2 目录依赖；新锁 3 个组件、345 次哈希检查（340 个不同路径）通过，模拟器来源及三种实际 Loader 产物哈希核对通过 |
+| 完整目录清单 | `Verify-Package.ps1` 通过，受测清单 12,782 文件；随后刷新验证文档和清单，不将旧清单哈希作为新目录身份 |
+| 中文/英文 IDE | 每种语言迁移/导入 7 项再次通过；实际知识窗口均加载 4,165 条记录，并通过 `0x042C` 过滤检查 |
+| Agent 实际目标 | 四种资源转换后，Debug/Release 均构建及配对校验通过；启动 `[31,5,3,0,0]`，EXE 后 `[31,5,3,30004,1]`；自有 host 已关闭 |
+| 源码收集计划 | `--plan` 列出 860 文件、516,221,412 字节；仅验证收集计划，本次没有生成新的公开源码归档 |
+
+`c61d1c8` 的 [GitHub CI](https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/actions/runs/44151307619)
+已通过 Windows 构建、合约、Python 与发布启动检查，以及两个 Loader 离线任务。
+后续说明文档及打包入口同步提交的 CI 另行运行，不沿用此提交的状态。
+
+目标检查再次覆盖绘图、旧位图、两个协作定时器、文件读写往返、四种资源数据和旧 EXE
+键码。WPF 检查调用实际工作流与 Python 工具，仍未自动化系统文件选择对话框。
+合并前的迁移 8 项、资源 15 项完整原生测试计数保留在上表，不重复计作合并后全套复跑。
+
+新 Debug G1A 为 37,980 字节，SHA-256
+`1183819e6cd622c273332f7f737bbd8c482fa8b1fe35e825c5ae291b96708178`；
+新 Release G1A 为 44,044 字节，SHA-256
+`f39a60159e5524e06c0edac9e034727b78716ababda4af55ca2800b879300472`。
+新应用、Agent、Profile Studio、Loader、ELF 及原始报告的哈希见机器记录的
+`postMergeValidation`。上方截图和原始哈希仍属于合并前运行，未替换标签。
+
+Loader 分支的大程序、Flash 和目录测试细节继续见
+[Loader Suite 0.2 独立验证](loader/VALIDATION-0.2.md)；本次组装和 fxlib 工作流复验
+不表示重新运行了该记录的全部二进制探针，也不表示已替换或发布历史 Release 附件。
 
 ## 尚未证明的能力
 

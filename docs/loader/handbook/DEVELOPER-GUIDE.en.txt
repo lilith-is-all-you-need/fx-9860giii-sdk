@@ -1,6 +1,12 @@
 fx-9860GIII Loader Developer Guide
 Reviewed: 2026-11-18. Chinese counterpart: DEVELOPER-GUIDE.zh-CN.txt
 
+Historical baseline: this guide preserves findings from the revisions below.
+Current Loader Suite 0.2 implements FXAPPS directory discovery and a source-integrated
+dynamic extended runtime. Sections calling those features future work no longer
+describe current delivery. See docs/LOADER-SUITE.en.md for current use and limits,
+and loader-components.lock.json at SDK commit 1a145961 for the historical hashes.
+
 Scope and versions
 This guide describes existing implementation and evidence, not delivery of new features.
 Reviewed baseline: SDK 1a145961, ordinary Loader fcaa21d, large Loader 7cd3257,

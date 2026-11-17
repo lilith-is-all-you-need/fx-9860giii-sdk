@@ -103,7 +103,7 @@ def main():
                       'sourceDirectory': '../../' + example, 'elfSha256': manifest['sha256']['elf'], 'g1aSha256': manifest['sha256']['g1a'],
                       'sourceMappings': [{'from': m['from'], 'to': '../../' + example} for m in manifest['sourceMappings']]}
         (prebuilt / 'demo.fxdebug.json').write_text(json.dumps(descriptor, indent=2), encoding='utf8')
-    for file in ('LICENSE', 'THIRD-PARTY-NOTICES.txt'):
+    for file in ('LICENSE', 'THIRD-PARTY-NOTICES.txt', 'README.md', 'README.txt'):
         shutil.copy2(ROOT / file, target)
     licenses = target / 'licenses'
     (licenses / 'dotnet').mkdir(parents=True)
@@ -133,9 +133,11 @@ def main():
     for name in ('Verify-Package.ps1',):
         shutil.copy2(ROOT / 'tooling' / name, target / name)
     (target / 'START-HERE.txt').write_text(
-        'Fx Studio 0.2.0 - Windows x64\n\nRun FxStudio.exe. Native SDK, GDB and emulator are bundled.\n'
+        f'{args.name} - Windows x64\n\nRun FxStudio.exe. Native SDK, GDB and emulator are bundled.\n'
         'Open docs/USER-GUIDE.zh-CN.html or docs/USER-GUIDE.en.html.\n'
-        'See docs/VALIDATION.html for tested capabilities and remaining limits.\n'
+        'Current capabilities: README.md; migration/resources: docs/MIGRATION-AND-RESOURCES.zh-CN.md.\n'
+        'Current compatibility evidence: docs/VALIDATION-COMPAT-20261118.md; Loader: docs/loader/VALIDATION-0.2.md.\n'
+        'docs/VALIDATION.html is the historical 0.2.0 report; use validation/ for this package acceptance.\n'
         'Automation: FxStudio.Agent.exe --stdio (MCP); see docs/AUTOMATION.md.\n'
         'Skill (no client MCP setup): skills/fxstudio; see its references/quickstart.zh-CN.md.\n'
         'Matching corresponding sources and notices are included under sources/.\n', encoding='utf8')

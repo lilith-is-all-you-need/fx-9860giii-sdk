@@ -1,5 +1,7 @@
 fx-9860GIII Loader Pitfalls and Diagnostics
 Reviewed: 2026-11-18. Chinese counterpart: PITFALLS.zh-CN.txt.
+This is a historical diagnostic record. See docs/LOADER-SUITE.en.md for current
+folder bundles, dynamic runtime and workflows; historical gaps are not the current feature list.
 Baseline and evidence labels: DEVELOPER-GUIDE.en.txt. Paths are relative to the SDK root.
 There is no finding that every G1A is compatible or stable.
 

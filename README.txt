@@ -1,5 +1,12 @@
-Fx Studio 0.2.0 - fx-9860GIII C/C++ development
-=============================================
+Fx Studio - fx-9860GIII C/C++ development
+========================================
+
+Current source capabilities: README.md and docs/SDK-CAPABILITIES.zh-CN.html.
+Legacy fxlib migration and managed resources: docs/MIGRATION-AND-RESOURCES.zh-CN.md.
+Loader Suite 0.2: docs/LOADER-SUITE.zh-CN.md and docs/LOADER-SUITE.en.md.
+Current compatibility validation: docs/VALIDATION-COMPAT-20261118.md.
+Existing 0.2.0 release ZIPs retain their original features. The release description
+below and docs/VALIDATION.html describe that historical baseline, not later builds.
 
 Start with docs/USER-GUIDE.zh-CN.html or docs/USER-GUIDE.en.html.
 Research findings: docs/RESEARCH.zh-CN.html
