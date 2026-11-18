@@ -16,7 +16,7 @@ python tooling/profile_job.py generate --input game.g1a --output-root with-launc
 python tooling/profile_job.py export-loader --backend flash --output launchers --artifacts loader-artifacts
 ~~~
 
-Merge the contents of `calculator` into the calculator storage root. Keep each `FXAPPS/<ID>/` folder intact. Use `FlashLd.g1a` for ordinary programs. The reviewed exact-version KhiCAS adapter uses `KLoad.g1a`. Read `requiredLoader` in `analysis.json`. Use Full for the first FlashLd run. Fast trusts earlier content checks and can miss a same-size change between launches.
+Merge the contents of `calculator` into the calculator storage root. Keep each `FXAPPS/<ID>/` folder intact. Automatic preparation uses `FlashLd.g1a` for ordinary programs, including the original KhiCAS. Select `--backend mapped` explicitly to reproduce the legacy KLoad run for that exact image. Read `requiredLoader` in `analysis.json`. Use Full for the first FlashLd run. Fast trusts earlier content checks and can miss a same-size change between launches.
 
 ## Interface reference
 

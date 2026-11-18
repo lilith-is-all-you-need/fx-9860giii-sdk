@@ -23,7 +23,7 @@
 <p>现有断点、监视点、源码/指令单步、调用栈、变量、寄存器、内存和反汇编可用。体验仍不是成熟 Visual Studio 的全部能力：没有反向调试、完整执行历史、性能分析和完整容器可视化；预优化 SDK 库内部源码/变量也可能不完整。</p>
 <h2>7. Loader Suite 0.2 与源码迁移的区别</h2>
 <p>Profile Studio 0.2 与 <code>profile_job.py</code> 生成 <code>FXAPPS/&lt;程序ID&gt;/</code> 目录包，默认只导出程序依赖，可选或独立导出公共启动器。普通 Flash 后端由 <code>FlashLd.g1a</code> 扫描目录；Full 为默认，Fast 依赖此前成功的完整校验，可能漏检两次启动之间同大小的内容变化。旧 <code>loader_suite.py</code> 保留历史平铺格式。目录和安装约定见 <a href="LOADER-SUITE.zh-CN.md">Loader 中文手册</a>及<a href="LOADER-SUITE.en.md">English guide</a>。</p>
-<p>普通 Loader 输入上限为 2,097,152 字节（含头部）。原版 KhiCAS 有按镜像摘要匹配的专用适配器。超限程序作者可单独构建<a href="../sdk/examples/oversized-loader/README.zh-CN.md">超限 Loader 源码示例</a>。调用者业务会话库提供两种 MENU 策略，实际恢复需要配套后端。</p>
+<p>普通 Loader 输入上限为 2,097,152 字节（含头部）。原版 KhiCAS 默认使用通用 FlashLd；复现旧适配器的实验时可手动选择 mapped。超限程序作者可单独构建<a href="../sdk/examples/oversized-loader/README.zh-CN.md">超限 Loader 源码示例</a>。调用者业务会话库提供两种 MENU 策略，实际恢复需要配套后端。</p>
 <p>验证范围分别见 <a href="VALIDATION-COMPAT-20261118.md">fxlib/资源验证</a>和<a href="loader/VALIDATION-0.2.md">Loader 0.2 独立验证</a>。前者分别保留合并前结果与 <code>c61d1c8</code> 完整本地包的组装、双语 IDE 和 Agent 实际目标复验；没有把旧组件测试改算为新包测试。历史实机首次启动反馈不等于新目录版、动态运行库或兼容库已通过实机验收。</p>
 <h2>稳定的 LLM 调用设计</h2>
 <p>新增自包含 <code>FxStudio.Agent.exe --stdio</code>，使用标准 MCP。固定四个外层工具分别负责发现、提交、操作查询/取消、事件读取；具体功能放在有独立版本与参数 schema 的命令目录中。构建/调试业务位于独立 Automation 层，底层继续使用 Core，协议不侵入 GDB 实现。</p>

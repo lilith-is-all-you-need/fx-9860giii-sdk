@@ -64,8 +64,11 @@ def analyze(source, requested='auto', review=None):
         raise ValueError('Not a G1A image')
     digest = sha(data)
     registry = read_json(ROOT / 'profiles/registry.json')
-    approved = next((x for x in registry['programs'] if x['sha256'] == digest), None)
-    backend = 'mapped' if approved and approved.get('adapter') == 'mapped-khicas-v1' else 'flash'
+    # The legacy KhiCAS adapter is opt-in. A Flash analysis must not inherit
+    # its private RAM policy or device evidence, even for the same image.
+    approved = next((x for x in registry['programs'] if x['sha256'] == digest
+                     and (x.get('adapter') != 'mapped-khicas-v1' or requested == 'mapped')), None)
+    backend = 'flash'
     if requested != 'auto':
         if requested not in ('flash', 'ram', 'mapped') or (requested == 'ram' and size > RAM_LIMIT):
             raise ValueError(f'{size} bytes cannot use {requested}')

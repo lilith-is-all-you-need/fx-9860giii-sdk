@@ -16,7 +16,7 @@ python tooling/profile_job.py generate --input game.g1a --output-root with-launc
 python tooling/profile_job.py export-loader --backend flash --output launchers --artifacts loader-artifacts
 ~~~
 
-将结果中 `calculator` 的内容合并到计算器存储根目录。保留 `FXAPPS/<ID>/` 下的所有文件。普通程序由公共 `FlashLd.g1a` 启动，受审核的特定 KhiCAS 镜像可走 `KLoad.g1a`。所需启动器见 `analysis.json` 的 `requiredLoader`。首次在 FlashLd 使用 Full，Fast 会复用校验，可能漏检两次运行间的同大小改写。
+将结果中 `calculator` 的内容合并到计算器存储根目录。保留 `FXAPPS/<ID>/` 下的所有文件。普通程序（含原版 KhiCAS）默认由公共 `FlashLd.g1a` 启动。仅在显式指定 `--backend mapped`、复现旧版 KhiCAS 测试时使用 `KLoad.g1a`。所需启动器见 `analysis.json` 的 `requiredLoader`。首次在 FlashLd 使用 Full，Fast 会复用校验，可能漏检两次运行间的同大小改写。
 
 ## 接口速查
 

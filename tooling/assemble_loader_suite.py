@@ -84,7 +84,7 @@ def main():
         '输出目录中的 calculator 文件夹才是计算器安装文件。其余为电脑端报告和 profile。\n'
         '默认只生成程序目录，可选附带或单独导出 Loader。保留 FXAPPS 层级。\n'
         'program-ready 表示依赖就绪，candidate 另含启动器；两者仍需实机验收。\n'
-        '普通 G1A 上限 2 MiB。FlashLd 加载普通目录，KLoad 对应已适配的 KhiCAS 版本。\n'
+        '普通 G1A 上限 2 MiB。FlashLd 默认加载普通目录，包括原版 KhiCAS。KLoad 仅用于手动复现旧适配。\n'
         '超限源码示例与独立使用说明见 sdk/examples/oversized-loader/README.zh-CN.md。\n'
         '本目录是独立的新版本，原安装包保留。\n',encoding='utf-8-sig')
     (out/'CURRENT-SOURCE-NOTICE.txt').write_text(

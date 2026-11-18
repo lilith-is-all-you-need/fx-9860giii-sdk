@@ -50,7 +50,7 @@
   {
     "Title": "KhiCAS 精确版本适配",
     "Evidence": "首次启动实机可用；重入仍待确认",
-    "Text": "2,094,444 字节原版 KhiCAS 使用 KLoad。BIN 不变；影子页修改 syscall 网关和私有内存池，把 arena 从 166 KiB 减至 106 KiB。用户报告首次启动可用，MENU 后直接选择同一图标出现 Loading；不能据第一次成功认定重入稳定。",
+    "Text": "2,094,444 字节的原版 KhiCAS 默认使用通用 FlashLd。下面是显式选用旧 KLoad 的历史记录。BIN 不变；影子页修改 syscall 网关和私有内存池，把 arena 从 166 KiB 减至 106 KiB。用户报告首次启动可用，MENU 后直接选择同一图标出现 Loading；不能据第一次成功认定重入稳定。",
     "Source": "probes/mapped-loader/README.zh-CN.md"
   },
   {
