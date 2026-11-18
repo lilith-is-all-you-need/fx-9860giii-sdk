@@ -31,6 +31,8 @@ SDK_EDITION_FILES = frozenset({
 })
 EXAMPLE = 'sdk/examples/oversized-loader'
 DEVELOPMENT_FILES = ('tooling/package_components.py', 'tooling/legacy_project.py', 'tooling/project_assets.py',
+                     'tooling/build-project.py', 'tooling/native-sdk/README.md',
+                     'tooling/native-fxsdk/README.md', 'source-notices/README.md',
                      EXAMPLE + '/README.en.md', EXAMPLE + '/README.zh-CN.md')
 DEVELOPMENT_TREES = ('compat/fxlib', 'examples/legacy-fxlib')
 IGNORED = {'.git', '.fxstudio', '__pycache__', 'bin', 'obj'}
