@@ -89,7 +89,7 @@ public sealed record BuildArtifact
     public GdbLaunchOptions CreateWslGdbOptions(ProjectConfig project, int port) => new()
     {
         ExecutablePath = project.WslExecutable,
-        Arguments = ["-d", project.Distro, "--", "/usr/bin/env", "LC_ALL=C.UTF-8", project.GdbExecutable, "--interpreter=mi2", "--quiet", "--nx"],
+        Arguments = ["-d", project.Distro, "--exec", "/usr/bin/env", "LC_ALL=C.UTF-8", project.GdbExecutable, "--interpreter=mi2", "--quiet", "--nx"],
         ElfPath = LinuxElfPath, Port = port, SourceMappings = SourceMappings, GdbSourceMappings = LinuxSourceMappings
     };
 

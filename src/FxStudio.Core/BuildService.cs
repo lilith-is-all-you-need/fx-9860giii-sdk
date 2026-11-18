@@ -151,7 +151,7 @@ public sealed partial class BuildService
             RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false,
             CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
         };
-        start.ArgumentList.Add("-d"); start.ArgumentList.Add(project.Distro); start.ArgumentList.Add("--");
+        start.ArgumentList.Add("-d"); start.ArgumentList.Add(project.Distro); start.ArgumentList.Add("--exec");
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = new Process { StartInfo = start };
         if (!process.Start()) throw new BuildException("Could not start WSL.");

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fx Studio Win32 使用指南</title>
+<style>
+:root{color-scheme:light;font-family:"Segoe UI","Microsoft YaHei UI",sans-serif;color:#203637;background:#eef4f1}
+*{box-sizing:border-box}body{max-width:960px;margin:0 auto;padding:32px 24px 56px}header{background:#152d32;color:white;padding:32px 36px;border-radius:12px}
+h1{font-size:2rem;margin:0 0 .3em}header p{margin:0;color:#a7dfc8}main{background:white;padding:20px 36px 32px;border:1px solid #d6e2db;border-radius:12px;margin-top:16px}
+h2{font-size:1.25rem;margin:1.6em 0 .6em}p,li,td{line-height:1.7}li{padding:.2em 0}kbd,code{background:#ebf1ed;border-radius:4px;padding:1px 5px;font:90% Consolas,monospace}
+a{color:#075e51}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #dce5df;padding:9px 4px;text-align:left;vertical-align:top}th{font-size:.9rem;color:#4c635b}td:first-child{width:26%}
+figure{margin:24px 0}figure img{display:block;width:100%;height:auto;border:1px solid #d6e2db;border-radius:6px}figcaption{color:#465e56;margin-top:8px}
+@media(max-width:600px){body{padding:12px}header,main{padding:18px}h1{font-size:1.6rem}}
+</style>
+<header><h1>Fx Studio Win32</h1><p>fx-9860GIII · C / C++ 开发工作台</p></header>
+<main>
+<h2>编译并运行第一个工程</h2>
+<ol><li>完整解压压缩包，双击顶层的 <code>FxStudio.Win32.exe</code>。</li>
+<li>点击 <strong>打开计数器示例</strong>。工作台会创建可编辑的 C++ 副本。需要 C 或有界内存模板时，选择 <strong>文件 → 新建工程</strong>。</li>
+<li>按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> 构建。安装目录含中文时，首次构建会准备工具链缓存，可在输出窗查看进度。按 <kbd>F5</kbd> 启动调试，程序会停在 <code>main</code>。再次按 <kbd>F5</kbd> 继续运行，点击右侧计算器的 <strong>+</strong> 可看到计数增加。</li>
+<li>在 <code>change_counter</code> 的可执行行左侧单击添加断点，再次点击计算器的 <strong>+</strong>。暂停后，底部可查看变量、栈帧、寄存器、内存与反汇编。</li>
+<li>按 <kbd>Shift</kbd> + <kbd>F5</kbd> 停止，切换 <strong>Release</strong> 后构建。选择 <strong>文件 → 导出已校验 G1A</strong>，将导出的 G1A 复制到计算器。</li></ol>
+<figure><img src="Studio/docs/images/ide-win32.png" alt="Fx Studio 源码调试窗口，计算器屏幕计数为 1，下方监视表达式也为 1"><figcaption>示例停在第 49 行。模拟器屏幕显示的计数，与底部监视表达式 <code>counter.value</code> 的值一致。</figcaption></figure>
+<h2>常用入口</h2>
+<table><tr><th>任务</th><th>操作</th></tr>
+<tr><td>已有工程或调试包</td><td>打开或拖入工程目录、CMakeLists.txt、*.fxide.json 或 *.fxdebug.json。预编译调试包的源码以只读方式打开。</td></tr>
+<tr><td>编辑与检查</td><td>工程树双击打开文件或预览图片，右键目录新建源文件。Ctrl+F 查找，F3 查找下一个。导入资源后自动生成声明和构建规则。</td></tr>
+<tr><td>调试与屏幕</td><td>F9 切换断点，F10 逐过程，F11 逐语句，Shift+F11 跳出。选择底部的断点或监视标签可修改条件和数值。右侧支持长按按键、整数倍屏幕预览和原始 128 × 64 PNG 导出。</td></tr>
+<tr><td>旧 fxlib 与资源</td><td>在<strong>工具</strong>菜单迁移旧目录，或导入 bitmap、image、binary 和 font。旧工程原件保存在原目录。</td></tr>
+<tr><td>Loader 与资料</td><td><strong>工具 → FX Profile Studio</strong> 打开批量生成器，也可单独导出 Loader。<strong>帮助 → 计算器资料库</strong> 可按主题、地址或系统调用搜索。</td></tr>
+<tr><td>脚本与自动化</td><td><code>Studio/FxStudio.Agent.exe --stdio</code> 提供原 SDK 的本地接口。随包示例、脚手架和工具分别位于 <code>Studio/examples</code>、<code>Studio/scaffolds</code> 和 <code>Studio/tooling</code>。</td></tr></table>
+<p>更多设置与原开发环境见 <a href="Studio/docs/USER-GUIDE.zh-CN.html">SDK 中文手册</a>。完整操作表、依赖版本与重建命令见 <a href="%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E.md">Win32 源码说明</a>。</p>
+<h2 lang="en">English quick start</h2>
+<p lang="en">Extract the entire archive and launch <code>FxStudio.Win32.exe</code>. Switch to English under <strong>工具 → Language / 语言</strong>. Open the counter example, build with <kbd>Ctrl+Shift+B</kbd>, and press <kbd>F5</kbd> twice to run it. Click the calculator’s + key. Use the File menu to export a verified Release G1A. The SDK, debugger and emulator are bundled. <a href="Studio/docs/USER-GUIDE.en.html">Read the SDK guide</a>.</p></main></html>

@@ -37,3 +37,7 @@ used only for local research/testing. They are not part of the public runtime
 package. Casio software, operating-system ROMs, and the user's WSL distributions
 are not included. fx-9860GIII is a Casio product name; Fx Studio is independent
 software and is not an official Casio product.
+
+The native Win32 IDE uses Scintilla and Lexilla from SciTE 5.6.9 and nlohmann/json 3.11.3 (MIT).
+Licenses ship under Studio/editor. Pinned upstream URLs and SHA-256 digests are in desktop/Win32/editor_deps.py.
+The complete editor source archive and matching build inputs are under Studio/sources/current/editor-inputs.

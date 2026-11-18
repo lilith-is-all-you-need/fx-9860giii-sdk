@@ -19,7 +19,7 @@ import uuid
 
 SDK=Path('/root/.local')
 MODULES=SDK/'lib/cmake/fxsdk'
-LAUNCHER='/opt/fxide/bin/compiler-launcher'
+LAUNCHER=str(Path(__file__).with_name('compiler-launcher' + Path(__file__).suffix))
 IGNORED={'.git','.vs','.idea','__pycache__','.fxide-source','.fxstudio','CMakeFiles'}
 
 def run(args,env,**kwargs):

@@ -30,7 +30,7 @@ CODE_SUFFIXES = {'.cs', '.csproj', '.sln', '.slnx', '.xaml', '.json', '.xml', '.
                  '.props', '.targets', '.py', '.ps1', '.sh', '.c', '.h', '.cpp', '.hpp',
                  '.cmake', '.in', '.txt', '.md', '.html', '.css', '.manifest', '.patch',
                  '.png', '.svg', '.ico', '.resx', '.editorconfig', '.yaml', '.yml'}
-CODE_SUFFIXES.update({'.s', '.ld', '.java'})
+CODE_SUFFIXES.update({'.s', '.ld', '.java', '.rc'})
 OMIT_DIRS = {'bin', 'obj', 'build', 'source', '__pycache__', '.git', '.vs', '.fxstudio',
              '.fxide-source', 'integration-work', 'node_modules'}
 COMPRESSED = {'.xz', '.gz', '.bz2', '.zst', '.zip', '.nupkg', '.png', '.ico'}
@@ -168,6 +168,7 @@ def collect():
         add(ROOT / name)
     for folder in ('src', 'tests', 'tooling', 'docs', 'examples', 'skills', 'scaffolds', 'compat'):
         tree(folder, 'Fx Studio source', code_only=True)
+    tree('desktop/Win32', 'Fx Studio Win32 IDE and host', code_only=True)
     for relative in sorted(SDK_EDITION_FILES):
         add(ROOT / relative, origin='Fx Studio SDK edition')
     for relative in public_component_sources(ROOT):

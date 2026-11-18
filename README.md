@@ -1,5 +1,11 @@
 # Fx Studio
 
+## Windows IDE / Windows 开发环境
+
+从 [r4 Windows 发布页](https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/releases/tag/v0.2.0-r4) 下载并完整解压 Windows ZIP。打开根目录的 `FxStudio.Win32.exe` 启动 C++ 原生 IDE，或打开 `Studio/FxStudio.exe` 使用经典 IDE。两者共用离线编译器、模拟器和 GDB。`Studio/ProfileStudio/ProfileStudio.exe` 提供独立的 FlashLd 导出。
+
+Extract the entire Windows ZIP. Launch the native C++ IDE with `FxStudio.Win32.exe` or the classic IDE with `Studio/FxStudio.exe`. Both use the same bundled compiler, emulator and debugger. The [Win32 guide](desktop/Win32/README.md) describes editing, builds and debugging.
+
 A Windows C/C++ IDE and offline SDK for the Casio fx-9860GIII, with SuperH machine-code emulation, GDB debugging, and a local MCP automation server. 中文 / English UI.
 
 面向 fx-9860GIII 的 Windows C/C++ 开发环境：离线编译、计算器屏幕与按键预览、源码调试，以及供 LLM 和脚本使用的本地自动化接口。

@@ -64,6 +64,17 @@ class SdkCacheTests(unittest.TestCase):
         with patch.object(native, 'ascii_path', return_value=sdk):
             self.assertEqual(native.prepare_sdk(sdk, Path('C:/unused-cache')), sdk)
 
+    def test_unicode_install_with_an_ascii_short_alias_uses_the_snapshot(self):
+        with tempfile.TemporaryDirectory(prefix='FxStudio-alias-') as temporary:
+            root = Path(temporary)
+            sdk = root / '中文 SDK'; sdk.mkdir()
+            (sdk / 'marker').write_bytes(b'sdk')
+            cache = root / 'cache'; cache.mkdir()
+            with patch.object(native, 'ascii_path', return_value=Path('C:/SDK~1')):
+                prepared = native.prepare_sdk(sdk, cache)
+            self.assertTrue(prepared.is_relative_to(cache / 'sdk-snapshots'))
+            self.assertEqual((prepared / 'marker').read_bytes(), b'sdk')
+
 
 if __name__ == '__main__':
     unittest.main()

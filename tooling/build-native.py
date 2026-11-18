@@ -77,10 +77,11 @@ def prepare_sdk(sdk: Path, cache: Path) -> Path:
     the installed SDK. Distinct SDK contents get distinct compiler/build paths.
     Interrupted copies are repaired; every reused file is checked against source.
     """
-    try:
-        return ascii_path(sdk, 'SDK')
-    except RuntimeError:
-        pass
+    # GCC expands 8.3 aliases when locating its linker and libraries. Its Windows
+    # linker cannot consistently reopen a non-ASCII installation's expanded name.
+    sdk = sdk.resolve()
+    if str(sdk).isascii() and "'" not in str(sdk):
+        return sdk
     print('Preparing native SDK cache for this installation path (offline)...', flush=True)
     records = []
     for parent, dirs, files in os.walk(sdk):
