@@ -67,7 +67,7 @@
     {
       "name": "fx_universal_loader",
       "repository": "https://github.com/lilith-is-all-you-need/fx_universal_loader",
-      "commit": "2d4160c722cedf3409175e1edaabab9f30776e5b",
+      "commit": "5194f0ebac58e35ec6fbd47d5828f73acbfa270f",
       "files": {
         "desktop/ProfileStudio/App.xaml": "a5a5fbb056e690914bd67a7409c561e5f2a228427fc18faff8d3317ddd7315f9",
         "desktop/ProfileStudio/App.xaml.cs": "964701f1e9f47a410e28eb94a09ce8edc1fd9f499fc368e200348c5aa04c4be6",

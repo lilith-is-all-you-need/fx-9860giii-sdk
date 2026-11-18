@@ -33,3 +33,17 @@ python tooling/profile_job.py export-loader --backend flash --output launchers -
 ## 计算器上的内存选址
 
 FxProfile 会随程序目录保存已知的 RAM 保留区。FlashLd 先使用 OS 提供的第一个合适位置；有冲突就继续向 OS 申请。原版 KhiCAS 用户需同时更新 FlashLd.g1a 和 APP.FPF。测试时保存程序目录中本次的 RUN.LOG，尤其是 RAM_CANDIDATES 和失败时的 REQUIRED_BYTES。[选址范围、日志含义和模拟器结果](../probes/storage-loader/FOLDERS.zh-CN.md)
+
+## 从一个输入文件选到对应手册
+
+| 手上的文件或现象 | 下一步 |
+| --- | --- |
+| 普通 G1A 或只改了后缀的同一镜像，大小不超过 2,097,152 B | 在 Windows 打开 ProfileStudio.exe 或使用 IDE 的准备功能。首次安装附带 FlashLd。将 calculator 的内容复制到存储根目录，保留每个 FXAPPS/<ID> 目录。首次启动在计算器上按 F1 选 Full，再按 EXE。 |
+| 旧的原版 KhiCAS 目录在通用 FlashLd 下启动 | 重新生成该文件的 profile，同时更新启动器和 APP.FPF。记录实际提示。遇到 No fitting OS block 时保存 RUN.LOG 中本次 RUN_END 以前的内容。本次分配结果受目标保留内存及当时的 OS 堆影响。 |
+| 超过 2 MiB 的源码项目 | 从[第 513 页示例](../sdk/examples/oversized-loader/README.zh-CN.md)构建启动器、测试程序及外部文件，先验证读取窗口外一页与退出。再按应用逐项接入启动、文件访问、回调和退出。 |
+| 想复现 Giac 实验 | 参考仓库发布成对的 KhiMap.g1a 与 KHICAS.BIN。按 699 / 701 页和 SHA-256 选择一组。在计算器上启动同组 KhiMap。 |
+| 已经能启动，准备记录兼容性 | 分别记录验证方式、首次启动、一个有可核对结果的操作、保存、正常退出以及 MENU 后直接选回。标注 OS、启动器和输入的 SHA-256。每次启动前另存上一轮日志。 |
+
+在 WinUI 中启用 Ghidra 深度分析需要单独选择 Ghidra 和 JDK。普通文件的准备与导出可离线完成。要把调用者的业务状态恢复到 A，请查阅上方会话库一节，当前通用返回后端仍在开发。
+
+[KhiCAS / Giac reference](https://github.com/lilith-is-all-you-need/fx9860-cas-reference)

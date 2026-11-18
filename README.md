@@ -4,9 +4,9 @@ A Windows C/C++ IDE and offline SDK for the Casio fx-9860GIII, with SuperH machi
 
 面向 fx-9860GIII 的 Windows C/C++ 开发环境：离线编译、计算器屏幕与按键预览、源码调试，以及供 LLM 和脚本使用的本地自动化接口。
 
-**[Download / 下载完整离线包](https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/releases/latest)** · [中文说明](docs/USER-GUIDE.zh-CN.html) · [English guide](docs/USER-GUIDE.en.html) · [Automation / MCP](docs/AUTOMATION.md) · [Build from source](docs/BUILDING.md)
+**[Download / 下载完整离线包](https://github.com/lilith-is-all-you-need/fx-9860giii-sdk/releases/tag/v0.2.0-r2)** · [中文说明](docs/USER-GUIDE.zh-CN.html) · [English guide](docs/USER-GUIDE.en.html) · [Automation / MCP](docs/AUTOMATION.md) · [Build from source](docs/BUILDING.md)
 
-只需要准备或运行计算器程序时，可下载独立的 FxProfile 桌面工具或计算器启动器。
+只需要准备或运行计算器程序时，可下载独立的 FxProfile 桌面工具或计算器启动器。 [FxProfile 与 FlashLd 下载](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases/tag/v0.2.0-beta.4) · [KhiCAS / Giac 实验参考与手册](https://github.com/lilith-is-all-you-need/fx9860-cas-reference)
 FxProfile and the calculator launchers share a release in [FX Universal Loader](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases).
 
 ![Fx Studio debugger](docs/images/ide-debug-0.2.0.png)

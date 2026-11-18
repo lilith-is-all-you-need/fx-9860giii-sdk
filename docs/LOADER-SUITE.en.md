@@ -33,3 +33,17 @@ Record launch, save, exit and direct MENU re-entry separately during hardware te
 ## Memory placement on the calculator
 
 FxProfile includes known RAM reservations in the program folder. FlashLd uses the first suitable OS allocation and retries on overlap. For the original KhiCAS, update both FlashLd.g1a and APP.FPF. Preserve RUN.LOG from the program folder, including RAM_CANDIDATES and REQUIRED_BYTES on failure. [Placement scope, log reference and emulator results](../probes/storage-loader/FOLDERS.en.md)
+
+## Pick a path from an input or an observation
+
+| Starting point | Next step |
+| --- | --- |
+| An ordinary G1A or a byte-identical renamed file up to 2,097,152 bytes | Start ProfileStudio.exe or the IDE preparation tool. Include FlashLd on first installation. Copy the contents of calculator into storage root, keeping FXAPPS/<ID> together. Press F1 for Full, then EXE on the first run. |
+| An old original KhiCAS folder on generic FlashLd | Regenerate the profile and update both FlashLd.g1a and APP.FPF. For No fitting OS block, save RUN.LOG through the first RUN_END. Placement depends on target reservations and the heap in that session. |
+| A source project above 2 MiB | Build the launcher, guest and external image from the [page 513 example](../sdk/examples/oversized-loader/README.en.md). Verify an out-of-window read and exit before integrating startup, file operations, callbacks and shutdown of the application. |
+| Reproducing a Giac experiment | Obtain a matched KhiMap.g1a and KHICAS.BIN from the reference release. Select the pair by 699/701 pages and SHA-256. Launch its own KhiMap. |
+| Recording compatibility | Record verification mode, first launch, a checkable operation, save, normal exit and direct MENU re-entry separately. Include OS, launcher and input hashes. Preserve the previous log before relaunch. |
+
+The optional Ghidra workflow requires separately installed Ghidra and a JDK. Ordinary profile preparation and export work offline. For restoring a caller's business state, see the session API above. The general calculator return backend remains under development.
+
+[KhiCAS / Giac reference](https://github.com/lilith-is-all-you-need/fx9860-cas-reference)
