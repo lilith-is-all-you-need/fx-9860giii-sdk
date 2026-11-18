@@ -1,82 +1,31 @@
-# Loader Suite: folder packages and dynamic pages
+# Preparing ordinary G1A programs in FxStudio
 
-The standalone desktop download includes FxProfile and its matching launchers.
-The calculator-only download contains FlashLd, ExtLoad and the KhiCAS-specific KLoad.
-Both packages are available from [FX Universal Loader releases](https://github.com/lilith-is-all-you-need/fx_universal_loader/releases).
+[中文](LOADER-SUITE.zh-CN.md) · [Oversized Loader source example](../sdk/examples/oversized-loader/README.en.md)
 
-FX Profile Studio 0.2 is a native WinUI desktop application with English and
-Chinese switching. It prepares stable name-plus-short-SHA result directories.
-The default output contains program dependencies. Including a launcher is optional;
-the separate Export Loader action needs no input image.
+FxStudio accepts a complete ordinary G1A, including the same image renamed to BIN. **The limit is 2,097,152 bytes including the file header.** An image exactly at the limit enters ordinary analysis. A larger file produces an error with its size and the source example location before Ghidra or packaging runs. Authors of larger programs can build the linked example separately.
 
-Copy the contents of `calculator` to calculator storage, preserving
-`FXAPPS/<program-ID>/`. Calculator directory IDs use a name prefix and short hash
-within the OS eight-character limit. Keep the shared launcher filename intact.
-`IMAGE.BIN` preserves the entire input, including its original offsets and startup.
+The limit above governs preparation of existing images. The SDK [build verifier](../tooling/build-project.py) uses a separate conservative deployment budget of 2,000,000 bytes when building a G1A from source. The example builds two small G1As and generates the larger external fixture afterward.
 
-| Backend | Launcher | Scope |
-| --- | --- | --- |
-| Ordinary Flash | FlashLd.g1a | Folder discovery, English icon list, profile-bound syscall shadows; ordinary G1As up to 2 MiB, no program whitelist |
-| Reviewed original KhiCAS | KLoad.g1a | Exact image and dedicated memory-pool/callback adaptation |
-| Source-integrated large runtime | ExtLoad.g1a | ABI-declaring payloads, dynamic resident page table, physical pages queried on the calculator |
-| Legacy RAM | Loader.g1a | Historical flat packages only; contiguous heap can be far below the nominal image limit |
+## Prepare and install
 
-Full verification is the default. Fast mode requires a cache written after a
-successful full verification; page addresses are still queried each launch and
-later address changes within that run are checked. Fast can miss a same-size change between launches. Use Full after
-changing a BIN. Each program owns its log and cache; the PC tool never treats a
-new zeroed cache as verified.
+Choose Tools → Prepare G1A for Loader. Select the input and output location. The default creates a directory named for each input plus a short SHA. You can include the matching launcher. The WinUI edition also exports launchers independently. Scripts and language models can invoke the same engine from the SDK root.
 
-`EXT.PRF` separates `pageCount = ceil(imageBytes / 4096)` from table capacity.
-Spare entries remain invalid and are not mapped to bytes outside the image. The
-OS's original 512-entry table is not enlarged. The current 768-entry maximum and
-3,000,000-byte package budget are conservative implementation policies, not a claim
-that all nominal device storage is available. Profile/image/ABI mismatches, storage
-reserve failures and resident allocation failures prevent launch.
+~~~powershell
+python tooling/profile_job.py generate --input game.g1a --output-root results
+python tooling/profile_job.py generate --input game.g1a --output-root with-launcher --include-loader --artifacts loader-artifacts
+python tooling/profile_job.py export-loader --backend flash --output launchers --artifacts loader-artifacts
+~~~
 
-## Offline commands
+Merge the contents of `calculator` into the calculator storage root. Keep each `FXAPPS/<ID>/` folder intact. Use `FlashLd.g1a` for ordinary programs. The reviewed exact-version KhiCAS adapter uses `KLoad.g1a`. Read `requiredLoader` in `analysis.json`. Use Full for the first FlashLd run. Fast trusts earlier content checks and can miss a same-size change between launches.
 
-The SDK pins FxProfile and the calculator runtimes to the same upstream commit in
-`loader-components.lock.json`. The emulator retains its own revision. To refresh
-the Loader snapshot, check out the desired release and run
-`python tooling/sync_loader_components.py --universal-loader PATH_TO_CHECKOUT` from
-the SDK. Run `python tooling/check_loader_components.py` to verify the offline copy.
-Existing projects can still use `sdk/caller-session` and `sdk/fxlarge`.
+## Interface reference
 
-```powershell
-python tooling/profile_job.py generate --input program.g1a --output-root results
-python tooling/profile_job.py generate --input program.g1a --output-root with-loader --include-loader --artifacts loader-artifacts
-python tooling/profile_job.py export-loader --output launchers --artifacts loader-artifacts
-```
+| Task | Entry point or result |
+| --- | --- |
+| Automate preparation | [profile_job.py](../tooling/profile_job.py) provides `generate` and `export-loader`. For generation, exit code 0 means the program folder is ready, 2 means a report needs review, and 1 means processing failed. The CLI emits progress and errors as individual JSON lines. |
+| Decide what to test | In `job-result.json`, `programReady` means the program folder is complete and `includesLoader` means it contains a launcher. Device evidence uses its own `hardwareValidated` field. Inspect `diagnostics`, `blockers` and `deepAnalysis.status` for image and Ghidra diagnostics. |
+| Save the caller and select a MENU policy | See the [caller-session guide](../sdk/caller-session/README.en.md) and [fx_caller_session.h](../sdk/caller-session/include/fx_caller_session.h). Search for `fxcs_init`, `fxcs_prepare`, `fxcs_handoff`, `fxcs_recover` and `fxcs_error_text`. The caller saves its business state. The general Flash launcher still lacks an arbitrary caller-return backend. |
+| Diagnose a device failure | See [FlashLd folders and logs](../probes/storage-loader/FOLDERS.en.md). Preserve the program folder's `RUN.LOG` before another launch and record the final key and screen. Earlier device findings appear in the [pitfalls guide](loader/handbook/PITFALLS.en.txt). |
+| Develop an oversized source project | Use the [standalone example's build steps, API map and capacity limits](../sdk/examples/oversized-loader/README.en.md). Its projects explicitly import their vendored runtime. |
 
-`program-ready` means dependencies ready for the shared launcher. `candidate`
-includes the launcher. Neither means hardware stability has been established.
-`needs-adapter` retains analysis without runnable files; `analysis-incomplete`
-means requested Ghidra analysis did not finish. Existing results are reused only
-when input, options and delivered file hashes match. Otherwise choose a new root.
-
-## Exception hooks and reusable libraries
-
-The source runtime can route page faults to a permanently resident refill entry
-while forwarding other events under an explicit original-handler contract.
-Ghidra exports original bytes, exception/VBR ownership sites, delay slots,
-functions and recovered targets. `hook-review.json` checks site bytes against the
-immutable input. This is evidence, not executable binary patch authorization.
-Unknown runtime adapters still need complete VBR-writer coverage, exception-stack
-and register ABI, cache/TLB ownership, callbacks, OS transitions and teardown.
-EXT v2 rejects unknown nonzero binary-hook records.
-
-`FxStudio::LargeRuntime` is the source integration library. The separate
-`sdk/caller-session` library coordinates cooperative business-state transactions
-and two MENU policies. It does not yet provide a general Flash backend that
-preserves arbitrary caller stacks/heaps or resumes an arbitrary guest. Missing
-capabilities and nested A→B→C calls are rejected before pausing or saving A.
-SH3-era add-ins require individual MMIO/OS/runtime checks on GIII; a shared
-instruction family does not establish compatibility.
-
-Selected older CAS builds first launched on hardware, but direct MENU re-entry
-failed. Those records do not validate the new folder/dynamic builds. See
-[developer guide](loader/handbook/DEVELOPER-GUIDE.en.txt),
-[pitfalls](loader/handbook/PITFALLS.en.txt) and the component validation records.
-The emulator remains an HLE model with incomplete cache/peripheral timing and OS
-menu lifecycle fidelity.
+Record launch, save, exit and direct MENU re-entry separately during hardware testing. The independent FX Universal Loader project has its own version and scope.

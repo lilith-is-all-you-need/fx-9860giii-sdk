@@ -8,7 +8,6 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent))
 import loader_suite as suite
 import bundle_v2
-import hook_review
 
 ROOT=Path(__file__).resolve().parents[1]
 PAGE=4096
@@ -16,7 +15,7 @@ PAGE=4096
 def engine_contract_sha():
  h=hashlib.sha256()
  for relative in ('tooling/profile_job.py','tooling/bundle_v2.py','tooling/loader_suite.py',
-                  'tooling/ext_profile.py','tooling/hook_review.py','profiles/registry.json',
+                  'profiles/registry.json',
                   'probes/storage-loader/tools/prepare.py','probes/mapped-loader/tools/prepare.py',
                   'probes/native-loader/tools/prepare.py','tooling/ghidra/ExportG1aEvidence.java','tooling/ghidra/PrepareG1a.java'):
   h.update(relative.encode('utf-8'));h.update((ROOT/relative).read_bytes().replace(b'\r\n',b'\n'))
@@ -29,7 +28,7 @@ def verify_reuse(output,data,initial,artifacts,include_loader,deep):
  if not isinstance(sums,dict) or set(sums)!=actual:
   raise ValueError('Existing result manifest is incomplete / 现有结果校验清单不完整。')
  required={'analysis.json','paging-plan.json','job-result.json','original.bin','阅读说明.txt'}
- if deep:required|={'ghidra/evidence.json','hook-review.json'}
+ if deep:required|={'ghidra/evidence.json'}
  # Recreate immutable calculator members using today's checked rules. A
  # modified/empty checksum list cannot turn a missing profile into a ready job.
  with tempfile.TemporaryDirectory(prefix='.fxverify-') as temporary:
@@ -97,12 +96,6 @@ def job_diagnostics(report):
        '这个版本需要能处理该退出路径的适配，之后再验证退出和 MENU 返回。Ghidra 可帮助定位跳转的调用来源。',
        'This version needs an adapter for this exit path. Use Ghidra to inspect callers, then verify exit and MENU return with the adapter.',
        transfers=transfers)
-  elif blocker.startswith('Requires guest-owned'):
-   add('extended-runtime-required',
-       f'文件共 {report["pages"]} 页，超过系统窗口的 512 页；当前构建未声明受支持的大程序运行库。',
-       f'The image has {report["pages"]} pages and exceeds the 512-page OS window. This build has no supported large-program runtime contract.',
-       '有源码时可接入大程序运行库并重新构建；已有二进制需要单独的运行时适配。',
-       'Integrate the large-program runtime and rebuild from source, or provide a runtime adapter for the existing binary.')
   elif blocker.startswith('no recognized syscall gate'):
    add('no-recognized-gate','当前扫描未识别到可用于通用 Loader 的系统调用入口。',
        'The scan found no recognized system call gateway for the generic Loader.',
@@ -180,10 +173,7 @@ def page_plan(data,report):
   'virtualBase':0x300000,'entry':0x300200,'osWindowPages':512,'requiresExtendedRefill':count>512,
   'physicalAddressesIncluded':False,'selectedBackend':report['backend'],
   'runtimeAdapter':report.get('requiredRuntime'),'runtimeCandidate':report['status'] in ('candidate','program-ready'),
-  'requirements':(['Guest-owned resident page table and exception/refill integration',
-                   'Coordinate VBR, interrupts, OS switching, cache, callbacks and private RAM',
-                   'Query physical file pages on the calculator; never infer them offline'] if count>512 else
-                  ['Query physical file pages on the calculator and maintain the original virtual layout']),
+  'requirements':['Query physical file pages on the calculator and maintain the original virtual layout'],
   'pages':[{'index':i,'fileOffset':i*PAGE,'virtualAddress':0x300000+i*PAGE,
             'validBytes':min(PAGE,len(data)-i*PAGE),'outsideOsWindow':i>=512,
             'sha256':suite.sha(data[i*PAGE:(i+1)*PAGE])} for i in range(count)]}
@@ -328,9 +318,10 @@ def generate(source,output=None,backend='auto',artifacts=None,deep=False,ghidra=
   if deep_report['status'] in ('completed','partial') and evidence.is_file():
    try:
     exported=json.loads(evidence.read_text('utf-8'))
-    review=hook_review.review(data,exported)
+    if (exported.get('inputSha256') != report['sha256'] or exported.get('imageBytes') != len(data)
+        or exported.get('imageBase') != report['imageBase'] or exported.get('entry') != report['entry']):
+     raise ValueError('Ghidra evidence does not match the input image or its address layout')
     attach_ghidra_refs(report['diagnostics'],exported)
-    write(result/'hook-review.json',review)
    except (ValueError,KeyError,TypeError) as error:
     deep_report.update(status='failed',analysisComplete=False,problems=[str(error)])
   report['pagingPlan']='paging-plan.json';write(result/'analysis.json',report)
@@ -354,7 +345,7 @@ def generate(source,output=None,backend='auto',artifacts=None,deep=False,ghidra=
   if deep_report.get('log'):analysis_note+='\n'+deep_report['log']
   (result/'阅读说明.txt').write_text(message+'\n'+analysis_note+'\n\n'+reasons+'\n\n'+
     'paging-plan.json 是分页分析文档，不是计算器可执行 profile，也不包含真实物理地址。\n'+
-    'Ghidra 的交叉引用和反编译只提供证据，不会自动解决超限程序的运行库、VBR 或内存共存。\n'+
+    'Ghidra 提供调用位置和交叉引用；实机运行、退出及 MENU 行为需单独验证。\n'+
     ('请将 calculator 中全部文件复制到计算器存储根目录，保留 FXAPPS 层级。不要覆盖不同程序的目录。\n'+
      '公共 Loader 可用“导出 Loader”单独取得。首次测试保留完整检查；Fast 模式可能漏检两次启动之间同大小的内容改动。\n' if ready else '')+
     ('Copy calculator contents to the storage root, preserving FXAPPS.\n' if ready else ''),encoding='utf-8-sig')
@@ -373,11 +364,11 @@ def main():
  d=sub.add_parser('dependencies');d.add_argument('--ghidra');d.add_argument('--java')
  g=sub.add_parser('generate');g.add_argument('--input',type=Path,required=True)
  dest=g.add_mutually_exclusive_group(required=True);dest.add_argument('--output',type=Path);dest.add_argument('--output-root',type=Path)
- g.add_argument('--backend',choices=['auto','flash','ram','mapped','extended'],default='auto');g.add_argument('--artifacts',type=Path)
+ g.add_argument('--backend',choices=['auto','flash','ram','mapped'],default='auto');g.add_argument('--artifacts',type=Path)
  g.add_argument('--deep',action='store_true');g.add_argument('--ghidra');g.add_argument('--java');g.add_argument('--timeout',type=int,default=600)
  g.add_argument('--include-loader',action='store_true')
  e=sub.add_parser('export-loader');e.add_argument('--output',type=Path,required=True);e.add_argument('--artifacts',type=Path,default=ROOT/'loader-artifacts')
- e.add_argument('--backend',choices=['flash','mapped','extended','all'],default='all')
+ e.add_argument('--backend',choices=['flash','mapped','all'],default='all')
  a=p.parse_args()
  try:
   if a.command=='dependencies':print(json.dumps(dependency_status(a.ghidra,a.java),ensure_ascii=False));return 0

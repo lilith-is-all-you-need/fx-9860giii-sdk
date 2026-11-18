@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tooling'))
-from sync_loader_components import SPLIT, UNIFIED, sync
+from sync_loader_components import EXAMPLE, SPLIT, UNIFIED, sync
 
 
 def sha(data):
@@ -30,9 +30,9 @@ class UnifiedLoaderSync(unittest.TestCase):
         self.repo.mkdir()
         subprocess.run(['git', 'init', '-q', str(self.repo)], check=True)
         self.make_manifest(self.repo, {'sdk/caller-session/api.h': b'caller',
-                                       'probes/shared/header.h': b'shared'})
-        self.make_manifest(self.repo / 'large', {'include/api.h': b'large',
-                                                 'probes/shared/header.h': b'shared'})
+                                       'probes/os-map-shared.h': b'shared'})
+        self.make_manifest(self.repo / 'large', {'probes/source-guest/main.c': b'large',
+                                                 'probes/os-map-shared.h': b'shared'})
         self.commit()
         self.lock = self.sdk / 'loader-components.lock.json'
         components = [{'name': name, 'repository': 'historical', 'commit': 'b' * 40, 'files': {}}
@@ -58,22 +58,22 @@ class UnifiedLoaderSync(unittest.TestCase):
         lock = json.loads(first)
         self.assertEqual([c['name'] for c in lock['components']], ['fx9860-emulator', UNIFIED])
         loader = lock['components'][1]
-        self.assertEqual(loader['sourcePaths']['sdk/fxlarge/include/api.h'], 'large/include/api.h')
-        self.assertEqual(loader['sourcePaths']['probes/shared/header.h'], 'probes/shared/header.h')
-        self.assertEqual((self.sdk/'sdk/fxlarge/probes/shared/header.h').read_bytes(), b'shared')
+        self.assertEqual(loader['sourcePaths'][(EXAMPLE + '/probes/source-guest/main.c')], 'large/probes/source-guest/main.c')
+        self.assertEqual(loader['sourcePaths']['probes/os-map-shared.h'], 'probes/os-map-shared.h')
+        self.assertFalse((self.sdk/'sdk/fxlarge').exists())
         self.assertEqual((self.sdk/'sdk/caller-session/api.h').read_bytes(), b'caller')
         sync({UNIFIED: self.repo}, root=self.sdk)
         self.assertEqual(self.lock.read_bytes(), first)
-        self.make_manifest(self.repo/'large', {'include/api.h': b'updated'})
+        self.make_manifest(self.repo/'large', {'probes/source-guest/main.c': b'updated'})
         revision = self.commit()
         sync({UNIFIED: self.repo}, root=self.sdk)
         self.assertEqual(json.loads(self.lock.read_bytes())['components'][1]['commit'], revision)
-        self.assertEqual((self.sdk/'sdk/fxlarge/include/api.h').read_bytes(), b'updated')
-        self.assertEqual((self.sdk/'probes/shared/header.h').read_bytes(), b'shared')
-        self.assertFalse((self.sdk/'sdk/fxlarge/probes/shared/header.h').exists())
+        self.assertEqual((self.sdk/(EXAMPLE + '/probes/source-guest/main.c')).read_bytes(), b'updated')
+        self.assertEqual((self.sdk/'probes/os-map-shared.h').read_bytes(), b'shared')
+        self.assertFalse((self.sdk/EXAMPLE/'probes/os-map-shared.h').exists())
 
     def test_conflicting_shared_header_leaves_sdk_untouched(self):
-        self.make_manifest(self.repo/'large', {'probes/shared/header.h': b'incompatible'})
+        self.make_manifest(self.repo/'large', {'probes/os-map-shared.h': b'incompatible'})
         self.commit()
         before = self.lock.read_bytes()
         with self.assertRaisesRegex(ValueError, 'Conflicting shared source'):

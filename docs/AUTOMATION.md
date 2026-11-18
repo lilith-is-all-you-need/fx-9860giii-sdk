@@ -151,3 +151,5 @@ and breakpoints are not silently shared. A session owns its emulator storage;
 cross-session save-state persistence and deterministic whole-machine replay have
 not been implemented. Full Casio OS/peripheral simulation, complete syscall
 coverage and real-device debugging are not implied by command availability.
+
+For ordinary G1A preparation, CLI exit codes and program folder fields, see the [Loader interface reference](LOADER-SUITE.en.md) or [中文接口速查](LOADER-SUITE.zh-CN.md).

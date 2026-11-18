@@ -107,8 +107,8 @@ sources; a stale ignored `build/patched` directory is not evidence that the
 checked-in source coverage table is wrong.
 
 `package_components.py` supplies the shared Loader/development inventory. Both
-full and Loader-suite assemblers include the version-2 folder engine, the three
-verified launchers (`FlashLd.g1a`, `KLoad.g1a`, `ExtLoad.g1a`), registry, public
+full and Loader-suite assemblers include the version-2 folder engine, two
+verified launchers (`FlashLd.g1a` and `KLoad.g1a`), registry, public
 component snapshots, public fxlib module, portable example and import tools.
 The launcher manifest must declare `schemaVersion: 2` and `bundleFormat: 2`;
 legacy `Loader.g1a`/`KhiMap.g1a` sets cannot substitute for these artifacts.
@@ -116,7 +116,7 @@ Pass `--emulator-build` for the new build directory and the relevant artifact
 argument for a complete, hash-verified Loader set. `assemble_loader_suite.py`
 requires the merged output of `Publish-App.ps1`, including Core and Agent, so
 updating the GUI cannot silently keep old backend assemblies. Its optional
-`--profile-studio` accepts a complete portable Profile Studio 0.2 directory and
+`--profile-studio` accepts a portable SDK-edition Profile Studio directory (`edition: fxstudio-standard`) and
 verifies its own manifest before copying it. Otherwise the IDE uses the bundled
 `profile_job.py` folder workflow. Additional files in an artifact directory are
 not redistributed by the FxStudio assemblers.
@@ -138,3 +138,5 @@ after changing their binaries. The latest development checks are recorded in
 For slow upstream connections, `tooling/release_transfer.py` can prepare transfer parts for existing validated ZIPs. It replaces stored, hash-pinned public dependency archives with download references and references the source companion once inside the runtime ZIP. The manual `release-transfer.yml` workflow restores the exact original ZIP bytes, verifies full SHA-256 and ZIP CRCs, and uploads them to an existing draft. It does not build new application binaries or publish the draft. Remove temporary `transfer-` assets after verifying the final release attachments.
 
 For a packaging correction, `prepare-delta` reuses unchanged compressed members from hash-pinned baseline ZIPs. The workflow stages corrected archives with a `ready-` prefix, preserving the baselines until the maintainer verifies both new archives and switches the final attachment names.
+
+For the independent oversized source example, build its two projects as described in the [example guide](../sdk/examples/oversized-loader/README.en.md).

@@ -10,8 +10,6 @@ LOADER_FILES = (
     'tooling/loader_suite.py',
     'tooling/profile_job.py',
     'tooling/bundle_v2.py',
-    'tooling/ext_profile.py',
-    'tooling/hook_review.py',
     'tooling/ghidra/ExportG1aEvidence.java',
     'tooling/ghidra/PrepareG1a.java',
     'tooling/ghidra/log4j.xml',
@@ -21,8 +19,19 @@ LOADER_FILES = (
     'probes/mapped-loader/tools/prepare.py',
     'loader-components.lock.json',
 )
-LOADER_BINARIES = ('FlashLd.g1a', 'KLoad.g1a', 'ExtLoad.g1a')
-DEVELOPMENT_FILES = ('tooling/legacy_project.py', 'tooling/project_assets.py')
+LOADER_BINARIES = ('FlashLd.g1a', 'KLoad.g1a')
+# These product entry points belong to the SDK. Upstream also ships a
+# standalone edition whose input policy differs.
+SDK_EDITION_FILES = frozenset({
+    'tooling/loader_suite.py', 'tooling/profile_job.py', 'tooling/bundle_v2.py',
+    'tooling/package_profile_studio.py', 'profiles/registry.json',
+    'desktop/ProfileStudio/MainWindow.xaml', 'desktop/ProfileStudio/MainWindow.xaml.cs', 'desktop/ProfileStudio/Models.cs',
+    'desktop/ProfileStudio/README.en.md', 'desktop/ProfileStudio/README.zh-CN.md',
+    'tests/test_loader_suite.py', 'tests/test_profile_job.py', 'probes/mapped-loader/CMakeLists.txt',
+})
+EXAMPLE = 'sdk/examples/oversized-loader'
+DEVELOPMENT_FILES = ('tooling/package_components.py', 'tooling/legacy_project.py', 'tooling/project_assets.py',
+                     EXAMPLE + '/README.en.md', EXAMPLE + '/README.zh-CN.md')
 DEVELOPMENT_TREES = ('compat/fxlib', 'examples/legacy-fxlib')
 IGNORED = {'.git', '.fxstudio', '__pycache__', 'bin', 'obj'}
 
@@ -66,13 +75,13 @@ def copy_loader_runtime(root, artifacts, output):
     """Copy the V2 runtime and its hash-pinned public component sources."""
     root, output = Path(root), Path(output)
     # Validate all inputs before creating any output.
-    for relative in LOADER_FILES:
+    for relative in set(LOADER_FILES) | SDK_EDITION_FILES:
         source_file(root, relative)
     public_sources = public_component_sources(root, verify=True)
-    if not set(LOADER_FILES) <= set(public_sources):
+    if not set(LOADER_FILES) <= set(public_sources) | SDK_EDITION_FILES:
         raise ValueError('Loader runtime dependencies are absent from the public component lock')
     hashes = loader_artifact_hashes(artifacts)
-    for relative in public_sources:
+    for relative in sorted(set(public_sources) | SDK_EDITION_FILES):
         copy_file(root, output, relative)
     target = output / 'loader-artifacts'
     target.mkdir(parents=True, exist_ok=True)

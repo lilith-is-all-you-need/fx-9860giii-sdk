@@ -58,13 +58,14 @@ class DesktopJobTests(unittest.TestCase):
         self.assertEqual((app/'ICON.BIN').read_bytes(), expected)
         self.assertEqual((app/'IMAGE.BIN').read_bytes(), data)
 
-    def test_513th_page_has_only_one_byte_and_cannot_be_made_runnable(self):
-        self.source.write_bytes(image(2097153));r=self.generate()
-        p=json.loads((self.root/'output/paging-plan.json').read_text('utf-8'))
-        self.assertEqual(p['pageCount'],513);self.assertTrue(p['requiresExtendedRefill'])
-        self.assertFalse(p['executableProfile']);self.assertFalse(p['physicalAddressesIncluded'])
-        self.assertEqual(p['pages'][-1],{'index':512,'fileOffset':2097152,'virtualAddress':0x500000,'validBytes':1,'outsideOsWindow':True,'sha256':job.suite.sha(b'\0')})
-        self.assertFalse(r['installableCandidate']);self.assertFalse((self.root/'output/calculator').exists())
+    def test_one_byte_over_window_stops_before_cache_or_ghidra(self):
+        self.source.write_bytes(image(2097153))
+        with patch.object(job, 'ghidra_analyze') as analyze, patch.object(job, 'verify_reuse') as reuse:
+            with self.assertRaisesRegex(ValueError, '2097153 bytes > 2097152.*sdk/examples/oversized-loader'):
+                self.generate(deep=True)
+        analyze.assert_not_called()
+        reuse.assert_not_called()
+        self.assertFalse((self.root / 'output').exists())
 
     def test_complete_512_pages_stay_within_window(self):
         self.source.write_bytes(image(2097152));self.generate()
@@ -76,11 +77,6 @@ class DesktopJobTests(unittest.TestCase):
         self.assertEqual(r['status'],'program-ready');self.assertEqual(r['deepAnalysis']['status'],'unavailable')
         self.assertTrue(r['programReady']);self.assertTrue((self.root/'output/calculator').exists())
         self.assertEqual((self.root/'output/original.bin').read_bytes(),self.source.read_bytes())
-
-    def test_headless_success_does_not_bypass_large_runtime_blocker(self):
-        self.source.write_bytes(image(2097153))
-        with patch.object(job,'ghidra_analyze',return_value={'status':'completed','analysisComplete':True}):r=self.generate(deep=True)
-        self.assertEqual(r['status'],'needs-adapter');self.assertFalse((self.root/'output/calculator').exists())
 
     def test_partial_analysis_is_reported_separately_from_package(self):
         with patch.object(job,'ghidra_analyze',return_value={'status':'partial','analysisComplete':False}):r=self.generate(deep=True)
@@ -231,27 +227,6 @@ class DesktopJobTests(unittest.TestCase):
         data=json.loads(manifest.read_text());data.pop('bundleFormat');manifest.write_text(json.dumps(data))
         with self.assertRaisesRegex(ValueError,'predates'):self.generate(include_loader=True)
         self.assertFalse((self.root/'output').exists())
-
-    def test_source_integrated_profiles_follow_actual_size_not_699(self):
-        import ext_profile
-        for count,tail in [(1,516),(512,4096),(513,1),(699,228),(720,17)]:
-            size=(count-1)*4096+tail
-            data=ext_profile.wrap_raw(bytes(size-512));self.source.write_bytes(data)
-            r=self.generate('source-'+str(count));out=Path(r['output'])
-            self.assertEqual(r['status'],'program-ready');self.assertEqual(r['pages'],count)
-            app=out/'calculator/FXAPPS'/r['identity']['calculatorId']
-            p=ext_profile.decode_profile((app/'EXT.PRF').read_bytes())
-            self.assertEqual(p['pageCount'],count);self.assertEqual(p['pageCapacity'],(count+15)//16*16)
-            self.assertEqual(p['imageBytes'],size);self.assertEqual(p['sha256'],job.suite.sha(data))
-            self.assertFalse(r['hardwareValidated'])
-
-    def test_source_abi_and_budget_rejection_do_not_publish(self):
-        import ext_profile
-        bad=bytearray(ext_profile.wrap_raw(bytes(4096)));bad[16:20]=struct.pack('>I',99)
-        for data in (bad, ext_profile.wrap_raw(bytes(3_000_000-512))):
-            self.source.write_bytes(data)
-            with self.assertRaises(ValueError):self.generate()
-            self.assertFalse((self.root/'output').exists())
 
     def test_invalid_file_and_size_never_publish(self):
         for data in [b'not a G1A',bytearray(4*1024*1024+1)]:

@@ -12,6 +12,7 @@ import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tooling'))
+from assemble_loader_suite import inherited_file
 import package_components as packages
 import check_emulator_build as freshness
 
@@ -38,6 +39,16 @@ class PackageTests(unittest.TestCase):
                                 cwd=self.root, capture_output=True, text=True, encoding='utf-8', timeout=20)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return json.loads(result.stdout.splitlines()[-1])['result']
+
+    def test_upgrade_rebuilds_loader_files_and_leaves_native_sdk_in_place(self):
+        for old in ('loader-artifacts/ExtLoad.g1a', 'ProfileStudio/ProfileStudio.exe',
+                    'ProfileStudio/engine/tooling/ext_profile.py', 'tooling/ext_profile.py',
+                    'desktop/ProfileStudio/VALIDATION.json', 'probes/extended-loader/src/main.c',
+                    'sdk/fxlarge/CMakeLists.txt', 'sdk/examples/oversized-loader/old.c'):
+            with self.subTest(old=old):
+                self.assertFalse(inherited_file(old))
+        for keep in ('sdk/native/host/python/python.exe', 'examples/counter-c/CMakeLists.txt'):
+            self.assertTrue(inherited_file(keep))
 
     def test_packaged_default_flash_path_is_complete_and_allowlisted(self):
         package = self.root / 'portable'
@@ -67,25 +78,22 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(set(manifest['files']), set(packages.LOADER_BINARIES))
         self.assertEqual((manifest['schemaVersion'], manifest['bundleFormat']), (2, 2))
 
-    def test_packaged_extended_profile_and_loader_export_are_complete(self):
+    def test_package_with_legacy_artifacts_exports_only_standard_launchers(self):
         package = self.root / 'portable'
+        extra = self.artifacts / 'ExtLoad.g1a'
+        extra.write_bytes(b'legacy')
+        manifest = self.artifacts / 'manifest.json'
+        record = json.loads(manifest.read_text())
+        record['files'][extra.name] = packages.digest(extra)
+        manifest.write_text(json.dumps(record))
         packages.copy_loader_runtime(ROOT, self.artifacts, package)
-        data = bytearray(1024)
-        data[:16] = b'FXLARGE-PAYLOAD1'
-        struct.pack_into('>5I', data, 16, 1, 0x300200, len(data) - 512, 1, 1)
-        source = self.root / 'source-guest.bin'
-        source.write_bytes(data)
-        job = self.packaged_job(package, 'generate', '--input', source,
-                                '--output', self.root / 'extended', '--include-loader')
-        app = Path(job['output']) / 'calculator/FXAPPS' / job['identity']['calculatorId']
-        self.assertEqual(job['backend'], 'extended')
-        self.assertEqual((app / 'IMAGE.BIN').read_bytes(), data)
-        self.assertEqual((app / 'EXT.PRF').read_bytes()[:8], b'FXEXT002')
-        self.assertEqual((Path(job['output']) / 'calculator/ExtLoad.g1a').read_bytes(),
-                         (self.artifacts / 'ExtLoad.g1a').read_bytes())
+        self.assertFalse((package / 'loader-artifacts' / extra.name).exists())
+        self.assertFalse((package / 'tooling/ext_profile.py').exists())
+        self.assertFalse((package / 'probes/mapped-loader/vendor/fxlarge').exists())
+        self.assertTrue((package / 'probes/mapped-loader/include/fxlarge/catalog.h').is_file())
         exported = self.root / 'launchers'
         result = self.packaged_job(package, 'export-loader', '--output', exported)
-        self.assertEqual(set(result['loaders']), set(packages.LOADER_BINARIES))
+        self.assertEqual(set(result['loaders']), {'FlashLd.g1a', 'KLoad.g1a'})
         self.assertFalse((exported / 'private-game.g1a').exists())
 
     def test_old_artifact_format_and_modified_public_component_are_rejected(self):
@@ -96,11 +104,11 @@ class PackageTests(unittest.TestCase):
         self.assertFalse((self.root / 'old').exists())
         (self.artifacts / 'manifest.json').write_text(json.dumps(record))
         source = self.root / 'source'
-        for relative in packages.public_component_sources(ROOT):
+        for relative in set(packages.public_component_sources(ROOT)) | packages.SDK_EDITION_FILES:
             target = source / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
-        (source / 'tooling/profile_job.py').write_text('# modified after component publication\n')
+        (source / 'probes/storage-loader/tools/prepare.py').write_text('# modified after component publication\n')
         with self.assertRaisesRegex(ValueError, 'public source lock'):
             packages.copy_loader_runtime(source, self.artifacts, self.root / 'changed-components')
         self.assertFalse((self.root / 'changed-components').exists())
@@ -117,13 +125,13 @@ class PackageTests(unittest.TestCase):
 
     def test_component_source_inventory_contains_linker_assembly_and_flash_tools(self):
         paths = packages.public_component_sources(ROOT)
-        for name in ('loader-components.lock.json', 'profiles/registry.json',
+        for name in ('loader-components.lock.json',
                      'probes/storage-loader/src/start.S',
                      'probes/storage-loader/src/probe.ld',
                      'probes/storage-loader/tools/prepare.py',
-                     'probes/os-map-profile.h', 'probes/extended-cas/payload-api.h',
+                     'probes/os-map-profile.h', packages.EXAMPLE + '/probes/extended-cas/payload-api.h',
                      'sdk/caller-session/include/fx_caller_session.h',
-                     'sdk/fxlarge/include/fxlarge/runtime.h'):
+                     packages.EXAMPLE + '/probes/source-guest/vendor/fxlarge/include/fxlarge/runtime.h'):
             self.assertIn(name, paths)
         self.assertFalse(any(Path(p).suffix.lower() in ('.bin', '.rom', '.g1a') for p in paths))
 

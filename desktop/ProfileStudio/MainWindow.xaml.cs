@@ -43,7 +43,7 @@ public sealed partial class MainWindow : Window
         PageTitle.Text = L.T("准备计算器加载文件", "Prepare calculator files");
         PageSubtitle.Text = L.T("一份程序，一套固定目录。Loader 可共用，也可随时单独导出。", "One stable folder per program. Share a Loader or export it separately.");
         CompatibilityNote.Title = L.T("生成文件 ≠ 已验证兼容", "Generated does not mean verified");
-        CompatibilityNote.Message = L.T("普通程序生成独立依赖；未知超限程序仍需适配合约。Ghidra 分析不能替代实机测试。", "Prepare program dependencies independently. Unknown oversized programs still need an adapter contract. Ghidra analysis does not replace device testing.");
+        CompatibilityNote.Message = L.T("普通 G1A 上限为 2 MiB（含文件头）。每个程序生成一个目录。", "Prepare one folder per ordinary G1A, up to 2 MiB including its header.");
         QueueTitle.Text = L.T("文件队列", "Files");
         ClearButton.Content = L.T("清空", "Clear"); AddButton.Content = L.T("添加文件", "Add files");
         QueueHint.Text = L.T("拖入 .g1a / .bin，可批量生成；原始文件保持不变。", "Drop .g1a / .bin files for batch processing. Source files stay unchanged.");
@@ -56,13 +56,13 @@ public sealed partial class MainWindow : Window
         Advanced.Header = L.T("Ghidra 深度分析", "Ghidra analysis");
         DeepSwitch.Header = L.T("导出交叉引用、控制流和反编译样本", "Export references, control flow and decompilation samples");
         DeepSwitch.OnContent = L.T("本次启用", "Enabled"); DeepSwitch.OffContent = L.T("仅基础分析", "Basic analysis only");
-        DeepHint.Text = L.T("需要 Ghidra 与完整 JDK。未知超限程序需要进一步分析及运行时适配，勾选此项不会自动获得兼容性。", "Requires Ghidra and a full JDK. Unknown oversized programs need analysis and runtime adaptation; enabling this option does not establish compatibility.");
+        DeepHint.Text = L.T("需要 Ghidra 和完整 JDK。分析结果提供调用位置和交叉引用，退出与 MENU 行为需实机验证。", "Requires Ghidra and a full JDK. Inspect call sites and cross-references here. Verify exit and MENU behavior on the calculator.");
         GhidraBox.Header = L.T("Ghidra 安装目录", "Ghidra directory");
         GhidraBox.PlaceholderText = L.T("包含 Ghidra 和 support 的目录", "Directory containing Ghidra and support");
         JavaBox.Header = L.T("JDK 目录", "JDK directory"); JavaBox.PlaceholderText = "Ghidra 12.2 / JDK 25";
         DependenciesButton.Content = L.T("检查依赖", "Check dependencies");
         DetailTitle.Text = L.T("任务详情", "Task details");
-        PageHint.Text = L.T("每页 4 KiB；OS 原有窗口 512 页。超限 profile 的容量按输入计算。", "4 KiB per page; the original OS window has 512 pages. Extended profile capacity follows the input.");
+        PageHint.Text = L.T("每页 4 KiB，系统窗口共 512 页。", "The OS window contains 512 pages of 4 KiB each.");
         OpenButton.Content = L.T("打开目录", "Open folder"); ReportButton.Content = L.T("查看报告", "View report");
         Diagnostics.Header = L.T("原始诊断", "Raw diagnostics");
         ResultsTitle.Text = L.T("输出内容", "What is exported");
@@ -264,7 +264,7 @@ public sealed partial class MainWindow : Window
             DetailBody.Text = L.T("生成后可查看加载方式、阻塞原因和完整报告。", "See the loading method, blockers and full report after generation.");
             DetailPath.Text = RawDetail.Text = ""; OpenButton.IsEnabled = ReportButton.IsEnabled = false; return;
         }
-        DetailName.Text = item.Name; DetailSize.Text = item.Size; PageBar.Value = Math.Min(768, (item.Bytes + 4095) / 4096);
+        DetailName.Text = item.Name; DetailSize.Text = item.Size; PageBar.Value = Math.Min(512, (item.Bytes + 4095) / 4096);
         DetailStatus.Text = item.Status; DetailStatus.Foreground = item.StatusColor;
         DetailPath.Text = item.Output ?? "";
         OpenButton.IsEnabled = item.Output != null && Directory.Exists(item.Output);

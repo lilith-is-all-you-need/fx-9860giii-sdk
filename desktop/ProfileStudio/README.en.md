@@ -33,9 +33,7 @@ Use the same output root to compare modes. A new basic report uses the name and 
 | Failed | Invalid input, output conflict or another error; see task details |
 
 Readiness is not proof of device compatibility or stability. Test launch, exit, MENU return and re-entry.
-Unknown oversized programs still need a runtime adapter contract. Ghidra does not automatically resolve exception dispatch,
-VBR, MMU ownership or memory coexistence. Extended profile capacity follows the input and runtime limits;
-699 pages is not a universal fixed capacity. Physical Flash page addresses are queried on the calculator.
+FxStudio accepts ordinary G1As up to 2,097,152 bytes including the header. For larger source projects, see `sdk/examples/oversized-loader/README.en.md` in the SDK. Physical addresses are queried on the calculator.
 
 Select a file in the queue to read its specific diagnosis. For example, a program can reach its first screen and still restart the calculator on exit. File offsets are measured from the start of the input file.
 
@@ -65,9 +63,9 @@ python tooling/package_profile_studio.py --publish C:/build/ProfileStudio --pyth
 ~~~
 
 Optional --ghidra and --jdk arguments bundle full dependency directories. The package destination must not exist.
-Loader artifacts require manifest.json and the corresponding G1A files. “Export Loader” validates and exports all bundled launchers.
-Packaging includes bundle_v2.py, ext_profile.py, Ghidra scripts, both manuals and dependency notices.
-Requires Windows 10 build 19041 or later, x64. Actual validation used Windows 11; see VALIDATION.json for its scope.
+Loader artifacts require manifest.json and the corresponding G1A files. “Export Loader” validates and exports FlashLd.g1a and KLoad.g1a.
+Packaging includes bundle_v2.py, Ghidra scripts, both manuals and dependency notices.
+Requires Windows 10 build 19041 or later, x64.
 
 Developer argument --verify request.json opens the real WinUI window and uses the same task methods as the buttons.
 Request fields: inputs, output, language (zh-CN/en), includeLoader, deep, ghidra, java, select,

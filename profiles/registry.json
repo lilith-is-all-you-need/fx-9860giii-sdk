@@ -2,29 +2,6 @@
   "schemaVersion": 1,
   "programs": [
     {
-      "title": "Giac mapped RC1",
-      "sha256": "176a10ffa918f24f0b98ef89156dc04b02df09190dae0fbe0e3d59780e9455f8",
-      "adapter": "extended-giac-v1",
-      "launcherSha256": "a5032870f6f3da6a76ab6848ae36e2e0da23053e805794aa8958e0f511aa1d1d",
-      "imageBytes": 2859236,
-      "pages": 699,
-      "entry": 3146240,
-      "hardwareValidated": false,
-      "evidence": "probes/extended-cas/VALIDATION.json",
-      "limitations": [
-        "Source-integrated Giac build only; arbitrary oversized G1As still need runtime integration",
-        "6912-byte resident allocation plus 32768-byte CAS arena; 24576-byte tracked math budget",
-        "Payload file operations, OS timer/quit callback registration and direct reset/poweroff are denied; MENU/OFF clean up first",
-        "Some failures during partial initialization can require RESET; first launch reported working; same-icon MENU resume failed with the RC1 launcher"
-      ],
-      "hardwareEvidence": {
-        "firstLaunch": "user-reported-working",
-        "sameIconMenuResume": "user-reported-stuck",
-        "stableLifecycleValidated": false,
-        "testedLauncherSha256": "45b3021c77663b2d955480a3d230c1c8fb97bccea9ca8b161c11f0d3d4a760c8"
-      }
-    },
-    {
       "title": "KhiCAS",
       "sha256": "4a9d1c18009d987dc7c8745b7fc099b3c6e8006ebbb2ee5e4b483934be757473",
       "adapter": "mapped-khicas-v1",

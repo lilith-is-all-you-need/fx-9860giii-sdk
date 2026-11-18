@@ -1,4 +1,4 @@
-"""Reproduce the historical split-project source exports.
+"""Export SDK snapshots of the emulator and ordinary Loader.
 
 For current updates, import fx_universal_loader via sync_loader_components.py.
 
@@ -26,19 +26,15 @@ def sources(kind):
         return sorted(set(files('probes/emulator'))|{'probes/os-map-profile.h','probes/os-map-hashes.h',
             'probes/file-map-probe/src/os-map-profile.h','probes/file-map-probe/src/os-map-hashes.h'})
     if kind=='loader':
-        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|set(files('desktop/ProfileStudio'))|set(files('sdk/caller-session'))|set(files('tooling/ghidra'))|{'tooling/loader_suite.py','tooling/profile_job.py','tooling/bundle_v2.py','tooling/ext_profile.py','tooling/hook_review.py','tooling/package_profile_studio.py','tests/test_profile_job.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','tests/test_hook_review.py','tests/test_caller_session.py','profiles/registry.json',
+        return sorted(set(files('probes/native-loader'))|set(files('probes/storage-loader'))|set(files('profiles'))|set(files('desktop/ProfileStudio'))|set(files('sdk/caller-session'))|set(files('tooling/ghidra'))|{'tooling/loader_suite.py','tooling/profile_job.py','tooling/bundle_v2.py','tooling/package_profile_studio.py','tooling/package_components.py','tests/test_profile_job.py','tests/test_loader_suite.py','tests/test_flash_profiles.py','tests/test_caller_session.py','profiles/registry.json',
             'probes/mapped-loader/tools/prepare.py'})
-    if (ROOT/'sdk/fxlarge/source-manifest.json').exists():
-        manifest=json.loads((ROOT/'sdk/fxlarge/source-manifest.json').read_text('utf-8'))
-        return ['sdk/fxlarge/'+rel for rel in manifest['files']]
-    return sorted(set(files('probes/mapped-loader'))|set(files('probes/extended-loader'))|set(files('probes/extended-cas'))|{
-        'probes/native-loader/tools/prepare.py','probes/os-map-profile.h','probes/os-map-hashes.h','profiles/hardware-results-20261117.json'})
+    raise ValueError('Unknown component: '+kind)
 
 def export(kind, destination):
     destination=Path(destination);destination.mkdir(parents=True,exist_ok=False)
     copied={}
     for rel in sources(kind):
-        exported=rel.removeprefix('sdk/fxlarge/') if kind=='large-loader' else rel
+        exported=rel
         p=destination/exported;p.parent.mkdir(parents=True,exist_ok=True)
         if p.suffix=='.png':shutil.copyfile(ROOT/rel,p)
         else:p.write_text((ROOT/rel).read_text(encoding='utf-8'),encoding='utf-8',newline='\n')
@@ -104,9 +100,7 @@ much smaller on hardware. The mapped KhiCAS adapter is exact-version only.
 Hardware rejected Fruit and Minesweeper image allocations; their RAM profiles
 are blocked only for RAM; generic Flash candidates use a smaller resident allocation.
 See HARDWARE-20261117.md for the historical returned evidence and limits.
-For >2 MiB, [fx9860-large-loader](https://github.com/lilith-is-all-you-need/fx9860-large-loader)
-owns the experimental guest-refill backend. Arbitrary oversized G1As are not
-automatically made compatible by changing their filename.
+FxStudio includes a separate oversized source example under sdk/examples/oversized-loader.
 
 Optional review JSON requires schemaVersion=1, exact sha256, backend=ram,
 memoryReviewed=true, callbacksReviewed=true and forbiddenPhysicalRam ranges.
@@ -119,40 +113,6 @@ Original commercial/user G1As are not distributed. Code is MIT.
 
 Shared mapped profile encoder is a synchronized snapshot from the large-loader
 component. Integration checksums are recorded in source-manifest.json.
-''',
-        'large-loader':'''# fx9860-large-loader
-
-External Flash execution backends for fx-9860GIII, including the experimental
-path beyond the OS's 512-page / 2 MiB mapping window.
-
-First launch worked on the user's calculator; same-icon MENU return did not.
-The Giac RC2 launcher adds an explicit reload page. Original KhiCAS hardware
-resume remains unresolved. See HARDWARE-20261117.md.
-
-* `probes/mapped-loader`: exact-version original KhiCAS adapter; 512-page OS
-  mapping, four shadow pages, resident syscall/callback maintenance. Full
-  calculator candidate exists; complete hardware acceptance is pending.
-* `probes/extended-loader`: independent 698-page guest-refill execution probe.
-  Synthetic code/data passed simulation; full CAS integration and hardware
-  acceptance are separate. This is not a universal oversized-G1A converter.
-* `probes/extended-cas`: source-integrated Giac RC2 loader, 699-page payload,
-  39,680-byte combined resident/arena allocation. The full CAS candidate passed
-  simulation, including calculation, plotting and cleanup; hardware acceptance
-  is pending. Payload source adapters are included; the math archive is external.
-
-Open either directory in the FxStudio offline SDK and build Debug, then Release.
-The source retains authored relocation checks. Use the unified PC tool in
-[fx9860-loader](https://github.com/lilith-is-all-you-need/fx9860-loader)
-to classify inputs, generate profiles and prepare exact-version bundles.
-
-See the [mapped instructions](probes/mapped-loader/README.zh-CN.md) and
-[extended runtime contract](probes/extended-loader/README.md). Tests requiring an
-emulator use the separately built [fx9860-emulator](https://github.com/lilith-is-all-you-need/fx9860-emulator).
-Firmware, original KhiCAS/Giac binaries and private traces are not included.
-
-`probes/native-loader/tools/prepare.py` is a small synchronized scanner snapshot
-from fx9860-loader, retained so offline mapped profile generation is standalone.
-Code is MIT; third-party program licenses remain their owners'.
 '''}
     (destination/'README.md').write_text(readmes[kind],encoding='utf-8')
     workflow=destination/'.github/workflows/check.yml';workflow.parent.mkdir(parents=True)
@@ -164,12 +124,11 @@ Code is MIT; third-party program licenses remain their owners'.
         workflow.write_text(body)
         shutil.copyfile(ROOT/'.gitmodules',destination/'.gitmodules')
     else:
-        commands=('python -m unittest discover -s tests -v\n          python probes/native-loader/tools/test_prepare.py' if kind=='loader'
-                  else 'python -m compileall -q probes\n          python probes/extended-loader/tools/test_payload.py')
+        commands='python -m unittest discover -s tests -v\n          python probes/native-loader/tools/test_prepare.py'
         workflow.write_text('name: Offline contracts\non: [push, pull_request, workflow_dispatch]\npermissions:\n  contents: read\njobs:\n  contracts:\n    runs-on: windows-latest\n    steps:\n      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803\n        with:\n          persist-credentials: false\n      - run: |\n          '+commands+'\n')
     return copied
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('destination',type=Path);a=p.parse_args()
-    for kind in ('emulator','loader','large-loader'):
+    for kind in ('emulator','loader'):
         result=export(kind,a.destination/('fx9860-'+kind));print(kind,len(result))

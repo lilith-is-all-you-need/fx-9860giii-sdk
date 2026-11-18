@@ -1,6 +1,6 @@
 # Loader Suite 0.2 integration evidence
 
-Date: 2026-11-18. No new physical-calculator acceptance is claimed.
+Historical integration snapshot, 2026-11-18. Current SDK scope is documented in the [ordinary Loader guide](../LOADER-SUITE.en.md). No new physical-calculator acceptance is claimed.
 
 | Area | Observed result | Limit |
 | --- | --- | --- |

@@ -10,7 +10,7 @@ from pathlib import Path
 
 FORMAT_VERSION = 2
 PAGE = 4096
-LOADERS = {'flash': 'FlashLd.g1a', 'mapped': 'KLoad.g1a', 'extended': 'ExtLoad.g1a'}
+LOADERS = {'flash': 'FlashLd.g1a', 'mapped': 'KLoad.g1a'}
 
 
 def identity(name, digest):
@@ -61,9 +61,6 @@ def prepare(data, report, result, suite, artifacts=None, include_loader=False):
     report['includesLoader'] = False
     report['programReady'] = False
     if report['status'] != 'candidate':
-        if report['backend'] == 'extended':
-            report['status'] = 'needs-adapter'
-            report['ghidraRequiredForBinaryAdapter'] = True
         return report
     backend = report['backend']
     if backend == 'ram':
@@ -74,20 +71,13 @@ def prepare(data, report, result, suite, artifacts=None, include_loader=False):
     app = files/'FXAPPS'/ident['calculatorId']
     app.mkdir(parents=True)
     (app/'IMAGE.BIN').write_bytes(data)
-    (app/'APP.MET').write_bytes(metadata(ident['displayName'], {'flash':1,'extended':2,'mapped':3}[backend], len(data)))
+    (app/'APP.MET').write_bytes(metadata(ident['displayName'], {'flash':1,'mapped':3}[backend], len(data)))
     (app/'ICON.BIN').write_bytes(g1a_icon(data))
     if backend == 'flash':
         profile, _ = suite.module('probes/storage-loader/tools/prepare.py','fx_folder_scan').profile(data, ())
         (app/'APP.FPF').write_bytes(profile)
         (app/'RUN.LOG').write_bytes(b'FXFLASH1' + bytes(4096-8))
         (app/'VERIFY.CCH').write_bytes(bytes(4096))
-    elif backend == 'extended':
-        import ext_profile
-        profile = ext_profile.encode_profile(data)
-        (app/'EXT.PRF').write_bytes(profile)
-        report['runtimeProfile'] = {'file':'EXT.PRF', 'pageCount':(len(data)+4095)//4096,
-                                    'pageCapacity':(((len(data)+4095)//4096+15)//16)*16,
-                                    'physicalAddressesIncluded':False}
     elif backend == 'mapped':
         # The exact KhiCAS adapter still supplies its memory ownership/exit patches.
         # Its launcher validates this profile and immutable image independently.
@@ -129,6 +119,6 @@ def export_loaders(output, artifacts, backend='all'):
         for name, data, digest in blobs:
             (stage/name).write_bytes(data)
         (stage/'checksums.json').write_text(json.dumps({n:d for n,b,d in blobs}, indent=2)+'\n', encoding='utf-8')
-        (stage/'README.txt').write_text('Copy the required .g1a to storage root; preserve its filename.\n将需要的 .g1a 复制到存储根目录，保留文件名。\nFlashLd: ordinary folders / 普通程序\nKLoad: reviewed KhiCAS adapter / 已适配 KhiCAS\nExtLoad: source-integrated oversized payloads / 接入运行库的超限程序\n', encoding='utf-8-sig')
+        (stage/'README.txt').write_text('Copy the required .g1a to storage root; preserve its filename.\n将需要的 .g1a 复制到存储根目录，保留文件名。\nFlashLd: ordinary folders / 普通程序\nKLoad: reviewed KhiCAS adapter / 已适配 KhiCAS\n', encoding='utf-8-sig')
         stage.rename(output)
     return {'status':'loader-exported', 'output':str(output), 'loaders':[n for n,b,d in blobs]}

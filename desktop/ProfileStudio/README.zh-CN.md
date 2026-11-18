@@ -33,9 +33,7 @@
 | 失败 | 输入无效、输出冲突或其他错误；查看任务详情 |
 
 这些状态不代表实机兼容性或稳定性保证。必须验证启动、退出、MENU 返回和重入。
-未知超限程序仍需运行时适配合约；开启 Ghidra 不会自动解决异常分发、VBR、MMU 或内存共存。
-超限 profile 容量按输入和运行时约束计算，不以 699 页作为通用固定尺寸。
-物理 Flash 页地址由计算器查询，电脑生成的分页报告不包含物理地址。
+FxStudio 接收含头部共 2,097,152 字节以内的普通 G1A。超限源码工程请参阅 SDK 内的 `sdk/examples/oversized-loader/README.zh-CN.md`。程序的实际物理页地址由计算器查询。
 
 选择队列中的文件即可查看具体原因。有些程序可以启动，但在退出时会重启计算器；这与镜像太大、无法加载是两种不同的情况。文件偏移以输入文件开头为零点。
 
@@ -65,9 +63,9 @@ python tooling/package_profile_studio.py --publish C:/build/ProfileStudio --pyth
 ~~~
 
 打包脚本可用 --ghidra 和 --jdk 附带完整依赖目录；输出目录必须不存在。
-构件目录需包含 manifest.json 及对应 G1A。默认“导出 Loader”会校验并导出所有配套启动器。
-打包过程同时纳入 bundle_v2.py、ext_profile.py、Ghidra 脚本、中英文手册和依赖许可证。
-支持 Windows 10 build 19041 及以上 x64；本轮实际环境为 Windows 11，验证范围见 VALIDATION.json。
+构件目录需包含 manifest.json 及对应 G1A。默认“导出 Loader”会校验并导出FlashLd.g1a 和 KLoad.g1a。
+打包过程同时纳入 bundle_v2.py、Ghidra 脚本、中英文手册和依赖许可证。
+支持 Windows 10 build 19041 及以上 x64。
 
 开发验证参数 --verify request.json 会启动真实 WinUI 窗口并调用与按钮相同的任务逻辑。
 请求支持 inputs、output、language（zh-CN/en）、includeLoader、deep、ghidra、java、select、

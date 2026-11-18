@@ -20,7 +20,7 @@ import subprocess
 import tarfile
 import urllib.request
 import zipfile
-from package_components import public_component_sources
+from package_components import SDK_EDITION_FILES, public_component_sources
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION = '0.2.0'
@@ -168,6 +168,8 @@ def collect():
         add(ROOT / name)
     for folder in ('src', 'tests', 'tooling', 'docs', 'examples', 'skills', 'scaffolds', 'compat'):
         tree(folder, 'Fx Studio source', code_only=True)
+    for relative in sorted(SDK_EDITION_FILES):
+        add(ROOT / relative, origin='Fx Studio SDK edition')
     for relative in public_component_sources(ROOT):
         add(ROOT / relative, origin='Public Loader/emulator component snapshot')
     tree('sdk/examples', 'Fx Studio calculator examples', code_only=True)

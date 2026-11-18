@@ -14,6 +14,15 @@ def replace(source,destination):
     temporary=destination.with_name(destination.name+'.suite-new')
     shutil.copy2(source,temporary);os.replace(temporary,destination)
 
+def inherited_file(relative):
+    # Product components are assembled afresh, including their sources and manifests.
+    name = Path(relative).as_posix().lower()
+    replaced = ('profilestudio/', 'loader-artifacts/', 'desktop/profilestudio/', 'sdk/fxlarge/',
+                'sdk/examples/oversized-loader/', 'probes/extended-cas/', 'probes/extended-loader/',
+                'probes/source-guest/', 'probes/mapped-loader/vendor/fxlarge/')
+    return not name.startswith(replaced) and name not in {'tooling/ext_profile.py', 'tooling/hook_review.py', 'tests/test_hook_review.py'}
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('base-package','destination','published-app','artifacts'):
@@ -37,13 +46,17 @@ def main():
     public_component_sources(ROOT,verify=True)
     profile_files={}
     if a.profile_studio:
-        profile_files=json.loads(source_file(a.profile_studio,'package-manifest.json').read_text('utf-8-sig'))['files']
+        profile_manifest=json.loads(source_file(a.profile_studio,'package-manifest.json').read_text('utf-8-sig'))
+        if profile_manifest.get('edition') != 'fxstudio-standard':
+            raise ValueError('Build the SDK edition with tooling/package_profile_studio.py')
+        profile_files=profile_manifest['files']
         for relative,expected in profile_files.items():
             if digest(source_file(a.profile_studio,relative))!=expected:raise ValueError('Profile Studio differs: '+relative)
     out.mkdir(parents=True)
     # Keep the package independent: editing either installation cannot change
     # the other's SDK files. Replacements below still publish atomically.
     for record in manifest['files']:
+        if not inherited_file(record['path']):continue
         source=base/record['path'];dest=out/record['path'];dest.parent.mkdir(parents=True,exist_ok=True)
         shutil.copy2(source,dest)
     for source in a.published_app.rglob('*'):
@@ -71,8 +84,8 @@ def main():
         '输出目录中的 calculator 文件夹才是计算器安装文件。其余为电脑端报告和 profile。\n'
         '默认只生成程序目录，可选附带或单独导出 Loader。保留 FXAPPS 层级。\n'
         'program-ready 表示依赖就绪，candidate 另含启动器；两者仍需实机验收。\n'
-        '普通程序使用 FlashLd；原版 KhiCAS 使用 KLoad；源码接入的动态超限程序使用 ExtLoad。\n'
-        '调用者会话库尚缺通用 Flash 返回后端；未知超限二进制不因 Ghidra 完成而自动支持。\n'
+        '普通 G1A 上限 2 MiB。FlashLd 加载普通目录，KLoad 对应已适配的 KhiCAS 版本。\n'
+        '超限源码示例与独立使用说明见 sdk/examples/oversized-loader/README.zh-CN.md。\n'
         '本目录是独立的新版本，原安装包保留。\n',encoding='utf-8-sig')
     (out/'CURRENT-SOURCE-NOTICE.txt').write_text(
         'Fx Studio local development assembly / 本地开发组合包\n\n'

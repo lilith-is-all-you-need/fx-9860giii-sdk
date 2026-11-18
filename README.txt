@@ -3,7 +3,7 @@ Fx Studio - fx-9860GIII C/C++ development
 
 Current source capabilities: README.md and docs/SDK-CAPABILITIES.zh-CN.html.
 Legacy fxlib migration and managed resources: docs/MIGRATION-AND-RESOURCES.zh-CN.md.
-Loader Suite 0.2: docs/LOADER-SUITE.zh-CN.md and docs/LOADER-SUITE.en.md.
+Ordinary G1A preparation (up to 2 MiB including the header): docs/LOADER-SUITE.zh-CN.md and docs/LOADER-SUITE.en.md.
 Current compatibility validation: docs/VALIDATION-COMPAT-20261118.md.
 Existing 0.2.0 release ZIPs retain their original features. The release description
 below and docs/VALIDATION.html describe that historical baseline, not later builds.
@@ -36,3 +36,7 @@ are not redistributed.
 
 No physical calculator was attached. Full Casio OS emulation, USB, some DSP/
 peripheral behavior, C++ exceptions and threads are outside this release.
+
+Oversized source example / 超限源码示例
+sdk/examples/oversized-loader/README.zh-CN.md
+sdk/examples/oversized-loader/README.en.md

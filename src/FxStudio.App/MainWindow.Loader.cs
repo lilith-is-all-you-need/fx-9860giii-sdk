@@ -55,10 +55,25 @@ public partial class MainWindow
         return new Window { Owner=this, Title=T("Calculator reference","计算器资料"), Width=950, Height=650, MinWidth=720, MinHeight=400, Content=panel, WindowStartupLocation=WindowStartupLocation.CenterOwner };
     }
 
+    private static bool IsSdkProfileStudio(string directory)
+    {
+        var manifest = Path.Combine(directory, "package-manifest.json");
+        if (!File.Exists(manifest)) return false;
+        try {
+            using var doc = JsonDocument.Parse(File.ReadAllBytes(manifest));
+            return doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("edition", out var edition) &&
+                edition.ValueKind == JsonValueKind.String && edition.GetString() == "fxstudio-standard";
+        }
+        catch (JsonException) { return false; }
+        catch (IOException) { return false; }
+        catch (UnauthorizedAccessException) { return false; }
+    }
+
     private void PrepareAddin_Click(object sender, RoutedEventArgs e)
     {
         var studio = Path.Combine(App.RootDirectory,"ProfileStudio","ProfileStudio.exe");
-        if(File.Exists(studio)) {
+        if(File.Exists(studio) && IsSdkProfileStudio(Path.GetDirectoryName(studio)!)) {
             try { Process.Start(new ProcessStartInfo(studio){UseShellExecute=false,WorkingDirectory=Path.GetDirectoryName(studio)!}); }
             catch(Exception ex) { MessageBox.Show(this,ex.Message,"FX Profile Studio"); }
             return;
@@ -74,7 +89,7 @@ public partial class MainWindow
         var panel=new StackPanel { Margin=new Thickness(20) };
         panel.Children.Add(new TextBlock { Text=source.FileName,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12) });
         panel.Children.Add(new TextBlock { Text=T("Loading method", "加载方式") });
-        var mode=new ComboBox { ItemsSource=new[]{"auto","flash","ram","mapped","extended"},SelectedIndex=0,Margin=new Thickness(0,5,0,12) };panel.Children.Add(mode);
+        var mode=new ComboBox { ItemsSource=new[]{"auto","flash","ram","mapped"},SelectedIndex=0,Margin=new Thickness(0,5,0,12) };panel.Children.Add(mode);
         var hint=new TextBlock { Text=T("Auto prepares ordinary G1As with the generic Flash loader. Unsupported structures receive a report; generated bundles still need device testing.","自动模式为普通 G1A 准备通用 Flash 加载包，不依赖程序名单。不支持的结构会列出原因；生成测试包仍需实机验证。"),TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,0,0,12) };panel.Children.Add(hint);
         var attach=new CheckBox { Content=T("Include the shared Loader", "同时导出公共 Loader"),IsChecked=false,Margin=new Thickness(0,0,0,6) };panel.Children.Add(attach);
         var result=new TextBox { IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,Height=210,Margin=new Thickness(0,12,0,10) };panel.Children.Add(result);

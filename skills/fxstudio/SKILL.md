@@ -114,3 +114,5 @@ file bytes only; it does not replace ELF/G1A verification or certify hardware.
 - A skill cannot repair a broken runtime by describing it. If the GUI exits with
   `WindowsBase` load errors, use the corrected r1-or-later package; the SDK's
   `Verify-Package.ps1` checks the desktop assembly version.
+
+For Loader tasks, open `docs/LOADER-SUITE.en.md` or `docs/LOADER-SUITE.zh-CN.md` in the SDK. For oversized source projects, start at `sdk/examples/oversized-loader/README.en.md` or its Chinese counterpart.

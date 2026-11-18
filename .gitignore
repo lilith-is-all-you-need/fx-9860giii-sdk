@@ -32,15 +32,11 @@
 !/sdk/PROVISIONING-STATUS.md
 !/sdk/examples/
 !/sdk/caller-session/
-!/sdk/fxlarge/
 /probes/*
 !/probes/emulator/
 !/probes/native-loader/
 !/probes/storage-loader/
 !/probes/mapped-loader/
-!/probes/extended-loader/
-!/probes/extended-cas/
-!/probes/source-guest/
 /third_party/*
 !/third_party/emuCasioCalc/
 

@@ -27,7 +27,6 @@ public static class L
         "flash" => T("通用 Flash 映射", "Shared Flash Loader"),
         "ram" => T("RAM 装载", "RAM loading"),
         "mapped" => T("配套映射", "Paired mapping"),
-        "extended" => T("超限分页", "Extended paging"),
         "" => T("自动选择", "Automatic"), _ => code
     };
     public static string Phase(string code) => code switch {

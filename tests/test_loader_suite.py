@@ -75,7 +75,7 @@ class SuiteTests(unittest.TestCase):
         self.assertFalse((self.root/'bad').exists())
 
     def test_size_boundaries_and_tail_hash(self):
-        for size,backend in [(163840,'flash'),(163841,'flash'),(2097152,'flash'),(2097153,'extended'),(2857444,'extended')]:
+        for size,backend in [(163840,'flash'),(163841,'flash'),(2097152,'flash')]:
             with self.subTest(size=size):
                 data=fixture()+bytearray(size-len(fixture()));self.src.write_bytes(data)
                 _,r=suite.analyze(self.src)
@@ -96,23 +96,11 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(r['status'],'needs-review')
         self.assertFalse((self.root/'out/calculator').exists())
 
-    def test_private_payload_requires_exact_registered_runtime(self):
-        data=bytearray(2097153);data[:16]=b'KHICAS-MAPPED/1\0';self.src.write_bytes(data)
-        with self.assertRaises(ValueError):suite.analyze(self.src)
-        profile={'sha256':suite.sha(data),'adapter':'extended-giac-v1','limitations':['hardware pending'],'launcherSha256':suite.sha(b'paired launcher')}
-        original=suite.read_json
-        def read(path):
-            return {'programs':[profile]} if Path(path)==suite.ROOT/'profiles/registry.json' else original(path)
-        import ext_profile
-        with patch.object(suite,'read_json',side_effect=read), patch.object(ext_profile,'LEGACY_SHA256',suite.sha(data)):
-            r=suite.prepare(self.src,self.root/'extended',artifacts=self.root/'missing')
-            self.assertEqual(r['status'],'profile-only')
-            self.assertEqual((self.root/'extended/calculator/KHICAS.BIN').read_bytes(),data)
-            artifacts=self.root/'artifacts';artifacts.mkdir();bad=b'wrong paired launcher'
-            (artifacts/'KhiMap.g1a').write_bytes(bad)
-            (artifacts/'manifest.json').write_text(json.dumps({'files':{'KhiMap.g1a':suite.sha(bad)}}))
-            with self.assertRaisesRegex(ValueError,'reviewed source-integrated'):
-                suite.prepare(self.src,self.root/'rejected',artifacts=artifacts)
-            self.assertFalse((self.root/'rejected').exists())
+    def test_source_example_payloads_are_rejected_even_within_window(self):
+        for signature in (b'KHICAS-MAPPED/1\0', b'FXLARGE-PAYLOAD1'):
+            self.src.write_bytes(signature + bytes(600))
+            with self.assertRaisesRegex(ValueError, 'sdk/examples/oversized-loader'):
+                suite.prepare(self.src, self.root / 'result')
+            self.assertFalse((self.root / 'result').exists())
 
 if __name__=='__main__':unittest.main(verbosity=2)

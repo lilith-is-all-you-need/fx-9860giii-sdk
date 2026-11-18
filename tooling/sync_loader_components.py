@@ -1,7 +1,7 @@
 """Sync pinned component sources into the offline SDK.
 
 The unified Loader repository owns two source manifests. Its large/ subtree is
-installed at sdk/fxlarge, with probes mirrored at their established SDK paths.
+projected into one optional source example and the ordinary mapped Loader.
 Historical three-component locks can still be refreshed from split checkouts.
 """
 import argparse
@@ -10,7 +10,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from package_components import source_file
+from package_components import EXAMPLE, SDK_EDITION_FILES, source_file
 
 ROOT = Path(__file__).resolve().parents[1]
 UNIFIED = 'fx_universal_loader'
@@ -54,11 +54,31 @@ def load_component(repo, name, repository):
             data = normalized(source_file(repo, source))
             if hashlib.sha256(data).hexdigest() != expected:
                 raise ValueError('Component manifest differs: ' + source)
-            targets = [relative]
+            if relative in SDK_EDITION_FILES:
+                continue
             if large_runtime:
-                targets = ['sdk/fxlarge/' + relative]
-                if relative.startswith(('probes/', 'profiles/')):
-                    targets.append(relative)
+                # The example keeps each build project self-contained, including
+                # its vendored library and license. No extended backend is installed.
+                if relative.startswith(('probes/extended-cas/', 'probes/source-guest/')):
+                    if '/payload-adapter/' in relative or '/VALIDATION' in relative:
+                        continue
+                    if relative.endswith(('.md', '.txt', '.py')) and not relative.endswith(('CMakeLists.txt', 'relocations.py')):
+                        continue
+                    targets = [EXAMPLE + '/' + relative]
+                elif relative in {'LICENSE', 'tests/make_source_guest.py', 'tooling/ext_profile.py'}:
+                    targets = [EXAMPLE + '/' + relative]
+                elif relative == 'probes/mapped-loader/vendor/fxlarge/include/fxlarge/catalog.h':
+                    targets = ['probes/mapped-loader/include/fxlarge/catalog.h']
+                elif relative.startswith('probes/mapped-loader/vendor/fxlarge/'):
+                    continue
+                elif relative.startswith(('probes/mapped-loader/', 'probes/native-loader/', 'probes/os-map-', 'profiles/')):
+                    targets = [relative]
+                else:
+                    continue
+            elif relative in {'tooling/ext_profile.py', 'tooling/hook_review.py', 'tests/test_hook_review.py', 'desktop/ProfileStudio/VALIDATION.json'}:
+                continue
+            else:
+                targets = [relative]
             for target in targets:
                 if target in files and files[target] != expected:
                     raise ValueError('Conflicting shared source: ' + target)
@@ -100,7 +120,7 @@ def sync(repositories, root=ROOT):
         next_components.append(component)
 
     previous = {rel: sha for component in old_components for rel, sha in component['files'].items()}
-    for relative in previous.keys() | updates.keys():
+    for relative in (previous.keys() | updates.keys()) - SDK_EDITION_FILES:
         path = (root / relative).resolve()
         if not path.is_relative_to(root):
             raise ValueError('Snapshot escapes the SDK: ' + relative)
@@ -114,7 +134,7 @@ def sync(repositories, root=ROOT):
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-    for relative in previous.keys() - expected_all.keys():
+    for relative in previous.keys() - expected_all.keys() - SDK_EDITION_FILES:
         (root / relative).unlink(missing_ok=True)
 
     lock['components'] = next_components

@@ -20,7 +20,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tooling'))
 RAM_LIMIT = 160 * 1024
 OS_LIMIT = 2 * 1024 * 1024
-ANALYSIS_LIMIT = 4 * 1024 * 1024
+EXAMPLE_GUIDE = 'sdk/examples/oversized-loader/README.zh-CN.md (English: README.en.md)'
+
+
+def check_size(size):
+    if size > OS_LIMIT:
+        raise ValueError(f'{size} bytes > {OS_LIMIT} bytes (2 MiB). 超出 FxStudio 普通加载范围。'
+                         f' Oversized source example: {EXAMPLE_GUIDE}')
+    if size < 516:
+        raise ValueError('G1A must contain at least 516 bytes')
 
 
 def module(relative, name):
@@ -45,32 +53,21 @@ def write_json(path, value):
 def analyze(source, requested='auto', review=None):
     source = Path(source)
     # Bound both the allocation and scan work before reading untrusted files.
-    size = source.stat().st_size
-    if not 516 <= size <= ANALYSIS_LIMIT:
-        raise ValueError('G1A must be 516 bytes through 4 MiB for this analyzer')
+    check_size(source.stat().st_size)
     with source.open('rb') as stream:
-        data = stream.read(ANALYSIS_LIMIT + 1)
+        data = stream.read(OS_LIMIT + 1)
     size = len(data)
-    if not 516 <= size <= ANALYSIS_LIMIT:
-        raise ValueError('Image changed size or exceeds analysis limit')
+    check_size(size)
+    if data.startswith((b'FXLARGE-PAYLOAD1', b'KHICAS-MAPPED/1\0')):
+        raise ValueError('这是独立示例的载荷。 Source-example payload: ' + EXAMPLE_GUIDE)
+    if bytes(x ^ 255 for x in data[:8]) != b'USBPower':
+        raise ValueError('Not a G1A image')
     digest = sha(data)
     registry = read_json(ROOT / 'profiles/registry.json')
     approved = next((x for x in registry['programs'] if x['sha256'] == digest), None)
-    source_runtime = approved and approved.get('adapter') == 'extended-giac-v1'
-    source_contract = None
-    if data[:16] == b'FXLARGE-PAYLOAD1' or source_runtime:
-        from ext_profile import inspect_image, encode_profile
-        source_contract = inspect_image(data)
-        source_runtime = True
-        # Reject impossible table/storage budgets before generating any files.
-        encode_profile(data)
-    if bytes(x ^ 255 for x in data[:8]) != b'USBPower':
-        if not source_runtime:
-            raise ValueError('Not a G1A or a registered source-integrated payload')
-    backend = ('extended' if source_runtime or size > OS_LIMIT else
-               'mapped' if approved and approved.get('adapter') == 'mapped-khicas-v1' else 'flash')
+    backend = 'mapped' if approved and approved.get('adapter') == 'mapped-khicas-v1' else 'flash'
     if requested != 'auto':
-        if requested not in ('flash','ram','mapped','extended') or (requested == 'ram' and size > RAM_LIMIT) or (requested in ('flash','mapped') and size > OS_LIMIT) or (requested == 'extended' and size <= OS_LIMIT and not source_runtime) or (source_runtime and requested != 'extended'):
+        if requested not in ('flash', 'ram', 'mapped') or (requested == 'ram' and size > RAM_LIMIT):
             raise ValueError(f'{size} bytes cannot use {requested}')
         backend = requested
     report = {'schemaVersion': 1, 'inputName': source.name, 'sha256': digest,
@@ -80,8 +77,6 @@ def analyze(source, requested='auto', review=None):
               'status': 'needs-review', 'hardwareValidated': False,
               'blockers': [], 'warnings': [], 'approvedProfile': approved,
               'pageHashes': [sha(data[o:o+4096]) for o in range(0, size, 4096)]}
-    if source_contract:
-        report['sourceRuntimeContract'] = source_contract
     if backend == 'ram':
         report['requiredContiguousImageBytes'] = report['pages'] * 4096 + 8191
         report['warnings'].append('Image allocation excludes the context, resident runner, allocator overhead and guest heap')
@@ -92,11 +87,8 @@ def analyze(source, requested='auto', review=None):
     # always be obtained afresh on the calculator, never stored in a PC profile.
     try:
         scanner = module('probes/storage-loader/tools/prepare.py' if backend == 'flash' else 'probes/native-loader/tools/prepare.py', 'fx_gate_scan')
-        if not source_runtime:
-            _, scan = scanner.profile(data, (review or {}).get('forbiddenPhysicalRam', ()))
-            report['staticAnalysis'] = scan
-        else:
-            report['staticAnalysis'] = {'method': 'source-declared resident API and immutable SHA-256 binding', 'runtimeContract': 'fxlarge-map-api-v1', 'imagePatches': []}
+        _, scan = scanner.profile(data, (review or {}).get('forbiddenPhysicalRam', ()))
+        report['staticAnalysis'] = scan
     except ValueError as ex:
         report['blockers'].append(str(ex))
         if hasattr(ex, 'evidence'):
@@ -111,18 +103,7 @@ def analyze(source, requested='auto', review=None):
         if review['memoryReviewed'] is not True or review['callbacksReviewed'] is not True:
             raise ValueError('Memory and callback review must be explicitly completed')
         report['reviewProfile'] = review
-    if backend == 'extended':
-        if source_runtime:
-            report['status'] = 'candidate'
-            report['requiredRuntime'] = 'fxlarge-map-api-v1'
-            report['historicalAdapterLimitations'] = (approved or {}).get('limitations', [])
-            report['warnings'].append('Resident RAM depends on this profile capacity and runtime build; the payload arena is additional. Unsupported OS/callback paths still require source adaptation.')
-            report['warnings'].append('The source ABI header is a declaration, not proof that every exception path obeys it; test the actual source-integrated build.')
-        else:
-            report['blockers'].append('Requires guest-owned page table/refill and runtime integration; OS table has only 512 entries')
-            report['requiredRuntime'] = 'extended-vbr-v1 (source integration; experimental)'
-            report['warnings'].append('698-page synthetic probe passed simulation; arbitrary oversized G1A runtime integration is still required')
-    elif backend == 'flash':
+    if backend == 'flash':
         report['programWhitelist'] = False
         report['requiredContiguousImageBytes'] = 0
         if not report['blockers']:
@@ -191,19 +172,12 @@ def prepare(source, output, requested='auto', review=None, artifacts=None):
             elif report['backend'] == 'mapped':
                 module('probes/mapped-loader/tools/prepare.py', 'fx_map_prepare').prepare(stage / 'original.bin', files)
                 loader = 'KLoad.g1a'
-            else:
-                (files / 'KHICAS.BIN').write_bytes(data)
-                loader = 'KhiMap.g1a'
-                write_json(stage / 'runtime-profile.json', report['approvedProfile'])
             binary = Path(artifacts or ROOT / 'loader-artifacts') / loader
             if binary.is_file():
                 artifact_manifest = read_json(binary.parent / 'manifest.json')
                 expected = artifact_manifest.get('files', {}).get(loader)
                 if expected != sha(binary.read_bytes()):
                     raise ValueError('Loader artifact hash does not match its build manifest')
-                bound = (report['approvedProfile'] or {}).get('launcherSha256') if report['backend']=='extended' else None
-                if bound and expected != bound:
-                    raise ValueError('Launcher differs from the reviewed source-integrated build')
                 shutil.copyfile(binary, files / loader)
                 report['loaderSha256'] = expected
             else:
@@ -211,11 +185,10 @@ def prepare(source, output, requested='auto', review=None, artifacts=None):
                 report['warnings'].append(f'Build and supply {loader}; this folder is not yet installable')
         write_json(stage / 'analysis.json', report)
         note = ('将 calculator 文件夹中的全部文件复制到计算器存储根目录。\n'
-                f'启动 {loader}；FlashLd/Loader 使用 EXE 选择，KLoad 阅读提示后按 EXE，KhiMap 自动加载 BIN。\n'
+                f'启动 {loader}；FlashLd/Loader 使用 EXE 选择，KLoad 阅读提示后按 EXE。\n'
                 'FlashLd 使用通用映射，不保证所有程序；首次实机测试后请回传 FlashLd.txt。请勿重命名 FlashLd.g1a。\n'
-                'KhiMap 从 MENU 选回后按 EXE 重新加载；此前计算不会保留。\n'
                 'KLoad 的实机直接选回路径仍待验证；需要全新启动时先进入 RUN-MAT 再打开 KLoad。\n'
-                'Loader/KLoad 保留结果文件；KhiMap 显示阶段和错误码，当前版本不写文件。\n'
+                'Loader/KLoad 保留结果文件。\n'
                 if report['status'] == 'candidate' else
                 '尚未生成可直接测试的完整包。查看 analysis.json 的 blockers 和 warnings。\n')
         (stage / '说明.txt').write_text(note, encoding='utf-8-sig')
@@ -228,7 +201,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path, nargs='?')
     parser.add_argument('--output', type=Path)
-    parser.add_argument('--profile', choices=['auto', 'flash', 'ram', 'mapped', 'extended'], default='auto')
+    parser.add_argument('--profile', choices=['auto', 'flash', 'ram', 'mapped'], default='auto')
     parser.add_argument('--review-profile', type=Path)
     parser.add_argument('--artifacts', type=Path)
     parser.add_argument('--batch', type=Path, help='JSON array of source/output/profile/reviewProfile, paths relative to JSON')

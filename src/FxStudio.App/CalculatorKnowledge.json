@@ -2,14 +2,14 @@
   {
     "Title": "目录包与 Full / Fast 校验 · Folder packages",
     "Evidence": "2026-11-18 实现与模拟器；新构建待实机",
-    "Text": "Profile Studio 0.2 默认只导出名称+短hash程序目录，支持单独导出公共Loader。保留FXAPPS层级。APP.MET区分普通Flash(kind1)、源码扩展(kind2)、精确KhiCAS(kind3)。Full完整校验产生Fast缓存；Fast每次查物理地址，但可能漏检两次启动间同大小的内容变化，本次运行后续地址变化才重新核对。\nEnglish: stable per-program folders, optional shared launchers, Full by default. Fast trusts prior content verification and is not a content-change detector between launches.",
+    "Text": "Profile Studio 0.2 默认只导出名称+短hash程序目录，支持单独导出公共Loader。保留FXAPPS层级。APP.MET区分普通Flash(kind1)和精确KhiCAS(kind3)。Full完整校验产生Fast缓存；Fast每次查物理地址，但可能漏检两次启动间同大小的内容变化，本次运行后续地址变化才重新核对。\nEnglish: stable per-program folders, optional shared launchers, Full by default. Fast trusts prior content verification and is not a content-change detector between launches.",
     "Source": "docs/LOADER-SUITE.zh-CN.md / docs/LOADER-SUITE.en.md"
   },
   {
-    "Title": "动态扩展页表与异常 Hook · Dynamic pages",
-    "Evidence": "源码ABI、profile边界检查；任意二进制适配未完成",
-    "Text": "ExtLoad从EXT.PRF读取实际镜像长度、ceil(bytes/4096)有效页数和独立capacity。预留项无效，OS512项表不扩写。运行前校验存储余量、内存、SHA与ABI。源码可接入FxStudio::LargeRuntime，把TLB miss交常驻补页入口。Ghidra导出精确指令字节、VBR位置及控制流证据，但不会自动解决所有异常分发、栈和回调恢复。\nEnglish: page count is not fixed at 699. Spare table entries are invalid. The source runtime owns refill routing; Ghidra evidence alone cannot authorize arbitrary hooks.",
-    "Source": "sdk/fxlarge/include/fxlarge/runtime.h"
+    "Title": "超过 2 MiB 的源码示例 · Oversized source example",
+    "Evidence": "可独立构建的示例 · Buildable example",
+    "Text": "FxStudio 准备普通 G1A 的上限为 2,097,152 字节，含文件头。需要访问窗口以外页面的程序作者可在 SDK 示例目录找到 ExtLoad、配套测试程序、中英文构建及使用步骤。\nEnglish: The SDK example contains a separate launcher and guest. Build both explicitly and follow README.en.md.",
+    "Source": "sdk/examples/oversized-loader/README.zh-CN.md"
   },
   {
     "Title": "调用者恢复库的边界 · Caller-session limits",
@@ -54,12 +54,6 @@
     "Source": "probes/mapped-loader/README.zh-CN.md"
   },
   {
-    "Title": "真正超过 2 MiB 的扩展加载",
-    "Evidence": "698 页模拟器探测",
-    "Text": "2,857,444 字节需要 698 页；独立页地址表为 2,792 字节，此外仍有常驻代码、状态和缓冲。程序自行处理 TLB miss，才能超出 OS 512 页窗口。已完成三轮 2,094 次逐页调用、698 次跨页调用；这不是完整 CAS 或实机验证。gint 的 VBR、系统切换、回调和清理都需要接入，不能只修改 profile 中的页数。",
-    "Source": "probes/extended-loader/README.md"
-  },
-  {
     "Title": "MMU、TLB 与 P1/P2",
     "Evidence": "芯片模型 + 实机探测",
     "Text": "P1 是缓存别名，P2 是非缓存别名；两者指向相同物理 RAM。映射替换时常驻代码需脱离将被覆盖的窗口。保存并恢复 TLB、MMU 控制、栈与 OS 状态，清理指令缓存。虚拟地址、物理地址、文件偏移不能混用。模拟器实现功能性 TLB 和指令缓存，尚无完整 copy-back 数据缓存和周期精度。",
@@ -98,13 +92,7 @@
   {
     "Title": "自动化适配的边界",
     "Evidence": "实现约束",
-    "Text": "离线工具无需 LLM。普通 ≤2 MiB G1A 自动使用通用 Flash 后端，SHA 用于绑定文件完整性，不是程序准入名单。已识别的直接复位跳转、未分类网关、过多补丁或超限文件会明确列出阻塞项。结构检查不能证明全部间接调用、私有 RAM、回调、MMU 或重入行为，生成候选包也不等于硬件兼容证明。原版 KhiCAS 内存池和超限 Giac 仍保留各自适配器。",
+    "Text": "离线工具无需 LLM。普通 ≤2 MiB G1A 自动使用通用 Flash 后端，SHA 用于绑定文件完整性，不是程序准入名单。已识别的直接复位跳转、未分类网关、过多补丁或超限文件会明确列出阻塞项。结构检查不能证明全部间接调用、私有 RAM、回调、MMU 或重入行为，生成候选包也不等于硬件兼容证明。已审核版本的 KhiCAS 有独立适配器。",
     "Source": "tooling/loader_suite.py"
-  },
-  {
-    "Source": "probes/extended-cas/README.md",
-    "Text": "2,859,236 字节、699 页的 Giac 通过源码接入常驻 API。用户已报告 RC1 首次运行可用，直接选回出现 Loading；RC2 显示会话已结束并按 EXE 重新加载，旧计算不保留。RC2 模拟器通过，实机复测待完成。这不是通用超限二进制转换器。",
-    "Title": "699 页 Giac 完整接入候选",
-    "Evidence": "RC1 首次启动实机可用；RC2 等待回传"
   }
 ]
