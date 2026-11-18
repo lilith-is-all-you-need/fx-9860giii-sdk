@@ -80,6 +80,7 @@ class PackageTests(unittest.TestCase):
 
     def test_package_with_legacy_artifacts_exports_only_standard_launchers(self):
         package = self.root / 'portable'
+        (self.artifacts / 'KLoad.g1a').write_bytes(b'historical')
         extra = self.artifacts / 'ExtLoad.g1a'
         extra.write_bytes(b'legacy')
         manifest = self.artifacts / 'manifest.json'
@@ -88,12 +89,13 @@ class PackageTests(unittest.TestCase):
         manifest.write_text(json.dumps(record))
         packages.copy_loader_runtime(ROOT, self.artifacts, package)
         self.assertFalse((package / 'loader-artifacts' / extra.name).exists())
+        self.assertFalse((package / 'loader-artifacts/KLoad.g1a').exists())
         self.assertFalse((package / 'tooling/ext_profile.py').exists())
         self.assertFalse((package / 'probes/mapped-loader/vendor/fxlarge').exists())
         self.assertTrue((package / 'probes/mapped-loader/include/fxlarge/catalog.h').is_file())
         exported = self.root / 'launchers'
         result = self.packaged_job(package, 'export-loader', '--output', exported)
-        self.assertEqual(set(result['loaders']), {'FlashLd.g1a', 'KLoad.g1a'})
+        self.assertEqual(result['loaders'], ['FlashLd.g1a'])
         self.assertFalse((exported / 'private-game.g1a').exists())
 
     def test_old_artifact_format_and_modified_public_component_are_rejected(self):

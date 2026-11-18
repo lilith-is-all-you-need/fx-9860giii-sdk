@@ -19,7 +19,7 @@ LOADER_FILES = (
     'probes/mapped-loader/tools/prepare.py',
     'loader-components.lock.json',
 )
-LOADER_BINARIES = ('FlashLd.g1a', 'KLoad.g1a')
+LOADER_BINARIES = ('FlashLd.g1a',)
 # These product entry points belong to the SDK. Upstream also ships a
 # standalone edition whose input policy differs.
 SDK_EDITION_FILES = frozenset({

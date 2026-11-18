@@ -8,7 +8,7 @@ The limit above governs preparation of existing images. The SDK [build verifier]
 
 ## Prepare and install
 
-Choose Tools → Prepare G1A for Loader. Select the input and output location. The default creates a directory named for each input plus a short SHA. You can include the matching launcher. The WinUI edition also exports launchers independently. Scripts and language models can invoke the same engine from the SDK root.
+Choose Tools → Prepare G1A for Loader. Select the input and output location. The default creates a directory named for each input plus a short SHA. You can include the matching launcher. The WinUI edition also exports launchers independently. Scripts and language models can invoke the same engine from the SDK root. The separate Export FlashLd button exports FlashLd.g1a. The [historical KLoad](https://github.com/lilith-is-all-you-need/fx9860-cas-reference/releases/tag/reference-2026.11) is available in the reference release.
 
 ~~~powershell
 python tooling/profile_job.py generate --input game.g1a --output-root results
@@ -16,7 +16,7 @@ python tooling/profile_job.py generate --input game.g1a --output-root with-launc
 python tooling/profile_job.py export-loader --backend flash --output launchers --artifacts loader-artifacts
 ~~~
 
-Merge the contents of `calculator` into the calculator storage root. Keep each `FXAPPS/<ID>/` folder intact. Automatic preparation uses `FlashLd.g1a` for ordinary programs, including the original KhiCAS. Select `--backend mapped` explicitly to reproduce the legacy KLoad run for that exact image. Read `requiredLoader` in `analysis.json`. Use Full for the first FlashLd run. Fast trusts earlier content checks and can miss a same-size change between launches.
+Merge the contents of `calculator` into the calculator storage root. Keep each `FXAPPS/<ID>/` folder intact. Automatic preparation uses `FlashLd.g1a` for ordinary programs, including the original KhiCAS. To reproduce the historical run for that image, download `original-khicas-kload.zip` from the CAS reference release and follow its instructions. Read `requiredLoader` in `analysis.json`. Use Full for the first FlashLd run. Fast trusts earlier content checks and can miss a same-size change between launches.
 
 ## Interface reference
 

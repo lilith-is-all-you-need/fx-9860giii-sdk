@@ -8,7 +8,7 @@ FxStudio 接收完整的普通 G1A，或仅改了后缀的同一镜像。**上�
 
 ## 准备与安装
 
-在「工具 → 为 Loader 准备 G1A」中选择输入和输出位置。默认每个输入生成一个以名称加短 SHA 命名的目录。可勾选附带启动器。WinUI 版还可以单独导出启动器。脚本或 LLM 可从 SDK 根目录调用同一引擎：
+在「工具 → 为 Loader 准备 G1A」中选择输入和输出位置。默认每个输入生成一个以名称加短 SHA 命名的目录。可勾选附带启动器。WinUI 的“单独导出 FlashLd”只导出通用启动器。历史 KLoad 请到 [CAS 参考发布页](https://github.com/lilith-is-all-you-need/fx9860-cas-reference/releases/tag/reference-2026.11) 下载。脚本或 LLM 可从 SDK 根目录调用同一引擎：
 
 ~~~powershell
 python tooling/profile_job.py generate --input game.g1a --output-root results
@@ -16,7 +16,7 @@ python tooling/profile_job.py generate --input game.g1a --output-root with-launc
 python tooling/profile_job.py export-loader --backend flash --output launchers --artifacts loader-artifacts
 ~~~
 
-将结果中 `calculator` 的内容合并到计算器存储根目录。保留 `FXAPPS/<ID>/` 下的所有文件。普通程序（含原版 KhiCAS）默认由公共 `FlashLd.g1a` 启动。仅在显式指定 `--backend mapped`、复现旧版 KhiCAS 测试时使用 `KLoad.g1a`。所需启动器见 `analysis.json` 的 `requiredLoader`。首次在 FlashLd 使用 Full，Fast 会复用校验，可能漏检两次运行间的同大小改写。
+将结果中 `calculator` 的内容合并到计算器存储根目录。保留 `FXAPPS/<ID>/` 下的所有文件。普通程序（含原版 KhiCAS）默认由公共 `FlashLd.g1a` 启动。复现旧版 KhiCAS 时，从参考发布页取 `original-khicas-kload.zip` 并按随附说明安装。所需启动器见 `analysis.json` 的 `requiredLoader`。首次在 FlashLd 使用 Full，Fast 会复用校验，可能漏检两次运行间的同大小改写。
 
 ## 接口速查
 
