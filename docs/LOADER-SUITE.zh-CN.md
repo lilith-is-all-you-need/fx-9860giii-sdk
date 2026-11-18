@@ -29,3 +29,7 @@ python tooling/profile_job.py export-loader --backend flash --output launchers -
 | 如何开发超限源码项目？ | [独立示例的构建、API 和容量限制](../sdk/examples/oversized-loader/README.zh-CN.md)。运行库由示例项目显式引入。 |
 
 模拟器覆盖、静态分析结果和实机运行记录分别描述不同的证据。评估一个新程序时，分别记录启动、保存、退出和直接 MENU 选回。独立发布的 FX Universal Loader 有自己的版本和支持范围。
+
+## 计算器上的内存选址
+
+FxProfile 会随程序目录保存已知的 RAM 保留区。FlashLd 先使用 OS 提供的第一个合适位置；有冲突就继续向 OS 申请。原版 KhiCAS 用户需同时更新 FlashLd.g1a 和 APP.FPF。测试时保存程序目录中本次的 RUN.LOG，尤其是 RAM_CANDIDATES 和失败时的 REQUIRED_BYTES。[选址范围、日志含义和模拟器结果](../probes/storage-loader/FOLDERS.zh-CN.md)

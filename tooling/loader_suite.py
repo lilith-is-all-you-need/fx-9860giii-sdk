@@ -50,6 +50,30 @@ def write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
+def flash_ram_ranges(layout, review):
+    """Merge independently reviewed reservations. A review can only add exclusions."""
+    ranges = []
+    for source in (layout, review):
+        values = source.get('forbiddenPhysicalRam', [])
+        if not isinstance(values, (tuple, list)):
+            raise ValueError('Expected a list of physical RAM ranges')
+        for pair in values:
+            if (not isinstance(pair, (tuple, list)) or len(pair) != 2
+                    or any(type(n) is not int for n in pair)
+                    or not 0x80000000 <= pair[0] < pair[1] < 0xa0000000):
+                raise ValueError('Invalid physical RAM range')
+            ranges.append(tuple(pair))
+    merged = []
+    for start, end in sorted(ranges):
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    if len(merged) > 8:
+        raise ValueError('Flash profile allows at most eight disjoint physical RAM ranges')
+    return merged
+
+
 def analyze(source, requested='auto', review=None):
     source = Path(source)
     # Bound both the allocation and scan work before reading untrusted files.
@@ -80,6 +104,15 @@ def analyze(source, requested='auto', review=None):
               'status': 'needs-review', 'hardwareValidated': False,
               'blockers': [], 'warnings': [], 'approvedProfile': approved,
               'pageHashes': [sha(data[o:o+4096]) for o in range(0, size, 4096)]}
+    if review is not None and not isinstance(review, dict):
+        raise ValueError('Review profile must be a JSON object')
+    ranges = (review or {}).get('forbiddenPhysicalRam', ())
+    if backend == 'flash':
+        layout = registry.get('flashRamLayouts', {}).get(digest, {})
+        ranges = flash_ram_ranges(layout, review or {})
+        report['ramPlacement'] = {'forbiddenPhysicalRam': ranges,
+                                  'layoutEvidence': layout.get('evidence'),
+                                  'selection': 'calculator-os-heap'}
     if backend == 'ram':
         report['requiredContiguousImageBytes'] = report['pages'] * 4096 + 8191
         report['warnings'].append('Image allocation excludes the context, resident runner, allocator overhead and guest heap')
@@ -90,7 +123,7 @@ def analyze(source, requested='auto', review=None):
     # always be obtained afresh on the calculator, never stored in a PC profile.
     try:
         scanner = module('probes/storage-loader/tools/prepare.py' if backend == 'flash' else 'probes/native-loader/tools/prepare.py', 'fx_gate_scan')
-        _, scan = scanner.profile(data, (review or {}).get('forbiddenPhysicalRam', ()))
+        _, scan = scanner.profile(data, ranges)
         report['staticAnalysis'] = scan
     except ValueError as ex:
         report['blockers'].append(str(ex))
@@ -159,7 +192,7 @@ def prepare(source, output, requested='auto', review=None, artifacts=None):
                 known = report['approvedProfile'] or {}
                 item = {'id':'target','title':known.get('title',source.stem)[:15].encode('ascii','replace').decode(),
                         'source':str(stage/'original.bin'),'expectedSha256':report['sha256'],
-                        'forbiddenPhysicalRam':(review or {}).get('forbiddenPhysicalRam',[])}
+                        'forbiddenPhysicalRam':report['ramPlacement']['forbiddenPhysicalRam']}
                 module('probes/storage-loader/tools/prepare.py','fx_flash_prepare').prepare([item],files)
                 loader = 'FlashLd.g1a'
             elif report['backend'] == 'ram':

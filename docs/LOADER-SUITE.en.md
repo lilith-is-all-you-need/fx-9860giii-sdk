@@ -29,3 +29,7 @@ Merge the contents of `calculator` into the calculator storage root. Keep each `
 | Develop an oversized source project | Use the [standalone example's build steps, API map and capacity limits](../sdk/examples/oversized-loader/README.en.md). Its projects explicitly import their vendored runtime. |
 
 Record launch, save, exit and direct MENU re-entry separately during hardware testing. The independent FX Universal Loader project has its own version and scope.
+
+## Memory placement on the calculator
+
+FxProfile includes known RAM reservations in the program folder. FlashLd uses the first suitable OS allocation and retries on overlap. For the original KhiCAS, update both FlashLd.g1a and APP.FPF. Preserve RUN.LOG from the program folder, including RAM_CANDIDATES and REQUIRED_BYTES on failure. [Placement scope, log reference and emulator results](../probes/storage-loader/FOLDERS.en.md)
